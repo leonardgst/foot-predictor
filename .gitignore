@@ -1,0 +1,19 @@
+﻿# Environnements
+.env.dev
+.env.test
+.env.prod
+.venv/
+__pycache__/
+*.pyc
+
+# uv
+.uv/
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/settings.json
+
+# OS
+.DS_Store

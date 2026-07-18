@@ -6,7 +6,7 @@
     env_file:
       - .env.dev
     ports:
-      - 5432:5432
+      - 5440:5432
     volumes:
       - pg_dev_data:/var/lib/postgresql/data
 

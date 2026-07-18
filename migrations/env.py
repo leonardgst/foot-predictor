@@ -1,0 +1,66 @@
+"""
+migrations/env.py
+
+Point d'entrée Alembic. Récupère l'URL de connexion depuis
+foot_predictor.config (donc depuis .env.{APP_ENV}) plutôt que
+depuis alembic.ini, pour ne jamais committer d'identifiants.
+"""
+
+from logging.config import fileConfig
+
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+
+from foot_predictor.config import get_settings
+
+# TODO (étape 2 — schéma de données) :
+# une fois src/foot_predictor/db/models.py créé avec une Base déclarative,
+# remplacer la ligne ci-dessous par :
+#   from foot_predictor.db.models import Base
+#   target_metadata = Base.metadata
+# pour activer l'autogenerate des migrations sur les tables.
+target_metadata = None
+
+config = context.config
+
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+settings = get_settings()
+config.set_main_option("sqlalchemy.url", settings.database_url)
+
+
+def run_migrations_offline() -> None:
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+        include_schemas=True,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_schemas=True,
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()

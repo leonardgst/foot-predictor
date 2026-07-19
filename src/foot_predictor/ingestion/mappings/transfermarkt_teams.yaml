@@ -1,0 +1,9 @@
+# Mapping manuel : nom d'équipe tel qu'affiché par Transfermarkt -> nom canonique
+# (doit correspondre aux mêmes noms canoniques que football_data_teams.yaml,
+# pour que les deux sources pointent vers la même staging.team).
+
+Manchester United FC: Manchester United
+Fulham FC: Fulham
+Manchester City FC: Manchester City
+Real Madrid CF: Real Madrid
+Real Betis Balompié: Betis

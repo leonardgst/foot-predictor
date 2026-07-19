@@ -1,0 +1,12 @@
+# Mapping manuel : nom d'équipe tel qu'écrit par football-data.co.uk -> nom canonique.
+# Objectif : garantir qu'une même équipe rencontrée sous des libellés différents
+# selon les sources (ex. Transfermarkt plus tard) pointe vers le même staging.team.
+# Si une équipe n'a pas d'entrée ici, son nom brut est utilisé tel quel comme
+# nom canonique (cas par défaut, valable tant qu'on n'a qu'une seule source).
+
+Man United: Manchester United
+Man City: Manchester City
+Newcastle: Newcastle United
+Tottenham: Tottenham Hotspur
+Wolves: Wolverhampton Wanderers
+Nott'm Forest: Nottingham Forest

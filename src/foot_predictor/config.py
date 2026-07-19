@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     postgres_password: str
     postgres_db: str
     postgres_host: str = "localhost"
-    postgres_port: int = 5432
+    postgres_port: int = 5440
     # "disable" en local (Docker), "require" pour Neon en prod
     postgres_sslmode: str = "disable"
 

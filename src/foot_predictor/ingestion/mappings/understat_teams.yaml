@@ -1,0 +1,8 @@
+# Mapping manuel : nom d'équipe tel qu'affiché par Understat -> nom canonique
+# (doit correspondre aux mêmes noms canoniques que football_data_teams.yaml).
+
+Manchester_United: Manchester United
+Fulham: Fulham
+Manchester_City: Manchester City
+Real_Madrid: Real Madrid
+Betis: Betis

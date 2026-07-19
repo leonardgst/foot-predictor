@@ -1,0 +1,18 @@
+# Mapping manuel : code "Div" football-data.co.uk -> compétition canonique
+# À compléter au fur et à mesure des championnats réellement couverts.
+
+E0:
+  name: Premier League
+  country: England
+SP1:
+  name: La Liga
+  country: Spain
+D1:
+  name: Bundesliga
+  country: Germany
+I1:
+  name: Serie A
+  country: Italy
+F1:
+  name: Ligue 1
+  country: France

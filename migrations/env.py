@@ -13,13 +13,8 @@ from sqlalchemy import engine_from_config, pool
 
 from foot_predictor.config import get_settings
 
-# TODO (étape 2 — schéma de données) :
-# une fois src/foot_predictor/db/models.py créé avec une Base déclarative,
-# remplacer la ligne ci-dessous par :
-#   from foot_predictor.db.models import Base
-#   target_metadata = Base.metadata
-# pour activer l'autogenerate des migrations sur les tables.
-target_metadata = None
+from foot_predictor.db.models import Base
+target_metadata = Base.metadata
 
 config = context.config
 

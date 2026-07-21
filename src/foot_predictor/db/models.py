@@ -35,6 +35,16 @@ match_status_enum = PGEnum(
     schema="staging",
 )
 
+# Enum Postgres pour la catégorie de poste brute (4 valeurs API-Football)
+position_bucket_enum = PGEnum(
+    "Goalkeeper",
+    "Defender",
+    "Midfielder",
+    "Attacker",
+    name="position_bucket",
+    schema="staging",
+)
+
 
 class Base(DeclarativeBase):
     pass
@@ -189,19 +199,63 @@ class Lineup(Base):
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class PlayerValuation(Base):
-    __tablename__ = "player_valuation"
+class PlayerMatchStats(Base):
+    __tablename__ = "player_match_stats"
     __table_args__ = (
-        UniqueConstraint("player_id", "value_date", name="uq_player_valuation"),
+        UniqueConstraint("match_id", "player_id", name="uq_player_match_stats"),
         {"schema": "staging"},
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("staging.match.id"), nullable=False)
     player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False)
-    value_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
-    value_eur: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False)
+
+    minutes: Mapped[int | None] = mapped_column(SmallInteger)
+    rating: Mapped[float | None] = mapped_column(Numeric(3, 1))
+    position_bucket: Mapped[str | None] = mapped_column(position_bucket_enum)
+
+    goals: Mapped[int | None] = mapped_column(SmallInteger)
+    assists: Mapped[int | None] = mapped_column(SmallInteger)
+    shots: Mapped[int | None] = mapped_column(SmallInteger)
+    shots_on_target: Mapped[int | None] = mapped_column(SmallInteger)
+
+    key_passes: Mapped[int | None] = mapped_column(SmallInteger)
+    pass_accuracy_pct: Mapped[float | None] = mapped_column(Numeric(5, 2))
+
+    tackles: Mapped[int | None] = mapped_column(SmallInteger)
+    interceptions: Mapped[int | None] = mapped_column(SmallInteger)
+    duels_total: Mapped[int | None] = mapped_column(SmallInteger)
+    duels_won: Mapped[int | None] = mapped_column(SmallInteger)
+
+    dribbles_attempts: Mapped[int | None] = mapped_column(SmallInteger)
+    dribbles_success: Mapped[int | None] = mapped_column(SmallInteger)
+    dribbled_past: Mapped[int | None] = mapped_column(SmallInteger)
+
+    fouls_drawn: Mapped[int | None] = mapped_column(SmallInteger)
+    fouls_committed: Mapped[int | None] = mapped_column(SmallInteger)
+    yellow_cards: Mapped[int | None] = mapped_column(SmallInteger)
+    red_cards: Mapped[int | None] = mapped_column(SmallInteger)
+
+    # Remplis a posteriori par understat_player.py, NULL tant qu'Understat
+    # n'a pas encore été ingéré pour ce match (cf. prochaine_etape_clustering_mvs.md §2)
+    xg: Mapped[float | None] = mapped_column(Numeric(4, 2))
+    xa: Mapped[float | None] = mapped_column(Numeric(4, 2))
+    npxg: Mapped[float | None] = mapped_column(Numeric(4, 2))
+
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+
+class PlayerInjury(Base):
+    __tablename__ = "player_injury"
+    __table_args__ = {"schema": "staging"}
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False)
+    start_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[dt.date | None] = mapped_column(Date)  # NULL tant que le joueur n'a pas repris
+    injury_type: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 # ---------------------------------------------------------------------------
 # raw
@@ -229,28 +283,39 @@ class FootballDataMatch(Base):
     ingested_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class TransfermarktLineup(Base):
-    __tablename__ = "transfermarkt_lineup"
-    __table_args__ = {"schema": "raw"}
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    ingestion_id: Mapped[int] = mapped_column(ForeignKey("raw.source_ingestion_log.id"), nullable=False)
-    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    ingested_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
-class TransfermarktValuation(Base):
-    __tablename__ = "transfermarkt_valuation"
-    __table_args__ = {"schema": "raw"}
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    ingestion_id: Mapped[int] = mapped_column(ForeignKey("raw.source_ingestion_log.id"), nullable=False)
-    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    ingested_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
 
 class UnderstatMatchStats(Base):
     __tablename__ = "understat_match_stats"
+    __table_args__ = {"schema": "raw"}
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    ingestion_id: Mapped[int] = mapped_column(ForeignKey("raw.source_ingestion_log.id"), nullable=False)
+    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class ApiFootballFixtureDetail(Base):
+    __tablename__ = "api_football_fixture_detail"
+    __table_args__ = {"schema": "raw"}
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    ingestion_id: Mapped[int] = mapped_column(ForeignKey("raw.source_ingestion_log.id"), nullable=False)
+    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UnderstatPlayerMatch(Base):
+    __tablename__ = "understat_player_match"
+    __table_args__ = {"schema": "raw"}
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    ingestion_id: Mapped[int] = mapped_column(ForeignKey("raw.source_ingestion_log.id"), nullable=False)
+    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ApiFootballInjuries(Base):
+    """Capturée mais pas encore consommée en staging (cf. recap_etape3, section 7)."""
+    __tablename__ = "api_football_injuries"
     __table_args__ = {"schema": "raw"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -296,6 +361,44 @@ class TeamMatchFeatures(Base):
     standing_goal_diff: Mapped[int | None] = mapped_column(SmallInteger)
 
     # Effectif
-    squad_valuation_eur: Mapped[int | None] = mapped_column(BigInteger)
     squad_avg_age: Mapped[float | None] = mapped_column(Numeric(4, 2))
     squad_stability_score_season: Mapped[float | None] = mapped_column(Numeric(5, 4))
+
+
+class PlayerStyleProfile(Base):
+    __tablename__ = "player_style_profile"
+    __table_args__ = (
+        UniqueConstraint("player_id", "as_of_date", name="uq_player_style_profile"),
+        {"schema": "features"},
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False)
+    as_of_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    position_bucket: Mapped[str] = mapped_column(position_bucket_enum, nullable=False)
+    cluster_id: Mapped[int | None] = mapped_column(SmallInteger)  # NULL possible : bruit HDBSCAN
+    cluster_label: Mapped[str | None] = mapped_column(Text)       # assigné manuellement après coup
+    matches_in_window: Mapped[int] = mapped_column(SmallInteger, nullable=False)  # <= 50
+    computed_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PlayerMarketValueScore(Base):
+    __tablename__ = "player_market_value_score"
+    __table_args__ = (
+        UniqueConstraint("player_id", "as_of_date", name="uq_player_market_value_score"),
+        {"schema": "features"},
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False)
+    as_of_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+
+    performance_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    potential_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    reputation_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    league_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    availability_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    experience_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    mvs_total: Mapped[float | None] = mapped_column(Numeric(5, 2))  # 0-100
+
+    computed_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

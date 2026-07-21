@@ -8,7 +8,9 @@ dependencies = [
     "psycopg[binary]>=3.3.4",
     "pydantic-settings>=2.14.2",
     "pyyaml>=6.0.3",
+    "requests>=2.34.2",
     "sqlalchemy>=2.0.51",
+    "understatapi>=0.5.2",
 ]
 
 [build-system]

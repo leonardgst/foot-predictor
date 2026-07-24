@@ -33,11 +33,10 @@ SOURCE_NAME = "understat"
 
 
 def ingest_understat_match_stats(session: Session) -> tuple[int, int]:
-    """Renvoie (nb_lignes_traitees, nb_lignes_ignorees_match_introuvable)."""
     teams_mapping = load_yaml_mapping("understat_teams.yaml")
-
     rows = session.scalars(select(UnderstatMatchStats)).all()
     processed, skipped = 0, 0
+    skipped_details = []  # <-- ajout
 
     for row in rows:
         payload = row.raw_payload
@@ -50,33 +49,33 @@ def ingest_understat_match_stats(session: Session) -> tuple[int, int]:
 
         match_source_ref = f"{payload['match_date']}|{home_team_name}|{away_team_name}"
         match = resolve_match_cross_source(
-            session,
-            SOURCE_NAME,
-            match_source_ref,
-            home_team_id=home_team.id,
-            away_team_id=away_team.id,
-            match_date=match_date,
+            session, SOURCE_NAME, match_source_ref,
+            home_team_id=home_team.id, away_team_id=away_team.id, match_date=match_date,
         )
         if match is None:
-            skipped += 1
-            continue
-
-        home_xg = payload["home_xg"]
-        away_xg = payload["away_xg"]
-
-        updated_home = upsert_team_match_xg(
-            session, match_id=match.id, team_id=home_team.id, xg_for=home_xg, xg_against=away_xg
-        )
-        updated_away = upsert_team_match_xg(
-            session, match_id=match.id, team_id=away_team.id, xg_for=away_xg, xg_against=home_xg
-        )
-        if updated_home is None or updated_away is None:
+            # Diagnostic : un match existe-t-il pour CES équipes, à une autre date ?
+            from foot_predictor.db.models import Match
+            nearby = session.scalars(
+                select(Match).where(
+                    Match.home_team_id == home_team.id,
+                    Match.away_team_id == away_team.id,
+                )
+            ).all()
+            skipped_details.append({
+                "date_understat": payload["match_date"],
+                "home": home_team_name, "away": away_team_name,
+                "home_team_id": home_team.id, "away_team_id": away_team.id,
+                "dates_staging_pour_ces_equipes": [str(m.match_date) for m in nearby],
+            })
             skipped += 1
             continue
 
         processed += 1
 
     session.commit()
+    for d in skipped_details[:15]:
+        print(d)
+    print(f"... {len(skipped_details)} au total")
     return processed, skipped
 
 

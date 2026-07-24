@@ -98,7 +98,6 @@ def ingest_league_matches(session: Session, client: UnderstatClient, league_code
                 continue
             result = _upsert_raw_row(session, log.id, payload)
             counts[result] += 1
-            time.sleep(REQUEST_DELAY_SECONDS)
         log.status = "success"
     except Exception as exc:  # noqa: BLE001
         log.status = "failed"
@@ -111,7 +110,7 @@ def ingest_league_matches(session: Session, client: UnderstatClient, league_code
 if __name__ == "__main__":
     from foot_predictor.db.session import get_session
 
-    LEAGUES = ["EPL", "La_liga", "Bundesliga", "Serie_A", "Ligue_1"]
+    LEAGUES = ["EPL", "La_Liga", "Bundesliga", "Serie_A", "Ligue_1"]
     SEASON = "2024"
 
     with get_session() as session:

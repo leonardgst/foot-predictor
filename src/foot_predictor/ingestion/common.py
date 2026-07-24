@@ -105,6 +105,19 @@ def get_or_create_season(session: Session, competition_id: int, label: str) -> S
     session.flush()
     return season
 
+def _normalize_source_ref(source_name: str, source_ref: str) -> str:
+    """Certaines sources ont des conventions de nommage à corriger avant tout
+    lookup dans le mapping YAML ou dans staging.team.
+
+    Understat utilise des underscores à la place des espaces dans les noms
+    d'équipe bruts (ex. 'Manchester_United'), alors que le mapping YAML et
+    le référentiel canonique staging.team utilisent des espaces. Sans cette
+    normalisation, teams_mapping.get(source_ref) échoue silencieusement et
+    retombe sur source_ref lui-même -> création d'une équipe dupliquée
+    distincte de l'équipe déjà connue (cf. bug diagnostiqué le 24/07)."""
+    if source_name == "understat":
+        return source_ref.replace("_", " ")
+    return source_ref
 
 def get_or_create_team(
     session: Session,
@@ -112,6 +125,7 @@ def get_or_create_team(
     source_ref: str,
     teams_mapping: dict[str, str],
 ) -> Team:
+    source_ref = _normalize_source_ref(source_name, source_ref)
     existing_mapping = session.scalar(
         select(TeamSourceMapping).where(
             TeamSourceMapping.source_name == source_name,
@@ -242,11 +256,18 @@ def resolve_match_cross_source(
     if existing_mapping is not None:
         return session.get(Match, existing_mapping.match_id)
 
+    # Tolérance de ±1 jour : certaines sources encodent l'horodatage en UTC,
+    # d'autres en heure locale avant de tronquer à la date -- un match joué
+    # tard le soir peut basculer sur le jour calendaire suivant selon la
+    # source (cf. diagnostic du 24/07 : St. Pauli-Holstein Kiel, Genoa-Atalanta).
+    date_min = match_date.date() - dt.timedelta(days=1)
+    date_max = match_date.date() + dt.timedelta(days=1)
+
     match = session.scalar(
         select(Match).where(
             Match.home_team_id == home_team_id,
             Match.away_team_id == away_team_id,
-            cast(Match.match_date, Date) == match_date.date(),
+            cast(Match.match_date, Date).between(date_min, date_max),
         )
     )
     if match is None:

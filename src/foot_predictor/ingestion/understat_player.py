@@ -27,10 +27,13 @@ def ingest_understat_player_match_stats(session: Session) -> tuple[int, int]:
         payload = row.raw_payload
         match_date = dt.datetime.fromisoformat(payload["match_date"])
 
+        home_team_name = payload["home_team"].replace("_", " ")
+        away_team_name = payload["away_team"].replace("_", " ")
+
         home_team = get_or_create_team(session, SOURCE_NAME, payload["home_team"], teams_mapping)
         away_team = get_or_create_team(session, SOURCE_NAME, payload["away_team"], teams_mapping)
 
-        match_source_ref = f"{payload['match_date']}|{payload['home_team']}|{payload['away_team']}"
+        match_source_ref = f"{payload['match_date']}|{home_team_name}|{away_team_name}"
         match = resolve_match_cross_source(
             session,
             SOURCE_NAME,

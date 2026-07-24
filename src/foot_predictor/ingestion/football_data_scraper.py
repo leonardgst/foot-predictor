@@ -48,6 +48,18 @@ def _parse_int(value: str | None) -> int | None:
     return int(value)
 
 
+def _parse_match_date(raw_date: str) -> str:
+    """football-data.co.uk change de format de date selon l'ancienneté de la
+    saison : 'DD/MM/YYYY' pour les saisons récentes, 'DD/MM/YY' (année sur 2
+    chiffres) pour les plus anciennes -- on essaie les deux, dans cet ordre."""
+    for fmt in ("%d/%m/%Y", "%d/%m/%y"):
+        try:
+            return dt.datetime.strptime(raw_date, fmt).date().isoformat()
+        except ValueError:
+            continue
+    raise ValueError(f"Format de date non reconnu par football-data : {raw_date!r}")
+
+
 def parse_csv_content(csv_text: str, season_label: str) -> list[dict]:
     """Parse le contenu CSV brut en une liste de payloads jsonb prêts pour raw."""
     reader = csv.DictReader(io.StringIO(csv_text))
@@ -55,7 +67,7 @@ def parse_csv_content(csv_text: str, season_label: str) -> list[dict]:
     for row in reader:
         if not row.get("Date") or not row.get("HomeTeam"):
             continue  # ligne vide en fin de fichier, fréquent chez football-data
-        match_date = dt.datetime.strptime(row["Date"], "%d/%m/%Y").date().isoformat()
+        match_date = _parse_match_date(row["Date"])
         payloads.append(
             {
                 "div": row["Div"],
@@ -138,10 +150,14 @@ def ingest_football_data_source(session: Session, season_label: str) -> dict:
 if __name__ == "__main__":
     from foot_predictor.db.session import get_session
 
-    # Adapter la saison courante ici, ou en faire un argument CLI plus tard
-    CURRENT_SEASON_LABEL = "2024-2025"
+    # Backfill des 10 dernières saisons (cf. mapping_builder, même logique que
+    # api_football_scraper.py -- gratuit et instantané ici, pas de contrainte
+    # de quota contrairement à API-Football).
+    SEASON_START_YEARS = range(2015, 2025)
 
     with get_session() as session:
-        summary = ingest_football_data_source(session, CURRENT_SEASON_LABEL)
-        for div, counts in summary.items():
-            print(f"{div}: {counts}")
+        for start_year in SEASON_START_YEARS:
+            season_label = f"{start_year}-{start_year + 1}"
+            summary = ingest_football_data_source(session, season_label)
+            for div, counts in summary.items():
+                print(f"{season_label} / {div}: {counts}")

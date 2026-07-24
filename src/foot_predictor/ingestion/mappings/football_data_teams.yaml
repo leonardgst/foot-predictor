@@ -10,3 +10,42 @@ Newcastle: Newcastle United
 Tottenham: Tottenham Hotspur
 Wolves: Wolverhampton Wanderers
 Nott'm Forest: Nottingham Forest
+
+# Premier League
+West Brom: West Bromwich Albion
+
+# La Liga
+Ath Madrid: Atletico Madrid
+Ath Bilbao: Athletic Club          # à confirmer : vérifie le code exact dans le CSV SP1
+Celta: Celta Vigo
+Vallecano: Rayo Vallecano
+Betis: Real Betis
+Sociedad: Real Sociedad
+Valladolid: Real Valladolid
+Huesca: SD Huesca
+Sp Gijon: Sporting Gijon
+La Coruna: Deportivo La Coruna
+
+# Bundesliga
+Bielefeld: Arminia Bielefeld
+Leverkusen: Bayer Leverkusen
+Dortmund: Borussia Dortmund
+M'gladbach: Borussia Monchengladbach   # API-Football (sans le "ö" pour rester ASCII, à toi de voir)
+Ein Frankfurt: Eintracht Frankfurt
+FC Koln: 1. FC Koln                   # API-Football (plus officiel qu'Understat "FC Cologne")
+Hertha: Hertha BSC                    # API-Football (Understat dit "Hertha Berlin")
+Mainz: FSV Mainz 05                   # API-Football (Understat dit "Mainz 05")
+Stuttgart: VfB Stuttgart
+Hoffenheim: 1899 Hoffenheim
+Bochum: VfL Bochum
+Wolfsburg: VfL Wolfsburg
+
+# Serie A
+Parma: Parma Calcio 1913
+Spal: SPAL 2013
+Verona: Hellas Verona
+
+# Ligue 1
+Ajaccio: GFC Ajaccio
+Troyes: Estac Troyes
+Brest: Stade Brestois 29

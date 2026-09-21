@@ -17,3 +17,8 @@ docker-compose.override.yml
 
 # OS
 .DS_Store
+
+# Caches outils
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/

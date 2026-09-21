@@ -23,6 +23,7 @@ de recontextualiser une décision plus ancienne.
 | 6 | `recap_etape3_pipeline_et_mvs.md` | Étape 3 : abandon de Transfermarkt, conception du Market Value Score (MVS), pipeline d'ingestion des 3 sources retenues |
 | 7 | `recap_debug_ingestion_understat.md` | Debug : équipes dupliquées suite à un mapping YAML corrigé après coup (19 fusions), décalage de date ±1 jour. 568 → 0 lignes ignorées |
 | 8 | `prochaine_etape_clustering_mvs.md` | 👉 **Prochaine étape à démarrer** : clustering de style + calcul du MVS (partie Performance) |
+| 9 | `recap_mise_en_ordre_git_et_verifications.md` | Remise à plat du dépôt (commit `4af1eb2`), dépendances de `market_value/`, recréation de `check_raw.py` et premier résultat sur SP1 |
 
 ---
 

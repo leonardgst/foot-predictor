@@ -35,8 +35,10 @@ with get_session() as session:
 for div, names in sorted(raw_names_by_div.items()):
     print(f"\n=== {div} : {len(names)} valeurs brutes distinctes ===")
     for name in sorted(names):
-        status = "OK " if name in mapping else "ABSENT du YAML"
-        print(f"  {name!r:35} len={len(name):2}  {status}  -> {mapping.get(name)!r}")
+        # Absent du YAML n'est pas une anomalie : get_or_create_team retombe alors
+        # sur le nom brut comme nom canonique (cas normal quand brut == canonique).
+        status = "mappé   " if name in mapping else "identité"
+        print(f"  {name!r:35} len={len(name):2}  {status}  -> {mapping.get(name, name)!r}")
 
 if not raw_names_by_div:
     print("Aucune ligne trouvée" + (f" pour la division {div_filter!r}." if div_filter else "."))

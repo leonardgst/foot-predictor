@@ -22,8 +22,9 @@ de recontextualiser une décision plus ancienne.
 | 5 | `recap_etape2_schema_tables.md` | Étape 2 : conception complète du schéma de tables (raw / staging / features) |
 | 6 | `recap_etape3_pipeline_et_mvs.md` | Étape 3 : abandon de Transfermarkt, conception du Market Value Score (MVS), pipeline d'ingestion des 3 sources retenues |
 | 7 | `recap_debug_ingestion_understat.md` | Debug : équipes dupliquées suite à un mapping YAML corrigé après coup (19 fusions), décalage de date ±1 jour. 568 → 0 lignes ignorées |
-| 8 | `prochaine_etape_clustering_mvs.md` | 👉 **Prochaine étape à démarrer** : clustering de style + calcul du MVS (partie Performance) |
+| 8 | `prochaine_etape_clustering_mvs.md` | **Prochaine étape à démarrer** : clustering de style + calcul du MVS (partie Performance) |
 | 9 | `recap_mise_en_ordre_git_et_verifications.md` | Remise à plat du dépôt (commit `4af1eb2`), dépendances de `market_value/`, recréation de `check_raw.py` et premier résultat sur SP1 |
+| 10 | `recap_backfill_10_saisons_et_bug_xg.md` | 👉 Backfill 10 saisons (football-data + Understat), fix mapping Ajaccio/AC Ajaccio, **bug corrigé : le xG n'était jamais persisté par `understat.py`**. Prérequis A/B/C de l'abonnement API-Football tous cochés |
 
 ---
 
@@ -32,7 +33,9 @@ de recontextualiser une décision plus ancienne.
 - ✅ Infra (Docker dev/test, Neon prod, Alembic) opérationnelle sur les 3 environnements
 - ✅ Schéma `raw` / `staging` / `features` conçu et migré
 - ✅ Pipeline d'ingestion football-data.co.uk + Understat (équipe) fonctionnel, testé, bug de réconciliation corrigé
+- ✅ Backfill 10 saisons (2015-2016 à 2024-2025), 5 championnats, 18 011 matchs en base, 0 doublon d'équipe ; bug de persistance du xG dans `understat.py` corrigé (couverture 6,6 % → 99,98 %)
 - ✅ Code du module `market_value/` (clustering, per90, percentiles, persistence) écrit — **committé sur `dev` mais pas encore exécuté sur de vraies données**
+- ✅ Les 3 prérequis techniques de l'abonnement API-Football sont cochés (voir `../API_FOOTBALL_ABONNEMENT.md`) : reste la décision de payer
 - 🚧 Bloqué en attente d'abonnement API-Football (plan gratuit insuffisant : ne couvre que les 2 derniers jours, aucun match des championnats suivis) :
   - `staging.lineup`, `staging.player_match_stats` : vides
   - `features.team_match_features.squad_avg_age` / `squad_stability_score_season` : non calculables

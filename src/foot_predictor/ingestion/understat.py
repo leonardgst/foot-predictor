@@ -70,6 +70,18 @@ def ingest_understat_match_stats(session: Session) -> tuple[int, int]:
             skipped += 1
             continue
 
+        # Bug corrigé le 2026-09-22 : upsert_team_match_xg n'était jamais appelée
+        # (importée mais oubliée) -> le xG résolu n'était jamais écrit en staging,
+        # malgré un compteur "processed" qui laissait croire le contraire.
+        upsert_team_match_xg(
+            session, match_id=match.id, team_id=home_team.id,
+            xg_for=payload["home_xg"], xg_against=payload["away_xg"],
+        )
+        upsert_team_match_xg(
+            session, match_id=match.id, team_id=away_team.id,
+            xg_for=payload["away_xg"], xg_against=payload["home_xg"],
+        )
+
         processed += 1
 
     session.commit()

@@ -14,7 +14,7 @@ Sans lui, ces éléments restent vides ou impossibles à calculer :
 - `squad_avg_age` et `squad_stability_score_season` ;
 - tout le module `market_value/` (clustering, MVS), qui n'a jamais tourné sur de vraies données.
 
-État actuel de la base de dev : **1 752 matchs, tous de la saison 2024-2025** (Premier League 380, La Liga 380, Serie A 380, Bundesliga 306, Ligue 1 306), et `raw.api_football_fixture_detail` contient **0 ligne**.
+État actuel de la base de dev (mis à jour le 2026-09-22 après le backfill 10 saisons) : **18 011 matchs, saisons 2015-2016 à 2024-2025** (Premier League 3 800, La Liga 3 800, Serie A 3 800, Bundesliga 3 060, Ligue 1 3 551), et `raw.api_football_fixture_detail` contient toujours **0 ligne**.
 
 ## 2. Combien de requêtes faut-il ?
 
@@ -31,14 +31,11 @@ Les 10 saisons sont une estimation : Ligue 1 est passée de 20 à 18 clubs en 20
 
 ## 3. Quand payer
 
-**Ne paie pas avant que tous les prérequis de la section 4 soient cochés.** L'abonnement se paie au mois : autant qu'il serve à 100 % du temps.
+**Les prérequis A, B et C sont cochés depuis le 2026-09-22** (section 4). Il ne reste qu'une condition pratique :
 
-Tu peux payer dès que :
+- tu es disponible ~3 jours pour relancer le script chaque jour (quota journalier).
 
-1. le fichier de mapping des championnats existe (prérequis A) ;
-2. les matchs des saisons voulues sont déjà en `staging.match` (prérequis B) ;
-3. tu as choisi le nombre de saisons (prérequis C) ;
-4. tu es disponible ~3 jours pour relancer le script chaque jour.
+Tu peux donc payer dès que cette disponibilité est trouvée.
 
 ## 4. Prérequis à faire AVANT de payer
 
@@ -54,10 +51,11 @@ F1:  {api_football_league_id: 61}    # Ligue 1, France
 
 Bonus constaté lors de l'appel : les 5 championnats couvrent les compositions (`coverage.fixtures.lineups`) pour les saisons 2024, 2025 et 2026 côté API-Football.
 
-**B. Ingérer les saisons plus anciennes côté football-data (et Understat) d'abord.**
-`api_football.py` ne crée jamais de match : si le match n'existe pas déjà en `staging.match`, la ligne est **ignorée** (`match is None` → `skipped`). Or la base ne contient que 2024-2025. Télécharger 10 saisons chez API-Football sans avoir les 9 autres en staging donnerait des données brutes inexploitables. Le `__main__` de `football_data_scraper.py` prévoit déjà `range(2015, 2025)`.
+**B. ✅ Fait le 2026-09-22.** Les 10 saisons (2015-2016 à 2024-2025) sont ingérées côté football-data **et** Understat pour les 5 championnats : 18 011 matchs en `staging.match`, `staging.team` à 160 équipes, 0 doublon. Détail complet, y compris deux bugs trouvés et corrigés au passage (mapping Ajaccio/AC Ajaccio, et un bug plus sérieux où `understat.py` ne persistait jamais le xG) : voir `docs/recaps/recap_backfill_10_saisons_et_bug_xg.md`.
 
-**C. Choisir le nombre de saisons.** Tu peux garder les 10 saisons par défaut : le coût de l'abonnement ne change pas (3 jours de quota dans tous les cas). Le vrai coût d'une saison en plus est du temps et de la taille de base. À titre de repère, le MVS utilise une fenêtre de 50 matchs par joueur, soit environ 1,3 saison.
+⚠️ Cette correction (renommage d'équipes + `TeamSourceMapping`) ne vit que dans la base de **dev**. Elle devra être reproduite manuellement sur test et prod avant d'y relancer le même backfill.
+
+**C. ✅ Réglé.** Les 10 saisons par défaut sont celles utilisées pour le backfill B — pas besoin de choix supplémentaire.
 
 **D. Contrôles sans risque avec le plan gratuit :**
 - `APP_ENV=dev PYTHONIOENCODING=utf-8 uv run python check_env.py` (sans l'encodage, l'affichage des emojis plante sous la console Windows) ;
@@ -100,9 +98,9 @@ Si tu me demandes de lancer le scraper moi-même, je le ferai seulement après t
 
 | Question | Réponse |
 |---|---|
-| Quand payer ? | Quand les prérequis A, B et C sont faits, et que tu peux relancer le script 3 jours de suite |
+| Quand payer ? | Prérequis A, B, C ✅ tous faits (2026-09-22) — dès que tu es disponible 3 jours de suite |
 | Combien de temps l'abonnement ? | 1 mois suffit (backfill ≈ 3 jours pour 10 saisons) |
-| Blocage indépendant du paiement | ~~`api_football_competitions.yaml` manque~~ réglé le 2026-09-22 |
+| Blocage indépendant du paiement | Aucun : les 3 prérequis techniques sont réglés |
 | Piège à éviter | Télécharger des saisons absentes de `staging.match` : les lignes seraient ignorées |
 | Où mettre la clé ? | Variable d'environnement `API_FOOTBALL_KEY`, pas de fichier `.env` |
 | Comment reprendre avec moi ? | Message de la section 6 dans une nouvelle conversation |

@@ -111,10 +111,15 @@ if __name__ == "__main__":
     from foot_predictor.db.session import get_session
 
     LEAGUES = ["EPL", "La_Liga", "Bundesliga", "Serie_A", "Ligue_1"]
-    SEASON = "2024"
+
+    # Backfill des 10 dernières saisons, même logique que football_data_scraper.py
+    # (season Understat = année de début, ex. "2024" pour 2024-2025).
+    SEASON_START_YEARS = range(2015, 2025)
 
     with get_session() as session:
         with UnderstatClient() as client:
-            for league_code in LEAGUES:
-                counts = ingest_league_matches(session, client, league_code, SEASON)
-                print(f"{league_code}: {counts}")
+            for start_year in SEASON_START_YEARS:
+                season = str(start_year)
+                for league_code in LEAGUES:
+                    counts = ingest_league_matches(session, client, league_code, season)
+                    print(f"{season} / {league_code}: {counts}")

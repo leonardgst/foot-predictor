@@ -1,0 +1,31 @@
+# Table de correspondance league_code (notre convention interne, alignée sur
+# les codes football-data.co.uk) -> identifiant de championnat API-Football.
+#
+# ⚠️ Ce fichier n'est PAS lu par common.get_or_create_competition (seul
+# football_data.py crée des compétitions). Il sert uniquement à nos propres
+# scripts (api_football_scraper.py pour le backfill, mapping_builder pour la
+# collecte de noms d'équipes) pour savoir quel league_id interroger.
+#
+# IDs vérifiés (source : documentation/exemples API-Football, juillet 2026) :
+# Premier League=39, La Liga=140, Bundesliga=78, Serie A=135, Ligue 1=61.
+
+E0:
+  api_football_league_id: 39
+  understat_league_code: EPL
+  name: Premier League
+SP1:
+  api_football_league_id: 140
+  understat_league_code: La_Liga
+  name: La Liga
+D1:
+  api_football_league_id: 78
+  understat_league_code: Bundesliga
+  name: Bundesliga
+I1:
+  api_football_league_id: 135
+  understat_league_code: Serie_A
+  name: Serie A
+F1:
+  api_football_league_id: 61
+  understat_league_code: Ligue_1
+  name: Ligue 1

@@ -1,0 +1,26 @@
+﻿services:
+  postgres_dev:
+    image: postgres:16
+    container_name: foot-predictor-dev
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    ports:
+      - 5440:5432
+    volumes:
+      - pg_dev_data:/var/lib/postgresql/data
+
+  postgres_test:
+    image: postgres:16
+    container_name: foot-predictor-test
+    restart: unless-stopped
+    env_file:
+      - .env.test
+    ports:
+      - 5433:5432
+    volumes:
+      - pg_test_data:/var/lib/postgresql/data
+
+volumes:
+  pg_dev_data:
+  pg_test_data:

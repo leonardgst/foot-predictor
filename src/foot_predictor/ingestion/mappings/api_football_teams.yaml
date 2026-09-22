@@ -1,0 +1,125 @@
+# Mapping manuel : nom d'équipe tel qu'écrit par API-Football -> nom canonique.
+# Généré via mapping_builder (collecte + fuzzy matching), relu et corrigé à la main.
+
+1. FC Heidenheim: Heidenheim
+1. FC Köln: 1. FC Koln
+1899 Hoffenheim: 1899 Hoffenheim
+AC Milan: Milan
+AS Roma: Roma
+Ajaccio: GFC Ajaccio
+Alaves: Alaves
+Almeria: Almeria
+Angers: Angers
+Arsenal: Arsenal
+Aston Villa: Aston Villa
+Atalanta: Atalanta
+Athletic Club: Athletic Club
+Atletico Madrid: Atletico Madrid
+Auxerre: Auxerre
+Barcelona: Barcelona
+Bayer Leverkusen: Bayer Leverkusen
+Bayern München: Bayern Munich
+Bologna: Bologna
+Borussia Dortmund: Borussia Dortmund
+Borussia Mönchengladbach: Borussia Monchengladbach
+Bournemouth: Bournemouth
+Brentford: Brentford
+Brighton: Brighton
+Burnley: Burnley
+Cadiz: Cadiz
+Cagliari: Cagliari
+Celta Vigo: Celta Vigo
+Chelsea: Chelsea
+Clermont Foot: Clermont
+Como: Como
+Cremonese: Cremonese
+Crystal Palace: Crystal Palace
+Eintracht Frankfurt: Eintracht Frankfurt
+Elche: Elche
+Empoli: Empoli
+Espanyol: Espanol
+Estac Troyes: Estac Troyes
+Everton: Everton
+FC Augsburg: Augsburg
+FC Schalke 04: Schalke 04
+FC St. Pauli: St Pauli
+FSV Mainz 05: FSV Mainz 05
+Fiorentina: Fiorentina
+Fortuna Düsseldorf: Fortuna Dusseldorf
+Frosinone: Frosinone
+Fulham: Fulham
+Genoa: Genoa
+Getafe: Getafe
+Girona: Girona
+Granada CF: Granada
+Hamburger SV: Hamburg
+Hellas Verona: Hellas Verona
+Hertha BSC: Hertha BSC
+Holstein Kiel: Holstein Kiel
+Inter: Inter
+Ipswich: Ipswich
+Juventus: Juventus
+Las Palmas: Las Palmas
+Lazio: Lazio
+Le Havre: Le Havre
+Lecce: Lecce
+Leeds: Leeds
+Leganes: Leganes
+Leicester: Leicester
+Lens: Lens
+Lille: Lille
+Liverpool: Liverpool
+Lorient: Lorient
+Luton: Luton
+Lyon: Lyon
+Mallorca: Mallorca
+Manchester City: Manchester City
+Manchester United: Manchester United
+Marseille: Marseille
+Metz: Metz
+Monaco: Monaco
+Montpellier: Montpellier
+Monza: Monza
+Nantes: Nantes
+Napoli: Napoli
+Newcastle: Newcastle United
+Nice: Nice
+Nottingham Forest: Nottingham Forest
+Osasuna: Osasuna
+Paris Saint Germain: Paris SG
+Parma: Parma Calcio 1913
+RB Leipzig: RB Leipzig
+Rayo Vallecano: Rayo Vallecano
+Real Betis: Real Betis
+Real Madrid: Real Madrid
+Real Sociedad: Real Sociedad
+Reims: Reims
+Rennes: Rennes
+SC Freiburg: Freiburg
+SV Darmstadt 98: Darmstadt
+SV Elversberg: SV Elversberg
+Saint Etienne: St Etienne
+Salernitana: Salernitana
+Sampdoria: Sampdoria
+Sassuolo: Sassuolo
+Sevilla: Sevilla
+Sheffield Utd: Sheffield United
+Southampton: Southampton
+Spezia: Spezia
+Stade Brestois 29: Stade Brestois 29
+Strasbourg: Strasbourg
+Torino: Torino
+Tottenham: Tottenham Hotspur
+Toulouse: Toulouse
+Udinese: Udinese
+Union Berlin: Union Berlin
+Valencia: Valencia
+Valladolid: Real Valladolid
+Venezia: Venezia
+VfB Stuttgart: VfB Stuttgart
+VfL Bochum: VfL Bochum
+VfL Wolfsburg: VfL Wolfsburg
+Villarreal: Villarreal
+Werder Bremen: Werder Bremen
+West Ham: West Ham
+Wolves: Wolverhampton Wanderers

@@ -64,6 +64,9 @@ def build_player_vectors(df: pd.DataFrame) -> pd.DataFrame:
     total_matches = df.groupby("player_id").size().rename("matches_in_window")
     eligible = df[df["minutes"] >= MIN_MINUTES_PER_MATCH].copy()
 
+    if eligible.empty:
+        return pd.DataFrame()
+
     rows = []
     for player_id, group in eligible.groupby("player_id"):
         minutes_sum = group["minutes"].sum()

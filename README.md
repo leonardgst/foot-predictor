@@ -141,7 +141,12 @@ foot-predictor/
 - ✅ `features.team_match_features` recalculée sur l'intégralité du backfill (36 022 lignes, z1-z8)
 - ✅ **Modélisation du score exact** (`src/foot_predictor/modeling/`) : Modèle A (Poisson indépendant, statsmodels GLM) et Modèle B (Dixon-Coles hybride, implémenté à la main) comparés sur un split chronologique (9 saisons train / saison 2024-2025 test). **Décision : Modèle A retenu comme référence**, le Modèle B n'ayant pas démontré de gain mesurable sur nos données — détail complet et hypothèses dans `docs/RESULTATS_MODELE.md`.
 - ✅ Code du module `market_value/` (clustering, per90, percentiles, persistence) écrit — committé sur `dev`, **pas encore exécuté sur de vraies données** (en attente de la fin du backfill API-Football)
-- ✅ Suite de tests automatisés (`pytest`) ciblée sur les zones à risque silencieux : réconciliation cross-source (`ingestion/common.py`), fuzzy matching des noms d'équipe, anti-leakage des fenêtres glissantes (`features/` et `modeling/dataset.py`), calcul per-90 (`market_value/preprocessing/`), correction Dixon-Coles et récupération de paramètres MLE (`modeling/`)
+- ✅ Suite de tests automatisés (`pytest`, 178 tests) ciblée sur les zones à risque silencieux : réconciliation cross-source (`ingestion/common.py`), fuzzy matching des noms d'équipe, anti-leakage des fenêtres glissantes (`features/` et `modeling/dataset.py`), calcul per-90 (`market_value/preprocessing/`), correction Dixon-Coles et récupération de paramètres MLE (`modeling/`), scrapers d'ingestion (réseau mocké) et `market_value/clustering`/`performance` (données synthétiques)
+- ✅ CI (GitHub Actions, `.github/workflows/tests.yml`) : `pytest -m "not db"` sur chaque push/PR
+- ✅ **Service d'inférence du Modèle A** (`modeling/predict_service.py`, `live_features.py`, `persistence.py`, `train_and_persist.py`) : pour un match à venir (paire d'équipes + date, ou `staging.match` `status='scheduled'`), calcule ses features en direct et renvoie lambda_home/away, la distribution jointe du score exact et le 1N2 dérivé. Modèle entraîné persisté via `joblib` (`models/`, non versionné, régénérable)
+- ✅ Recalibration 1N2 (Platt scaling / isotonic regression) évaluée sur le test set — gain non démontré, non adoptée en production (détail dans `docs/RESULTATS_MODELE.md` section 5)
+- ✅ Composantes MVS **Potentiel** et **Réputation** implémentées (`market_value/components/`), calculables dès maintenant (n'attendent pas `staging.lineup`)
+- ✅ Code d'ingestion des blessures écrit (`ingestion/injuries_scraper.py`, `ingestion/injuries.py`) et testé sur payloads synthétiques — **pas encore exécuté contre l'API réelle** (quota réservé au backfill des fixtures)
 
 **En cours**
 
@@ -150,9 +155,10 @@ foot-predictor/
 **À faire**
 
 - ⬜ Une fois z9-z10 (et l'agrégat MVS, z11) disponibles : réévaluer le Modèle B avec ces features supplémentaires (voir pistes dans `docs/RESULTATS_MODELE.md`)
-- ⬜ Consommation de `raw.api_football_injuries` (capturée, jamais ingérée)
+- ⬜ Lancer le scraper de blessures contre l'API réelle une fois le backfill des fixtures terminé (le code est prêt, voir ci-dessus)
 - ⬜ Scraping planifié (cron / fréquence)
 - ⬜ Définir comment le MVS remplace `squad_valuation_eur` au niveau équipe
+- ⬜ Spécifier les 3 composantes MVS restantes (Niveau championnat, Disponibilité, Expérience) — bloquées par le backfill API-Football, voir `docs/RECAP_PROJET.md` section 11
 
 Liste complète des points ouverts : `docs/RECAP_PROJET.md`, section 11.
 

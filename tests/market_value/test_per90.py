@@ -109,18 +109,16 @@ def test_xg_stat_all_null_yields_nan_per90_and_zero_coverage():
     assert np.isnan(vectors.loc[1, "xg_per90"])
 
 
-def test_input_with_no_eligible_rows_currently_raises_keyerror():
-    """Bug latent découvert par ce test (non corrigé ici, hors périmètre de
-    cette branche -- à reporter au backlog) : si AUCUNE ligne de l'entrée
-    n'atteint MIN_MINUTES_PER_MATCH, `eligible` est vide, la boucle
-    `eligible.groupby("player_id")` ne produit alors aucun groupe, `rows`
-    reste vide, et `pd.DataFrame([]).set_index("player_id")` échoue avec un
-    KeyError au lieu de renvoyer un DataFrame vide. Scénario plausible en
-    tout début de saison sur un groupe de poste peu fourni."""
+def test_input_with_no_eligible_rows_returns_empty_dataframe():
+    """Si AUCUNE ligne de l'entrée n'atteint MIN_MINUTES_PER_MATCH, `eligible`
+    est vide : build_player_vectors doit renvoyer un DataFrame vide plutôt que
+    lever un KeyError. Scénario plausible en tout début de saison sur un
+    groupe de poste peu fourni."""
     df = pd.DataFrame([_row(1, MIN_MINUTES_PER_MATCH - 1, goals=5)])
 
-    with pytest.raises(KeyError):
-        build_player_vectors(df)
+    result = build_player_vectors(df)
+
+    assert result.empty
 
 
 def test_apply_minimum_sample_filter_removes_players_below_threshold():

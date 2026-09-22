@@ -118,16 +118,21 @@ MVS = 0.35 × Performance + 0.25 × Potentiel + 0.15 × Réputation
     + 0.10 × NiveauChampionnat + 0.10 × Disponibilité + 0.05 × Expérience
 ```
 
-| Composante | Source de calcul |
-|---|---|
-| Performance | Clustering de style + percentiles (section 10) |
-| Potentiel | Âge (`staging.player.birth_date`) |
-| Réputation | Niveau du club (`features.team_match_features.standing_position`) |
-| Niveau championnat | Compétition du joueur |
-| Disponibilité | `staging.player_injury` |
-| Expérience | Minutes / matchs cumulés |
+| Composante | Source de calcul | Statut |
+|---|---|---|
+| Performance | Clustering de style + percentiles (section 10) | Spécifiée (section 10), bloquée par le backfill `player_match_stats` |
+| Potentiel | Âge (`staging.player.birth_date`) | Implémentée : `market_value/components/potential.py` |
+| Réputation | Niveau du club (`features.team_match_features.standing_position`) | Implémentée : `market_value/components/reputation.py` |
+| Niveau championnat | Compétition du joueur | À spécifier (section 11) |
+| Disponibilité | `staging.player_injury` | À spécifier (section 11) |
+| Expérience | Minutes / matchs cumulés | À spécifier (section 11) |
 
-Seule la composante Performance est spécifiée en détail (section 10). Les 5 autres sont des calculs directs, sans ML, à traiter ensuite.
+Potentiel et Réputation sont des calculs directs à dire d'expert (pas de ML,
+pas de calibration possible faute de données de transferts réelles, cf.
+plus haut) : courbe âge -> score pour Potentiel, mapping linéaire de la
+position au classement pour Réputation. Les 3 composantes restantes
+(Niveau championnat, Disponibilité, Expérience) nécessitent des données pas
+encore disponibles (cf. section 11).
 
 ### Cadrage actés pour le MVS
 
@@ -542,7 +547,11 @@ Un module `components/` (Potentiel, Réputation, Niveau championnat, Disponibili
 
 - [ ] Définir comment le MVS remplace `squad_valuation_eur` au niveau équipe (agrégation par équipe, ou autre). Non tranché dans les récaps précédents.
 - [ ] Choix du modèle statistique final pour le score exact (Poisson / Dixon-Coles à confirmer).
-- [ ] Spécifier les 5 autres composantes du MVS (Potentiel, Réputation, Niveau championnat, Disponibilité, Expérience).
+- [x] Potentiel et Réputation implémentées (`market_value/components/potential.py` et `reputation.py`, à dire d'expert -- ne dépendent que de `staging.player.birth_date` et `features.team_match_features.standing_position`, déjà peuplées).
+- [ ] Spécifier les 3 composantes du MVS restantes (bloquées par le backfill API-Football, cf. item bloquant ci-dessus) :
+  - **Niveau championnat** : à dériver du niveau/de la division de la compétition du joueur (ex. classement UEFA du championnat, ou simple hiérarchie manuelle Ligue 1 > Ligue 2 > ...) une fois `staging.lineup` peuplé pour savoir dans quelle compétition le joueur évolue réellement sur la fenêtre.
+  - **Disponibilité** : à dériver de `staging.player_injury` (jours d'indisponibilité / blessures sur la fenêtre glissante) -- nécessite l'ingestion de `raw.api_football_injuries` en staging (cf. item ci-dessous).
+  - **Expérience** : à dériver de `staging.player_match_stats` (minutes / matchs cumulés sur carrière ou fenêtre longue), une fois la table peuplée par le backfill API-Football.
 - [ ] MVS des gardiens (V2).
 - [ ] Version « all-time » de la stabilité d'effectif (`squad_stability_score_alltime`).
 

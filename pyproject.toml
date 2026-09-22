@@ -14,7 +14,9 @@ dependencies = [
     "pyyaml>=6.0.3",
     "requests==2.32.5",
     "scikit-learn>=1.9.1",
+    "scipy>=1.17.1",
     "sqlalchemy>=2.0.51",
+    "statsmodels>=0.15.0",
     "understatapi>=0.7.1",
 ]
 
@@ -24,3 +26,17 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/foot_predictor"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.15.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "db: test nécessitant une vraie base Postgres (APP_ENV=test, docker-compose port 5433). Exclure avec -m \"not db\" si aucune base n'est disponible.",
+]

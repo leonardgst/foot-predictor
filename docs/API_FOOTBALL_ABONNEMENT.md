@@ -2,7 +2,7 @@
 
 Guide de décision pour l'abonnement API-Football, qui est le point bloquant du projet (voir `RECAP_PROJET.md`, section 11).
 
-> ⚠️ **Tarifs non vérifiés.** Les chiffres de quota et de prix ci-dessous viennent du commentaire de `api_football_scraper.py` (Pro : 7 500 requêtes/jour, 19 €/mois ; gratuit : 100 requêtes/jour, historique limité aux ~2 derniers jours). La page officielle des tarifs était inaccessible lors de la rédaction. **Vérifie le prix et le quota sur le site avant de payer.**
+> ✅ **Abonnement pris et quota confirmé (2026-09-22).** Plan **Pro, 7 500 requêtes/jour**, souscrit pour 1 mois. Le calcul de la section 2 confirme que le backfill complet (18 061 requêtes) tient en ~2,4 jours de quota, largement dans la durée de l'abonnement — **aucune priorisation ni troncature nécessaire**.
 
 ---
 
@@ -20,14 +20,16 @@ Sans lui, ces éléments restent vides ou impossibles à calculer :
 
 Le scraper utilise `/fixtures?id=`, soit **1 requête par match terminé**, plus 1 requête par couple (championnat, saison) pour lister les matchs.
 
-| Périmètre | Requêtes | Durée (1 s entre deux appels) | Jours de quota Pro (7 500/jour) |
-|---|---|---|---|
-| 1 saison (2024-2025) | ≈ 1 757 (1 752 + 5) | ≈ 30 min | moins de 1 jour |
-| 10 saisons (2015-2016 à 2024-2025, valeur par défaut du script) | ≈ 18 200 | ≈ 2 h par jour | 3 jours |
+Chiffre exact mesuré en base dev le 2026-09-22 : **18 011 matchs joués** dans `staging.match` (0 ligne dans `staging.lineup`, 0 dans `raw.api_football_fixture_detail` — rien n'a encore été téléchargé), + 50 appels de listing (5 championnats × 10 saisons) = **≈ 18 061 requêtes** pour le backfill complet.
 
-Les 10 saisons sont une estimation : Ligue 1 est passée de 20 à 18 clubs en 2023, et certains matchs peuvent manquer. Le script est **idempotent et reprenable** : relancé le lendemain, il saute les matchs déjà en base (`_fixture_already_ingested`) sans consommer de quota.
+| Périmètre | Requêtes | Jours de quota Pro (7 500/jour) |
+|---|---|---|
+| 1 saison (2024-2025) | ≈ 1 757 | moins de 1 jour |
+| 10 saisons, backfill complet (2015-2016 à 2024-2025) | ≈ 18 061 | ≈ 2,4 jours |
 
-**Conséquence pratique** : le plan gratuit (100/jour et historique limité) ne convient pas au backfill. Le plan payant n'est nécessaire que pour **quelques jours** : un mois d'abonnement suffit largement, puis tu peux le résilier.
+Le script est **idempotent et reprenable** : relancé le lendemain, il saute les matchs déjà en base (`_fixture_already_ingested`) sans consommer de quota.
+
+**Conclusion** : avec le plan Pro (7 500/jour) et un abonnement d'1 mois, le backfill complet des 10 saisons tient très largement dans le quota (~2,4 jours sur ~30 disponibles). Pas de priorisation nécessaire.
 
 ## 3. Quand payer
 

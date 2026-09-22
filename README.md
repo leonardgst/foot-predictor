@@ -15,6 +15,8 @@ Toute la documentation du projet tient en 3 fichiers, plus l'historique détaill
 | **`README.md`** (ce fichier) | Vue d'ensemble, état d'avancement, démarrage rapide |
 | **`docs/OBJECTIFS.md`** | Cadrage initial : objectif fonctionnel, objectifs pédagogiques, étapes clés d'un projet data |
 | **`docs/RECAP_PROJET.md`** | 👉 Mémoire complète du projet : décisions, stack, infra, schéma de tables, pipeline d'ingestion, incidents résolus, prochaine étape (clustering + MVS), points ouverts |
+| **`docs/MODELE_MATHEMATIQUE.md`** | Formulation mathématique du score exact : construction de X/y, Modèle 0/1, options A/B/C |
+| **`docs/RESULTATS_MODELE.md`** | Résultats réels Modèle A vs Modèle B, décision retenue |
 | **`docs/recaps/`** | Récaps historiques par étape (voir `docs/recaps/README.md`) |
 
 **Pour reprendre le projet dans une nouvelle conversation** : joindre `docs/RECAP_PROJET.md` (et `docs/OBJECTIFS.md` si besoin de recontextualiser le « pourquoi »).
@@ -85,6 +87,25 @@ Ordre du pipeline d'ingestion complet : voir `docs/RECAP_PROJET.md`, section 7.
 
 ---
 
+## Tests
+
+```bash
+# Suite complète (nécessite la base de test, cf. étape 1 ci-dessus)
+uv run pytest
+
+# Uniquement les tests sans dépendance base de données (rapide, marche sans Docker)
+uv run pytest -m "not db"
+
+# Avec couverture
+uv run pytest --cov=src/foot_predictor --cov-report=term-missing
+```
+
+Les tests marqués `db` (réconciliation cross-source, fenêtres glissantes des features) ouvrent une transaction sur la base de test (`APP_ENV=test`, port 5433) et l'annulent (`rollback`) après chaque test — aucune donnée n'est laissée en base. Si la base de test est injoignable, ces tests sont automatiquement `skip` plutôt que d'échouer.
+
+Structure en miroir de `src/foot_predictor/` : `tests/ingestion/`, `tests/features/`, `tests/mapping_builder/`, `tests/market_value/`, fixtures communes dans `tests/conftest.py`.
+
+---
+
 ## Structure du dépôt
 
 ```
@@ -102,8 +123,9 @@ foot-predictor/
 │   ├── db/                              (models.py, session.py)
 │   ├── ingestion/                       (scrapers + raw → staging + common.py)
 │   ├── features/
+│   ├── modeling/                        (dataset, split, Modèle A Poisson, Modèle B Dixon-Coles, évaluation)
 │   └── market_value/                    (clustering, per90, percentiles — non exécuté)
-└── tests/                               (vide pour l'instant)
+└── tests/                               (miroir de src/foot_predictor/ : ingestion/, features/, mapping_builder/, market_value/, modeling/)
 ```
 
 ---
@@ -114,20 +136,20 @@ foot-predictor/
 
 - ✅ Infra (Docker dev/test, Neon prod, Alembic) opérationnelle sur les 3 environnements
 - ✅ Schéma `raw` / `staging` / `features` conçu et migré (22 tables, migrations 0001 à 0003)
-- ✅ Pipeline d'ingestion football-data.co.uk + Understat (équipe) fonctionnel et testé ; bug de réconciliation corrigé (568 → 0 ligne ignorée)
-- ✅ Code du module `market_value/` (clustering, per90, percentiles, persistence) écrit — committé sur `dev`, **pas encore exécuté sur de vraies données**
+- ✅ Pipeline d'ingestion football-data.co.uk + Understat (équipe), backfill 10 saisons (2015-2016 à 2024-2025, 18 011 matchs, 5 championnats)
+- ✅ Abonnement API-Football (plan Pro) pris le 2026-09-22, backfill des compositions/stats en cours (voir `docs/API_FOOTBALL_ABONNEMENT.md`)
+- ✅ `features.team_match_features` recalculée sur l'intégralité du backfill (36 022 lignes, z1-z8)
+- ✅ **Modélisation du score exact** (`src/foot_predictor/modeling/`) : Modèle A (Poisson indépendant, statsmodels GLM) et Modèle B (Dixon-Coles hybride, implémenté à la main) comparés sur un split chronologique (9 saisons train / saison 2024-2025 test). **Décision : Modèle A retenu comme référence**, le Modèle B n'ayant pas démontré de gain mesurable sur nos données — détail complet et hypothèses dans `docs/RESULTATS_MODELE.md`.
+- ✅ Code du module `market_value/` (clustering, per90, percentiles, persistence) écrit — committé sur `dev`, **pas encore exécuté sur de vraies données** (en attente de la fin du backfill API-Football)
+- ✅ Suite de tests automatisés (`pytest`) ciblée sur les zones à risque silencieux : réconciliation cross-source (`ingestion/common.py`), fuzzy matching des noms d'équipe, anti-leakage des fenêtres glissantes (`features/` et `modeling/dataset.py`), calcul per-90 (`market_value/preprocessing/`), correction Dixon-Coles et récupération de paramètres MLE (`modeling/`)
 
-**Bloqué**
+**En cours**
 
-- 🚧 **Abonnement API-Football à prendre** (le plan gratuit ne couvre que les 2 derniers jours, aucun match des championnats suivis). Conséquences :
-  - `staging.lineup` et `staging.player_match_stats` restent vides ;
-  - `squad_avg_age` et `squad_stability_score_season` ne sont pas calculables ;
-  - tout le pipeline `market_value/` (MVS) est bloqué faute de données.
+- 🚧 Backfill API-Football (compositions + stats par joueur/match) : quota Pro (7 500/jour) suffisant pour les 18 061 requêtes nécessaires, étalé sur plusieurs jours. Une fois terminé : `squad_avg_age`, `squad_stability_score_season` (z9-z10) et le pipeline `market_value/` (MVS) se débloquent.
 
 **À faire**
 
-- ⬜ Tests automatisés (`tests/` vide)
-- ⬜ Choix du modèle statistique pour le score exact (Poisson / Dixon-Coles)
+- ⬜ Une fois z9-z10 (et l'agrégat MVS, z11) disponibles : réévaluer le Modèle B avec ces features supplémentaires (voir pistes dans `docs/RESULTATS_MODELE.md`)
 - ⬜ Consommation de `raw.api_football_injuries` (capturée, jamais ingérée)
 - ⬜ Scraping planifié (cron / fréquence)
 - ⬜ Définir comment le MVS remplace `squad_valuation_eur` au niveau équipe

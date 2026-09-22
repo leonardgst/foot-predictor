@@ -1,0 +1,315 @@
+{
+  "generated_at": "2026-09-22T12:21:19.360626+00:00",
+  "cutoff_date": "2024-08-01T00:00:00+00:00",
+  "n_train_rows": 31396,
+  "n_test_rows": 3400,
+  "n_matches_dropped_missing_features": 0,
+  "n_rows_dropped_missing_values": 1226,
+  "model_a": {
+    "feature_names": [
+      "own_form_points_last10",
+      "own_goals_for_last10",
+      "own_goals_against_last10",
+      "own_xg_for_last5",
+      "own_xg_against_last5",
+      "own_standing_position",
+      "own_standing_points",
+      "own_standing_goal_diff",
+      "opp_form_points_last10",
+      "opp_goals_for_last10",
+      "opp_goals_against_last10",
+      "opp_xg_for_last5",
+      "opp_xg_against_last5",
+      "opp_standing_position",
+      "opp_standing_points",
+      "opp_standing_goal_diff",
+      "is_home",
+      "comp_La Liga",
+      "comp_Ligue 1",
+      "comp_Premier League",
+      "comp_Serie A"
+    ],
+    "coefficients": {
+      "const": -0.1073466512064923,
+      "own_form_points_last10": 0.00701662536708181,
+      "own_goals_for_last10": 0.04677923211690979,
+      "own_goals_against_last10": 0.04228175260872229,
+      "own_xg_for_last5": 0.15746483502353897,
+      "own_xg_against_last5": -0.0333017822142409,
+      "own_standing_position": -0.011393109242646318,
+      "own_standing_points": -0.005701250939679054,
+      "own_standing_goal_diff": 0.007464094353884099,
+      "opp_form_points_last10": -0.009684426231758825,
+      "opp_goals_for_last10": 0.04580373399480892,
+      "opp_goals_against_last10": -0.02730161672361861,
+      "opp_xg_for_last5": -0.03075120437854336,
+      "opp_xg_against_last5": 0.11161002153559191,
+      "opp_standing_position": 0.010954878708085114,
+      "opp_standing_points": 0.006116902330751733,
+      "opp_standing_goal_diff": -0.00715218247542796,
+      "is_home": 0.08043853021967608,
+      "comp_La Liga": -0.08907298699388028,
+      "comp_Ligue 1": -0.06945243695206497,
+      "comp_Premier League": -0.05005891471121981,
+      "comp_Serie A": -0.055725556070581286
+    },
+    "pvalues": {
+      "const": 0.043551680994398954,
+      "own_form_points_last10": 2.666532539019343e-05,
+      "own_goals_for_last10": 0.002291562369565859,
+      "own_goals_against_last10": 0.008553670396783702,
+      "own_xg_for_last5": 3.5401752008871117e-34,
+      "own_xg_against_last5": 0.01762717566615147,
+      "own_standing_position": 2.3450356097912512e-11,
+      "own_standing_points": 2.5731716333981645e-05,
+      "own_standing_goal_diff": 6.693658038587552e-17,
+      "opp_form_points_last10": 3.452683902136527e-08,
+      "opp_goals_for_last10": 0.005625505516092469,
+      "opp_goals_against_last10": 0.07693675070780924,
+      "opp_xg_for_last5": 0.029006858706631188,
+      "opp_xg_against_last5": 2.2654202361592355e-17,
+      "opp_standing_position": 5.198224906583231e-10,
+      "opp_standing_points": 8.98674726742467e-06,
+      "opp_standing_goal_diff": 7.023066116699308e-15,
+      "is_home": 1.0381749270187062e-09,
+      "comp_La Liga": 5.5975467045765564e-08,
+      "comp_Ligue 1": 2.525804013439818e-05,
+      "comp_Premier League": 0.0014217242491317175,
+      "comp_Serie A": 0.00042222257563201356
+    },
+    "metrics_test": {
+      "n_matches": 1700,
+      "log_loss_exact_score": 2.9330023910985545,
+      "brier_score_1x2": 0.591503160705986,
+      "calibration_home_win": [
+        {
+          "bin": "(-0.001, 0.1]",
+          "n": 16,
+          "mean_predicted": 0.0742146430964239,
+          "observed_frequency": 0.0625
+        },
+        {
+          "bin": "(0.1, 0.2]",
+          "n": 94,
+          "mean_predicted": 0.1612285522938418,
+          "observed_frequency": 0.1276595744680851
+        },
+        {
+          "bin": "(0.2, 0.3]",
+          "n": 248,
+          "mean_predicted": 0.25394461550919895,
+          "observed_frequency": 0.24193548387096775
+        },
+        {
+          "bin": "(0.3, 0.4]",
+          "n": 357,
+          "mean_predicted": 0.3499956975257473,
+          "observed_frequency": 0.2969187675070028
+        },
+        {
+          "bin": "(0.4, 0.5]",
+          "n": 356,
+          "mean_predicted": 0.4502591824199678,
+          "observed_frequency": 0.45224719101123595
+        },
+        {
+          "bin": "(0.5, 0.6]",
+          "n": 285,
+          "mean_predicted": 0.5489279614241062,
+          "observed_frequency": 0.519298245614035
+        },
+        {
+          "bin": "(0.6, 0.7]",
+          "n": 196,
+          "mean_predicted": 0.6468197091542184,
+          "observed_frequency": 0.6224489795918368
+        },
+        {
+          "bin": "(0.7, 0.8]",
+          "n": 111,
+          "mean_predicted": 0.7419426801481418,
+          "observed_frequency": 0.6846846846846847
+        },
+        {
+          "bin": "(0.8, 0.9]",
+          "n": 34,
+          "mean_predicted": 0.8404746355692684,
+          "observed_frequency": 0.8823529411764706
+        },
+        {
+          "bin": "(0.9, 1.0]",
+          "n": 3,
+          "mean_predicted": 0.9335445829175616,
+          "observed_frequency": 0.6666666666666666
+        }
+      ],
+      "low_score_bias": [
+        {
+          "score": "0-0",
+          "mean_predicted_prob": 0.05851551035462867,
+          "observed_frequency": 0.05764705882352941
+        },
+        {
+          "score": "1-0",
+          "mean_predicted_prob": 0.08847954757765611,
+          "observed_frequency": 0.09235294117647058
+        },
+        {
+          "score": "0-1",
+          "mean_predicted_prob": 0.07472539914430802,
+          "observed_frequency": 0.07235294117647059
+        },
+        {
+          "score": "1-1",
+          "mean_predicted_prob": 0.10704014304171068,
+          "observed_frequency": 0.12
+        }
+      ]
+    }
+  },
+  "model_b": {
+    "xi_grid_search": [
+      {
+        "xi": 0.0,
+        "val_log_loss": 2.947921287556143
+      },
+      {
+        "xi": 0.001,
+        "val_log_loss": 2.949106977359598
+      },
+      {
+        "xi": 0.002,
+        "val_log_loss": 2.9497827488689694
+      },
+      {
+        "xi": 0.005,
+        "val_log_loss": 2.952464937726102
+      },
+      {
+        "xi": 0.01,
+        "val_log_loss": 2.9619814714244677
+      }
+    ],
+    "xi_selected": 0.0,
+    "gamma": 0.19358031018872804,
+    "rho": -0.039283439443285315,
+    "delta": {
+      "own_form_points_last10": -0.00033147549242271965,
+      "own_goals_for_last10": 0.0658779423264511,
+      "own_goals_against_last10": 0.05193193993693123,
+      "own_xg_for_last5": 0.10298785335485572,
+      "own_xg_against_last5": 0.015392879965386947,
+      "own_standing_position": -0.02116121926087838,
+      "own_standing_points": -0.005195835154813232,
+      "own_standing_goal_diff": 0.007770069572815138,
+      "opp_form_points_last10": -0.010834415490702722,
+      "opp_goals_for_last10": 0.03243244529012326,
+      "opp_goals_against_last10": 0.019055945099743028,
+      "opp_xg_for_last5": 0.012026146422611125,
+      "opp_xg_against_last5": 0.05860006156347799,
+      "opp_standing_position": 0.008351697591970087,
+      "opp_standing_points": 0.004779000708665179,
+      "opp_standing_goal_diff": -0.006976529143079205,
+      "comp_La Liga": -0.03245790291721872,
+      "comp_Ligue 1": -0.020980184534617186,
+      "comp_Premier League": 0.004811561436359272,
+      "comp_Serie A": -0.0026073529399179575
+    },
+    "n_teams": 156,
+    "reference_team_id": 1,
+    "n_unseen_teams_at_predict": 136,
+    "metrics_test": {
+      "n_matches": 1700,
+      "log_loss_exact_score": 2.9383891434915967,
+      "brier_score_1x2": 0.5945555194930087,
+      "calibration_home_win": [
+        {
+          "bin": "(-0.001, 0.1]",
+          "n": 11,
+          "mean_predicted": 0.07218171739124174,
+          "observed_frequency": 0.0
+        },
+        {
+          "bin": "(0.1, 0.2]",
+          "n": 70,
+          "mean_predicted": 0.16054801665176374,
+          "observed_frequency": 0.14285714285714285
+        },
+        {
+          "bin": "(0.2, 0.3]",
+          "n": 237,
+          "mean_predicted": 0.25665822692834583,
+          "observed_frequency": 0.2109704641350211
+        },
+        {
+          "bin": "(0.3, 0.4]",
+          "n": 357,
+          "mean_predicted": 0.3530727203070613,
+          "observed_frequency": 0.3025210084033613
+        },
+        {
+          "bin": "(0.4, 0.5]",
+          "n": 350,
+          "mean_predicted": 0.4489153178475264,
+          "observed_frequency": 0.4228571428571429
+        },
+        {
+          "bin": "(0.5, 0.6]",
+          "n": 303,
+          "mean_predicted": 0.5461103813856785,
+          "observed_frequency": 0.5082508250825083
+        },
+        {
+          "bin": "(0.6, 0.7]",
+          "n": 224,
+          "mean_predicted": 0.6447426542576957,
+          "observed_frequency": 0.6339285714285714
+        },
+        {
+          "bin": "(0.7, 0.8]",
+          "n": 107,
+          "mean_predicted": 0.7403162629381465,
+          "observed_frequency": 0.6635514018691588
+        },
+        {
+          "bin": "(0.8, 0.9]",
+          "n": 38,
+          "mean_predicted": 0.8328335912724484,
+          "observed_frequency": 0.868421052631579
+        },
+        {
+          "bin": "(0.9, 1.0]",
+          "n": 3,
+          "mean_predicted": 0.9254540104361535,
+          "observed_frequency": 0.6666666666666666
+        }
+      ],
+      "low_score_bias": [
+        {
+          "score": "0-0",
+          "mean_predicted_prob": 0.061861107634020765,
+          "observed_frequency": 0.05764705882352941
+        },
+        {
+          "score": "1-0",
+          "mean_predicted_prob": 0.0850073821689671,
+          "observed_frequency": 0.09235294117647058
+        },
+        {
+          "score": "0-1",
+          "mean_predicted_prob": 0.06802240172407512,
+          "observed_frequency": 0.07235294117647059
+        },
+        {
+          "score": "1-1",
+          "mean_predicted_prob": 0.11056070474585937,
+          "observed_frequency": 0.12
+        }
+      ]
+    }
+  },
+  "comparison": {
+    "delta_log_loss_a_minus_b": -0.0053867523930422045,
+    "delta_brier_a_minus_b": -0.003052358787022702
+  }
+}

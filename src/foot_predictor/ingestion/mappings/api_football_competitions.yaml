@@ -1,0 +1,17 @@
+# Mapping manuel : code "Div" football-data.co.uk -> identifiant de championnat
+# API-Football (endpoint /leagues, champ league.id).
+#
+# Identifiants confirmés via un appel /leagues (plan gratuit, lecture seule)
+# le 2026-09-22 : les 5 championnats couvrent bien les saisons 2024, 2025 et
+# 2026 avec compositions (coverage.fixtures.lineups = true).
+
+E0:
+  api_football_league_id: 39    # Premier League, England
+SP1:
+  api_football_league_id: 140   # La Liga, Spain
+D1:
+  api_football_league_id: 78    # Bundesliga, Germany
+I1:
+  api_football_league_id: 135   # Serie A, Italy
+F1:
+  api_football_league_id: 61    # Ligue 1, France

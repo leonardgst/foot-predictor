@@ -555,7 +555,11 @@ Un module `components/` (Potentiel, Réputation, Niveau championnat, Disponibili
 
 **Qualité**
 
-- [ ] Suite de tests automatisés : `tests/` est vide, les tests réalisés jusqu'ici sont des scripts ad hoc (fixtures, reset de la base test).
+- [x] Suite de tests automatisés de base (`pytest`, branche `feature/setup-pytest-tests`) : couvre la réconciliation cross-source (`ingestion/common.py`), le fuzzy matching des noms d'équipe, l'anti-leakage et les fenêtres glissantes de `features/`, le calcul per-90 et la normalisation de `market_value/preprocessing/`. Fixture `db_session` (rollback systématique) pour les tests nécessitant Postgres, marqués `db`. Voir `README.md` section Tests.
+- [ ] Étendre la couverture aux scrapers (`ingestion/*_scraper.py`) : nécessite de mocker les appels réseau (football-data, Understat, API-Football), pas fait dans cette première itération.
+- [ ] Couvrir `market_value/clustering/` et `market_value/performance/` (non testés faute de données réelles disponibles pour l'instant, cf. section 10).
+- [ ] CI/CD (GitHub Actions ou équivalent) pour lancer `pytest -m "not db"` automatiquement sur chaque push/PR : pas mis en place dans cette itération, à faire une fois la suite jugée stable.
+- [ ] Bug latent découvert en écrivant les tests : `market_value/preprocessing/per90.py::build_player_vectors` lève un `KeyError` (au lieu de renvoyer un DataFrame vide) si aucune ligne de l'entrée n'atteint `MIN_MINUTES_PER_MATCH` (cf. `tests/market_value/test_per90.py::test_input_with_no_eligible_rows_currently_raises_keyerror`). Non corrigé dans cette branche (hors périmètre), à corriger avant l'exécution du pipeline `market_value/` sur de vraies données.
 
 **Hygiène de projet (à vérifier)**
 

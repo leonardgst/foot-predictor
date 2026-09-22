@@ -546,7 +546,7 @@ Un module `components/` (Potentiel, Réputation, Niveau championnat, Disponibili
 **Conception**
 
 - [ ] Définir comment le MVS remplace `squad_valuation_eur` au niveau équipe (agrégation par équipe, ou autre). Non tranché dans les récaps précédents.
-- [ ] Choix du modèle statistique final pour le score exact (Poisson / Dixon-Coles à confirmer).
+- [x] Choix du modèle statistique final pour le score exact : Modèle A (Poisson indépendant) retenu comme référence, voir `docs/RESULTATS_MODELE.md`. Recalibration 1N2 (Platt/isotonic) évaluée en section 5 du même document -- gain non démontré, non adoptée.
 - [x] Potentiel et Réputation implémentées (`market_value/components/potential.py` et `reputation.py`, à dire d'expert -- ne dépendent que de `staging.player.birth_date` et `features.team_match_features.standing_position`, déjà peuplées).
 - [ ] Spécifier les 3 composantes du MVS restantes (bloquées par le backfill API-Football, cf. item bloquant ci-dessus) :
   - **Niveau championnat** : à dériver du niveau/de la division de la compétition du joueur (ex. classement UEFA du championnat, ou simple hiérarchie manuelle Ligue 1 > Ligue 2 > ...) une fois `staging.lineup` peuplé pour savoir dans quelle compétition le joueur évolue réellement sur la fenêtre.
@@ -557,7 +557,7 @@ Un module `components/` (Potentiel, Réputation, Niveau championnat, Disponibili
 
 **Ingestion et opérations**
 
-- [ ] Consommer `raw.api_football_injuries` (capturée, jamais ingérée en staging).
+- [x] Code d'ingestion des blessures écrit : `ingestion/injuries_scraper.py` (raw, `/injuries?league=&season=`) et `ingestion/injuries.py` (raw -> `staging.player_injury`), testés sur payloads synthétiques/mockés. **Pas encore exécuté contre l'API réelle** (quota réservé au backfill des fixtures en cours, priorité actée) : `raw.api_football_injuries` reste à 0 ligne tant que le backfill fixtures n'est pas terminé. `end_date` restera toujours `NULL` (l'endpoint ne fournit aucun événement de retour de blessure) -- limitation documentée dans le docstring du module staging.
 - [ ] Stratégie de scraping planifié (cron / fréquence, gestion des échecs, respect des CGU).
 - [ ] Enrichir les mappings d'équipes au fil des équipes rencontrées ; vérifier `api_football_teams.yaml` dès le premier run API-Football.
 - [ ] Décider si l'instrumentation diagnostic de `understat.py` est gardée derrière un flag ou retirée.
@@ -565,15 +565,15 @@ Un module `components/` (Potentiel, Réputation, Niveau championnat, Disponibili
 **Qualité**
 
 - [x] Suite de tests automatisés de base (`pytest`, branche `feature/setup-pytest-tests`) : couvre la réconciliation cross-source (`ingestion/common.py`), le fuzzy matching des noms d'équipe, l'anti-leakage et les fenêtres glissantes de `features/`, le calcul per-90 et la normalisation de `market_value/preprocessing/`. Fixture `db_session` (rollback systématique) pour les tests nécessitant Postgres, marqués `db`. Voir `README.md` section Tests.
-- [ ] Étendre la couverture aux scrapers (`ingestion/*_scraper.py`) : nécessite de mocker les appels réseau (football-data, Understat, API-Football), pas fait dans cette première itération.
-- [ ] Couvrir `market_value/clustering/` et `market_value/performance/` (non testés faute de données réelles disponibles pour l'instant, cf. section 10).
-- [ ] CI/CD (GitHub Actions ou équivalent) pour lancer `pytest -m "not db"` automatiquement sur chaque push/PR : pas mis en place dans cette itération, à faire une fois la suite jugée stable.
-- [ ] Bug latent découvert en écrivant les tests : `market_value/preprocessing/per90.py::build_player_vectors` lève un `KeyError` (au lieu de renvoyer un DataFrame vide) si aucune ligne de l'entrée n'atteint `MIN_MINUTES_PER_MATCH` (cf. `tests/market_value/test_per90.py::test_input_with_no_eligible_rows_currently_raises_keyerror`). Non corrigé dans cette branche (hors périmètre), à corriger avant l'exécution du pipeline `market_value/` sur de vraies données.
+- [x] Couverture étendue aux scrapers (`ingestion/*_scraper.py`) : appels réseau mockés (`requests.get` / client Understat), aucun appel réel dans les tests.
+- [x] `market_value/clustering/` et `market_value/performance/` couverts par des tests sur données synthétiques (pas besoin d'attendre le backfill réel). Au passage, bug trouvé et corrigé : `build_clusters.py` n'activait pas `prediction_data=True` sur HDBSCAN, ce qui aurait fait échouer `assign_cluster.py::assign_cluster_from_saved_model` (`AttributeError`) dès la première ré-assignation d'un nouveau joueur.
+- [x] CI (GitHub Actions, `.github/workflows/tests.yml`) : lance `pytest -m "not db"` sur chaque push/PR vers `main`/`dev` et chaque PR.
+- [x] Bug `market_value/preprocessing/per90.py::build_player_vectors` (`KeyError` au lieu d'un DataFrame vide) corrigé : retourne un DataFrame vide si `eligible` est vide après le filtre `MIN_MINUTES_PER_MATCH`.
 
 **Hygiène de projet (à vérifier)**
 
-- [ ] Désactiver le service Windows PostgreSQL natif (port 5432).
-- [ ] Mettre à jour `.env.example` (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_SSLMODE`).
+- [ ] Désactiver le service Windows PostgreSQL natif (port 5432) : nécessite des droits administrateur, pas réalisable depuis une session sans élévation -- à faire manuellement (`services.msc` en admin, ou `Set-Service`/`Stop-Service` dans un PowerShell "Exécuter en tant qu'administrateur").
+- [x] `.env.example` mis à jour (`POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_SSLMODE`).
 - [ ] Commit + push de l'état courant.
 
 ---

@@ -29,7 +29,12 @@ GMM_K_RANGE = range(2, 9)
 
 
 def _fit_hdbscan(X: np.ndarray) -> tuple[np.ndarray, dict, object]:
-    clusterer = hdbscan.HDBSCAN(min_cluster_size=max(10, len(X) // 20))
+    # prediction_data=True : indispensable pour que hdbscan.approximate_predict
+    # (clustering/assign_cluster.py) puisse réassigner de nouveaux joueurs sans
+    # ré-entraîner -- sans ce flag, le modèle sauvegardé n'a pas de "prediction
+    # data" et approximate_predict lève AttributeError("No prediction data was
+    # generated") à l'utilisation.
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=max(10, len(X) // 20), prediction_data=True)
     labels = clusterer.fit_predict(X)
     noise_ratio = float((labels == -1).mean())
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)

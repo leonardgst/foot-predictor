@@ -85,6 +85,25 @@ Ordre du pipeline d'ingestion complet : voir `docs/RECAP_PROJET.md`, section 7.
 
 ---
 
+## Tests
+
+```bash
+# Suite complète (nécessite la base de test, cf. étape 1 ci-dessus)
+uv run pytest
+
+# Uniquement les tests sans dépendance base de données (rapide, marche sans Docker)
+uv run pytest -m "not db"
+
+# Avec couverture
+uv run pytest --cov=src/foot_predictor --cov-report=term-missing
+```
+
+Les tests marqués `db` (réconciliation cross-source, fenêtres glissantes des features) ouvrent une transaction sur la base de test (`APP_ENV=test`, port 5433) et l'annulent (`rollback`) après chaque test — aucune donnée n'est laissée en base. Si la base de test est injoignable, ces tests sont automatiquement `skip` plutôt que d'échouer.
+
+Structure en miroir de `src/foot_predictor/` : `tests/ingestion/`, `tests/features/`, `tests/mapping_builder/`, `tests/market_value/`, fixtures communes dans `tests/conftest.py`.
+
+---
+
 ## Structure du dépôt
 
 ```
@@ -103,7 +122,7 @@ foot-predictor/
 │   ├── ingestion/                       (scrapers + raw → staging + common.py)
 │   ├── features/
 │   └── market_value/                    (clustering, per90, percentiles — non exécuté)
-└── tests/                               (vide pour l'instant)
+└── tests/                               (miroir de src/foot_predictor/ : ingestion/, features/, mapping_builder/, market_value/)
 ```
 
 ---
@@ -116,6 +135,7 @@ foot-predictor/
 - ✅ Schéma `raw` / `staging` / `features` conçu et migré (22 tables, migrations 0001 à 0003)
 - ✅ Pipeline d'ingestion football-data.co.uk + Understat (équipe) fonctionnel et testé ; bug de réconciliation corrigé (568 → 0 ligne ignorée)
 - ✅ Code du module `market_value/` (clustering, per90, percentiles, persistence) écrit — committé sur `dev`, **pas encore exécuté sur de vraies données**
+- ✅ Suite de tests automatisés (`pytest`) ciblée sur les zones à risque silencieux : réconciliation cross-source (`ingestion/common.py`), fuzzy matching des noms d'équipe, anti-leakage des fenêtres glissantes (`features/`), calcul per-90 (`market_value/preprocessing/`)
 
 **Bloqué**
 
@@ -126,7 +146,6 @@ foot-predictor/
 
 **À faire**
 
-- ⬜ Tests automatisés (`tests/` vide)
 - ⬜ Choix du modèle statistique pour le score exact (Poisson / Dixon-Coles)
 - ⬜ Consommation de `raw.api_football_injuries` (capturée, jamais ingérée)
 - ⬜ Scraping planifié (cron / fréquence)

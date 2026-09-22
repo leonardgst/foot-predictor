@@ -17,7 +17,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from foot_predictor.config import get_settings
-from foot_predictor.db.models import Competition, Match, Season, Team, TeamMatch
+from foot_predictor.db.models import Competition, Match, Season, Team, TeamMatch, TeamMatchFeatures
 
 
 @pytest.fixture(scope="session")
@@ -147,5 +147,27 @@ def make_team_match(db_session):
         db_session.add(team_match)
         db_session.flush()
         return team_match
+
+    return _make
+
+
+@pytest.fixture
+def make_team_match_features(db_session):
+    def _make(
+        *,
+        team_match_id: int,
+        match_id: int,
+        team_id: int,
+        **feature_values,
+    ) -> TeamMatchFeatures:
+        features = TeamMatchFeatures(
+            team_match_id=team_match_id,
+            match_id=match_id,
+            team_id=team_id,
+            **feature_values,
+        )
+        db_session.add(features)
+        db_session.flush()
+        return features
 
     return _make

@@ -21,6 +21,14 @@ Toute la documentation du projet tient en 3 fichiers, plus l'historique détaill
 
 **Pour reprendre le projet dans une nouvelle conversation** : joindre `docs/RECAP_PROJET.md` (et `docs/OBJECTIFS.md` si besoin de recontextualiser le « pourquoi »).
 
+
+> **Depuis le 2026-09-24**, la référence est :
+> [`docs/ETAT_PROJET.md`](docs/ETAT_PROJET.md) (état et prochaines actions),
+> [`docs/decisions/`](docs/decisions/README.md) (décisions),
+> [`docs/cadrage/rapport_cadrage_2026-09-24.md`](docs/cadrage/rapport_cadrage_2026-09-24.md) (cadrage),
+> [`CLAUDE.md`](CLAUDE.md) (consignes pour Claude Code).
+> Les documents ci-dessous seront restructurés ; en cas de contradiction, ces fichiers font foi.
+
 ---
 
 ## Produit visé

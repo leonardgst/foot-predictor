@@ -33,6 +33,7 @@ Toutes s'écrivent `uv run python -m foot_predictor.collect.api_football <comman
 | `requeue --status failed\|suspect [--type T]` | remet des tâches en `pending`, après examen | 0 |
 | `backup --dest <dossier>` | copie `data/raw/` vers un dossier vide et vérifie chaque sha256 | 0 |
 | `rebuild-manifest` | reconstruit le journal depuis les fichiers, dans un **nouveau** fichier | 0 |
+| `refresh --season S [--palier P] [--dry-run] [--yes]` | remet en file les listes de matchs, équipes et blessures d'une saison en cours ; affiche le coût du prochain `run` et demande confirmation | 0 (le `run` suivant : quelques dizaines) |
 
 Option commune : `--raw-dir <dossier>` pour travailler sur un autre dossier que `data/raw` (test de restauration, par exemple).
 
@@ -149,6 +150,29 @@ Examiner les échecs et les suspects. `status` donne pour chacun le fichier stoc
 uv run python -m foot_predictor.collect.api_football requeue --status suspect --type fixtures_detail
 ```
 
+## Saison en cours : `refresh`
+
+La liste des matchs d'une compétition-saison n'est demandée qu'une fois. Pour la saison en cours (2026, soit 2026-27), les matchs joués après cette date restent « non terminaux » dans la liste stockée : sans rafraîchissement, ils n'auraient jamais de lot de détails.
+
+```powershell
+uv run python -m foot_predictor.collect.api_football refresh --season 2026 --palier P1 --dry-run   # coût, sans rien modifier
+uv run python -m foot_predictor.collect.api_football refresh --season 2026 --palier P1             # confirmation demandée
+uv run python -m foot_predictor.collect.api_football run
+```
+
+- **Ce que fait `refresh`** : il remet en `pending` les tâches `fixtures_list`, `teams` et `injuries` de la saison, pour les blocs des paliers déjà planifiés (tous par défaut). Les règles de `plan` s'appliquent : bornes des blocs, saisons et couverture de `/leagues`. La commande elle-même n'envoie **aucune requête**.
+- **Coût affiché avant confirmation** : une requête par liste, équipe ou blessures, plus au plus un lot de détails par tranche de 20 matchs non terminaux dont la date est passée, plus `/status`. C'est une estimation haute : un match reporté reste non terminal, et dans les coupes seuls les matchs d'une équipe suivie sont demandés. Pour P1 et la saison 2026, compter une soixantaine de requêtes.
+- **Au `run` suivant** : chaque réponse devient une **nouvelle version** horodatée du fichier. L'ancienne reste sur le disque et dans le journal. La relance automatique du plan lit la liste la plus récente et ne crée des lots que pour les matchs **devenus terminaux et jamais reçus**.
+- **Un `run` déjà en cours** prend les tâches remises en file à son prochain groupe. Inutile de l'arrêter.
+- **Tâches `failed`** : elles ne sont pas reprises. Les examiner, puis `requeue --status failed`.
+- **Réponse attendue** : `o` ou `oui` pour confirmer. Toute autre réponse, ou une entrée fermée (tâche planifiée Windows), annule. Pour une tâche planifiée, ajouter `--yes`.
+
+**Quand le lancer** : après les journées de championnat, pour que les matchs du week-end soient terminés dans la nouvelle liste.
+- une fois vers le **10 octobre** ;
+- une dernière fois après le dernier week-end avant le gel (17-18 octobre), c'est-à-dire le **19 octobre au matin**, avant `backup`.
+
+Une liste demandée le 17 octobre ne contiendrait pas les matchs de ce week-end. Au coût d'une soixantaine de requêtes, un rafraîchissement supplémentaire ne pose aucun problème de quota.
+
 ## Sauvegarde et test de restauration, le jour du gel (ADR-0006)
 
 N'arrêter aucune collecte en cours de route : lancer ces commandes quand `run` est terminé.
@@ -165,7 +189,7 @@ Un fichier « hors journal » est un avertissement : il peut apparaître après 
 
 ## Limites connues (à traiter plus tard)
 
-- **Recollecte de la saison en cours** : les matchs non terminaux sont listés (`status`), mais aucune commande ne rafraîchit encore les listes de matchs. Elle sera à ajouter pour le journal quotidien (P4).
+- **Saison en cours, hors `refresh`** : les entraîneurs et transferts (une tâche par équipe) et les profils joueurs (`players`) de la saison ne sont pas rafraîchis. Un changement d'entraîneur survenu après leur collecte ne sera pas vu.
 - **P4** : `standings` est planifiable dès qu'un bloc est ajouté au YAML ; `sidelined` attend la définition de la liste de joueurs.
 - **Anciens scripts** : `ingestion/api_football_scraper.py` et `injuries_scraper.py` sont obsolètes. Ne plus les lancer ; ils seront supprimés dans une PR de nettoyage.
 - `ingestion/api_football.py` (raw vers staging) ne lit pas ce nouveau format et **ne doit pas être exécuté** (rapport B.4, D1 et D3).

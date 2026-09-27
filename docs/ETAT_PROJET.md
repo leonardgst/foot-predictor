@@ -1,27 +1,27 @@
 # État du projet
 
 **Dernière mise à jour** : 2026-09-27
-**Jalon courant** : J1 — Collecteur v2 (rapport de cadrage, partie L)
+**Jalon courant** : J1 — Collecteur v2 (rapport de cadrage, partie L). Critère de fin : détails du top 5 collectés **et contrôlés**.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel des données le **19 octobre** (ADR-0005)
 
 ## Terminé
 
-- Rapport de cadrage (`docs/cadrage/rapport_cadrage_2026-09-24.md`).
-- ADR-0001 à 0006 acceptées : ancien backfill arrêté et recollecté par le v2, périmètre maximal par paliers, brut en fichiers, collecteur v2, calendrier de gel, sauvegarde unique au gel.
-- Documentation de suivi en place : `CLAUDE.md`, cet état, `docs/JOURNAL_ERREURS.md`, `docs/decisions/`.
-- Collecteur v2 écrit et testé sans réseau (branche `fix/03-collecteur-lots-ids`) : `rawstore/`, `collect/api_football/`, `config/collecte_api_football.yaml`, ADR-0007 (emplacement du code), mode d'emploi `docs/realisation/03_collecte/README.md`.
+- Cadrage intégré (PR #5) : rapport `docs/cadrage/rapport_cadrage_2026-09-24.md`, ADR-0001 à 0006, `CLAUDE.md`, cet état, `docs/JOURNAL_ERREURS.md`.
+- Collecteur v2 fusionné (PR #6) : `rawstore/`, `collect/api_football/`, `config/collecte_api_football.yaml`, ADR-0007, mode d'emploi `docs/realisation/03_collecte/README.md`.
+- Inventaire de couverture fusionné (PR #7) : `docs/realisation/03_collecte/couverture.md`. Les 30 identifiants du YAML sont présents dans `/leagues`, avec le bon nom et le bon pays.
+- Collecte P1 lancée le 2026-09-27 dans `C:/foot-predictor` (dossier de collecte, à ne pas toucher pendant qu'elle tourne).
 
 ## En cours
 
-- Collecteur v2 : PR ouverte depuis `fix/03-collecteur-lots-ids`, à relire et fusionner. Aucune requête réelle n'a encore été faite avec lui.
-- Contrôle qualité du brut (rapport G.9) : PR ouverte depuis `feat/05-controle-qualite-brut` (`src/foot_predictor/quality/raw_check.py`, mode d'emploi `docs/realisation/05_controle_qualite/README.md`). Testé sur les payloads de `tests/fixtures/`, pas encore lancé sur les vraies données.
+- **Collecte P1** : top 5 et D2 (2015-2026), coupes d'Europe et nationales, équipes, blessures, joueurs, entraîneurs, transferts. Suivi : commande `status`.
+- **PR #8** (`feat/05-controle-qualite-brut`) : contrôle qualité du brut, `src/foot_predictor/quality/raw_check.py`. Il produit un résumé chiffré versionné dans `reports/data_quality/` et des listes détaillées non versionnées dans `reports/data_quality/details/`. Mode d'emploi : `docs/realisation/05_controle_qualite/README.md`. Testé sur les payloads de `tests/fixtures/`, pas encore lancé sur les vraies données.
 
 ## Bloqué
 
 - Rien. Points de vigilance :
   - ne pas exécuter `ingestion/api_football.py` (raw vers staging) avant correction de l'identification des joueurs (rapport B.4, D1 et D3) ;
   - ne jamais lancer `docker compose down -v` ni supprimer `data/raw/` avant le gel ;
-  - lancer `coverage` **avant** `plan --palier P1` (sinon, les saisons inexistantes seront planifiées puis marquées `suspect`).
+  - travailler le code dans une autre copie du dépôt (`C:/fp-travail`) tant que la collecte tourne dans `C:/foot-predictor` ; n'y lire `data/raw/` qu'en lecture seule.
 
 ## Décisions ouvertes
 
@@ -30,21 +30,23 @@
 
 ## Prochaines actions
 
-**Court terme (d'ici le 1er octobre)**
+**Court terme**
 
-- [ ] Collecteur v2 écrit, relu, fusionné (ADR-0004). *Écrit et testé ; reste la relecture et la fusion de la PR.*
+- [x] Collecteur v2 écrit, relu, fusionné (ADR-0004, PR #6).
 - [x] Clé API dans `.env.dev` (lue par `config.py`, facultative).
-- [ ] Inventaire de couverture (`coverage`) → `docs/realisation/03_collecte/couverture.md` ; vérifier les identifiants du YAML.
-- [ ] `plan --palier P1`, `run --dry-run`, puis premier essai `run --max-requests 20`, fichiers vérifiés (`status`, `backup` vers un dossier temporaire).
+- [x] Inventaire de couverture (`coverage`) et identifiants du YAML vérifiés (PR #7).
+- [x] `plan --palier P1` et lancement de la collecte P1 (2026-09-27).
+- [ ] Relire et fusionner la PR #8 (contrôle qualité du brut).
+- [ ] **Prompt F** : commande `refresh` de la saison en cours.
+- [ ] À la fin de la collecte P1 : contrôle qualité de P1 (`raw_check --palier P1`). Il faut zéro BLOQUANT et chaque « à regarder » examiné avant de planifier P2 (ADR-0002).
+- [ ] Vérifier une copie du brut, une fois la collecte arrêtée : `backup` vers un dossier temporaire.
 
 **Moyen terme (d'ici le 19 octobre)**
 
-- [ ] Outil de contrôle qualité du brut (`quality/raw_check.py`). *Écrit et testé ; reste la relecture et la fusion de la PR.*
-- [ ] Palier P1 (2-8 oct.) ; contrôles P1 avec `raw_check --palier P1` : aucun BLOQUANT, chaque « à regarder » examiné, avant de planifier P2.
-- [ ] Paliers P2, P3, P4 et journal quotidien (9-16 oct.).
+- [ ] Paliers P2, P3, P4 et journal quotidien (9-16 oct.), chacun contrôlé avec `raw_check`.
 - [ ] Fin de collecte et rattrapages (17-18 oct.).
-- [ ] Gel le 19 oct. : `DATA_FREEZE.md`, export sur disque externe, test de restauration, tag `data-freeze-2026-10`.
-- [ ] Trancher M7 à M12 (ADR 0008 et suivantes ; l'ADR-0007 porte sur l'emplacement du collecteur).
+- [ ] Gel le 19 oct. : `raw_check` sur tous les paliers, `DATA_FREEZE.md`, export sur disque externe, test de restauration, tag `data-freeze-2026-10`.
+- [ ] Trancher M7 à M12 (ADR-0008 et suivantes).
 
 **Long terme**
 
@@ -52,21 +54,22 @@
 
 ## Début de la prochaine session
 
+Dans `C:/fp-travail` (la collecte tourne dans `C:/foot-predictor`) :
+
 ```bash
 git status && git log --oneline -5
 uv run pytest -m "not db" -q
 ```
 
-Puis reprendre la première case non cochée ci-dessus. Après la fusion de la PR du collecteur, la séquence exacte (coverage, plan, dry-run, essai de 20 requêtes) est dans `docs/realisation/03_collecte/README.md`, section « Première utilisation ».
+Puis reprendre la première case non cochée ci-dessus.
 
-Suivi quotidien de la collecte :
+Suivi de la collecte, dans `C:/foot-predictor` (aucune requête) :
 
 ```bash
 uv run python -m foot_predictor.collect.api_football status
-uv run python -m foot_predictor.collect.api_football run
 ```
 
-Contrôle qualité d'un palier (lecture seule, rapport daté dans `reports/data_quality/`) :
+Contrôle qualité d'un palier, depuis `C:/fp-travail`. Il lit le brut en lecture seule et écrit le résumé dans `reports/data_quality/`, les listes dans `reports/data_quality/details/` :
 
 ```bash
 uv run python -m foot_predictor.quality.raw_check --palier P1 --raw-dir C:/foot-predictor/data/raw

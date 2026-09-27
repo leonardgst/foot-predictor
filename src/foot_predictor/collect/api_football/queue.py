@@ -193,6 +193,22 @@ class WorkQueue:
         with self._conn:
             return self._conn.execute(query, args).rowcount
 
+    def reopen(self, keys: Iterable[str]) -> int:
+        """Remet en `pending` des tâches `done` ou `suspect`, pour les rejouer
+        (commande `refresh`). La réponse précédente reste sur le disque : la
+        nouvelle sera une nouvelle version horodatée du fichier. Une tâche
+        `failed` n'est pas concernée : elle relève de `requeue`, après examen."""
+        now = _now()
+        reopened = 0
+        with self._conn:
+            for key in keys:
+                reopened += self._conn.execute(
+                    "UPDATE tasks SET status = 'pending', attempts = 0, updated_at = ?"
+                    " WHERE key = ? AND status IN ('done', 'suspect')",
+                    (now, key),
+                ).rowcount
+        return reopened
+
     def _set(self, task_id: int, status: str, *, file: str | None, error: str | None) -> None:
         with self._conn:
             self._conn.execute(
@@ -217,6 +233,29 @@ class WorkQueue:
             self._conn.executemany(
                 "DELETE FROM deferred_fixtures WHERE fixture_id = ?", [(i,) for i in fixture_ids]
             )
+
+    def overdue_deferred(self, season: int, leagues: Iterable[int], now: dt.datetime) -> dict[int, int]:
+        """Matchs non terminaux dont la date est passée, par compétition.
+
+        Ce sont ceux qu'une nouvelle liste peut faire passer à « terminé » :
+        leur nombre borne le coût en lots de détails d'un rafraîchissement.
+        """
+        wanted = set(leagues)
+        counts: dict[int, int] = {}
+        for league, date in self._conn.execute(
+            "SELECT league, fixture_date FROM deferred_fixtures WHERE season = ?", (season,)
+        ):
+            if league not in wanted or not date:
+                continue
+            try:
+                kickoff = dt.datetime.fromisoformat(date)
+            except ValueError:
+                continue
+            if kickoff.tzinfo is None:
+                kickoff = kickoff.replace(tzinfo=dt.timezone.utc)
+            if kickoff < now:
+                counts[league] = counts.get(league, 0) + 1
+        return counts
 
     def deferred_summary(self) -> list[tuple[str | None, int]]:
         return [

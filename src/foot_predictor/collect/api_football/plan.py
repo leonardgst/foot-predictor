@@ -222,6 +222,28 @@ class Planner:
         self.queue.mark_tier_planned(tier)
         return report
 
+    def season_tasks(self, tier: str, season: int, endpoints: Iterable[str]) -> list[Task]:
+        """Tâches par (compétition, saison) d'un palier, pour une seule saison.
+
+        Mêmes règles que `plan` (bornes des blocs, saisons de /leagues,
+        couverture), sans rien écrire dans la file. Sert à `refresh`.
+        """
+        if tier not in self.config.tiers:
+            raise ConfigError(f"Palier inconnu : {tier} (connus : {', '.join(self.config.tiers)})")
+        wanted = set(endpoints) & set(LEAGUE_SEASON_ENDPOINTS)
+        ignored = PlanReport(tier)  # avertissements déjà affichés par plan
+        found: list[Task] = []
+        for block in self.config.tiers[tier]:
+            for league in block.leagues:
+                if season not in self._seasons(block, league, ignored):
+                    continue
+                for endpoint in block.endpoints:
+                    if endpoint not in wanted or not self._covered(league, season, endpoint):
+                        continue
+                    found.append(tasks.fixtures_list_task(tier, league, season) if endpoint == "fixtures_list"
+                                 else tasks.league_season_task(tier, endpoint, league, season))
+        return found
+
     # --- saisons ---------------------------------------------------------------
 
     def _seasons(self, block: Block, league: int, report: PlanReport) -> list[int]:

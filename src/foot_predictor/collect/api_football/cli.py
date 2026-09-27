@@ -3,6 +3,7 @@
     coverage          inventaire /status et /leagues -> couverture.md   (2 requêtes)
     plan --palier P   crée les tâches du palier dans la file            (0 requête)
     run               exécute la file                                   (--max-requests, --dry-run)
+    refresh --season S remet en file les listes d'une saison en cours   (0 requête ; coût affiché)
     status            quota du jour, files, échecs, progression         (0 requête)
     requeue           remet des tâches failed ou suspect en file        (0 requête)
     backup --dest D   copie data/raw/ et vérifie les sha256             (0 requête)
@@ -25,6 +26,7 @@ from foot_predictor.collect.api_football.client import ApiFootballClient
 from foot_predictor.collect.api_football.coverage import coverage_from_body, render_markdown
 from foot_predictor.collect.api_football.plan import DEFAULT_CONFIG_PATH, CollectConfig, ConfigError, Planner, load_config
 from foot_predictor.collect.api_football.queue import WorkQueue
+from foot_predictor.collect.api_football.refresh import apply_refresh, build_refresh_plan, plan_lines
 from foot_predictor.collect.api_football.runner import (
     STATUS_REL_DIR,
     Runner,
@@ -73,6 +75,14 @@ def build_parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="exécute la file")
     run.add_argument("--max-requests", type=int, default=None, help="plafond d'appels HTTP pour ce lancement")
     run.add_argument("--dry-run", action="store_true", help="affiche ce qui serait fait, sans requête")
+
+    refresh = sub.add_parser(
+        "refresh", help="remet en file listes, équipes et blessures d'une saison en cours (aucune requête)")
+    refresh.add_argument("--season", type=int, required=True, help="année de début de saison (2026 = 2026-27)")
+    refresh.add_argument("--palier", action="append", dest="tiers",
+                         help="palier concerné, répétable ; défaut : tous les paliers déjà planifiés")
+    refresh.add_argument("--dry-run", action="store_true", help="affiche les tâches et le coût, sans rien modifier")
+    refresh.add_argument("--yes", action="store_true", help="ne pas demander de confirmation")
 
     sub.add_parser("status", help="quota, files, échecs, progression (aucune requête)")
 
@@ -176,6 +186,43 @@ def cmd_run(args, config: CollectConfig, client_factory: ClientFactory) -> int:
     return 0
 
 
+def ask_confirmation(prompt: str) -> bool:
+    """Oui seulement sur une réponse explicite ; entrée fermée (tâche planifiée) = non."""
+    try:
+        answer = input(prompt)
+    except EOFError:
+        return False
+    return answer.strip().lower() in ("o", "oui", "y", "yes")
+
+
+def cmd_refresh(args, config: CollectConfig, client_factory: ClientFactory) -> int:
+    with WorkQueue.in_raw_dir(args.raw_dir) as queue:
+        planned = queue.planned_tiers()
+        tiers = args.tiers or planned
+        if not tiers:
+            print("Aucun palier planifié : lancer d'abord plan --palier P1.")
+            return 0
+        not_planned = [tier for tier in tiers if tier not in planned]
+        if not_planned:
+            raise ConfigError(f"Palier(s) jamais planifié(s) : {', '.join(not_planned)}. Lancer d'abord plan.")
+        plan = build_refresh_plan(config, args.raw_dir, queue, args.season, tiers)
+        print("\n".join(plan_lines(plan)))
+        print()
+        if not plan.to_queue:
+            print("Rien à remettre en file.")
+            return 0
+        if args.dry_run:
+            print("Simulation : file inchangée.")
+            return 0
+        if not args.yes and not ask_confirmation(f"Remettre ces {len(plan.to_queue)} tâche(s) en file ? [o/N] "):
+            print("Annulé : file inchangée.")
+            return 0
+        added, reopened = apply_refresh(queue, plan)
+    print(f"{reopened} tâche(s) remise(s) en file, {added} ajoutée(s).")
+    print("Elles partiront au prochain run (un run déjà en cours les prendra à son prochain groupe).")
+    return 0
+
+
 def cmd_status(args, config: CollectConfig, client_factory: ClientFactory) -> int:
     print("\n".join(status_lines(args.raw_dir)))
     return 0
@@ -212,6 +259,7 @@ COMMANDS = {
     "coverage": cmd_coverage,
     "plan": cmd_plan,
     "run": cmd_run,
+    "refresh": cmd_refresh,
     "status": cmd_status,
     "requeue": cmd_requeue,
     "backup": cmd_backup,

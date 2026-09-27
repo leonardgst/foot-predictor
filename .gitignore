@@ -28,3 +28,6 @@ htmlcov/
 
 # Modèles entraînés (régénérables via train_and_persist.py, dépendent de l'environnement/des données)
 models/
+
+# Données (licences et volume ; brut API-FOOTBALL dans data/raw/, ADR-0003)
+/data/

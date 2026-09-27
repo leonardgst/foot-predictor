@@ -9,12 +9,13 @@
 - Cadrage intégré (PR #5) : rapport `docs/cadrage/rapport_cadrage_2026-09-24.md`, ADR-0001 à 0006, `CLAUDE.md`, cet état, `docs/JOURNAL_ERREURS.md`.
 - Collecteur v2 fusionné (PR #6) : `rawstore/`, `collect/api_football/`, `config/collecte_api_football.yaml`, ADR-0007, mode d'emploi `docs/realisation/03_collecte/README.md`.
 - Inventaire de couverture fusionné (PR #7) : `docs/realisation/03_collecte/couverture.md`. Les 30 identifiants du YAML sont présents dans `/leagues`, avec le bon nom et le bon pays.
+- Contrôle qualité du brut fusionné (PR #8) : `quality/raw_check.py`, résumé versionné dans `reports/data_quality/`, listes dans `details/` (non versionné). Mode d'emploi : `docs/realisation/05_controle_qualite/README.md`.
 - Collecte P1 lancée le 2026-09-27 dans `C:/foot-predictor` (dossier de collecte, à ne pas toucher pendant qu'elle tourne).
 
 ## En cours
 
 - **Collecte P1** : top 5 et D2 (2015-2026), coupes d'Europe et nationales, équipes, blessures, joueurs, entraîneurs, transferts. Suivi : commande `status`.
-- **PR #8** (`feat/05-controle-qualite-brut`) : contrôle qualité du brut, `src/foot_predictor/quality/raw_check.py`. Il produit un résumé chiffré versionné dans `reports/data_quality/` et des listes détaillées non versionnées dans `reports/data_quality/details/`. Mode d'emploi : `docs/realisation/05_controle_qualite/README.md`. Testé sur les payloads de `tests/fixtures/`, pas encore lancé sur les vraies données.
+- **PR #9** (`feat/03-rafraichir-saison`) : commande `refresh --season 2026 [--palier P1]`, qui remet en file les listes de matchs, équipes et blessures de la saison en cours. Le `run` suivant crée les lots des seuls matchs devenus terminaux. Testée sans réseau, jamais lancée sur les vraies données. Mode d'emploi : `docs/realisation/03_collecte/README.md`, section « Saison en cours ».
 
 ## Bloqué
 
@@ -36,8 +37,9 @@
 - [x] Clé API dans `.env.dev` (lue par `config.py`, facultative).
 - [x] Inventaire de couverture (`coverage`) et identifiants du YAML vérifiés (PR #7).
 - [x] `plan --palier P1` et lancement de la collecte P1 (2026-09-27).
-- [ ] Relire et fusionner la PR #8 (contrôle qualité du brut).
-- [ ] **Prompt F** : commande `refresh` de la saison en cours.
+- [x] Relire et fusionner la PR #8 (contrôle qualité du brut).
+- [ ] Commande `refresh` de la saison en cours (prompt F). *Écrite et testée ; reste la relecture et la fusion de la PR, puis `git pull` dans `C:/foot-predictor` entre deux `run`.*
+- [ ] `refresh --season 2026 --palier P1` vers le **10 octobre** (d'abord `--dry-run` pour le coût, puis `run`).
 - [ ] À la fin de la collecte P1 : contrôle qualité de P1 (`raw_check --palier P1`). Il faut zéro BLOQUANT et chaque « à regarder » examiné avant de planifier P2 (ADR-0002).
 - [ ] Vérifier une copie du brut, une fois la collecte arrêtée : `backup` vers un dossier temporaire.
 
@@ -45,7 +47,7 @@
 
 - [ ] Paliers P2, P3, P4 et journal quotidien (9-16 oct.), chacun contrôlé avec `raw_check`.
 - [ ] Fin de collecte et rattrapages (17-18 oct.).
-- [ ] Gel le 19 oct. : `raw_check` sur tous les paliers, `DATA_FREEZE.md`, export sur disque externe, test de restauration, tag `data-freeze-2026-10`.
+- [ ] Gel le 19 oct. : dernier `refresh --season 2026` le matin, puis `run`, `raw_check` sur tous les paliers, `DATA_FREEZE.md`, export sur disque externe, test de restauration, tag `data-freeze-2026-10`.
 - [ ] Trancher M7 à M12 (ADR-0008 et suivantes).
 
 **Long terme**

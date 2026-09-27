@@ -3,7 +3,9 @@
 Lit **uniquement** le dossier brut (ADR-0003) : fichiers `.json.gz`, journal
 `_manifest/*.jsonl`, file de travail `_queue/api_football.sqlite` ouverte en
 lecture seule. Aucun appel réseau, aucune base de données, aucune écriture
-dans le dossier brut. Écrit un rapport Markdown daté dans `reports/data_quality/`.
+dans le dossier brut. Écrit deux rapports Markdown datés : un résumé chiffré
+versionné dans `reports/data_quality/`, et les listes détaillées (noms et
+identifiants de joueurs) dans `reports/data_quality/details/`, ignoré par Git.
 
     uv run python -m foot_predictor.quality.raw_check --palier P1 --raw-dir C:/foot-predictor/data/raw
 
@@ -55,7 +57,6 @@ from foot_predictor.rawstore.store import SUFFIX, VERSION_SEPARATOR, latest_vers
 
 DEFAULT_RAW_DIR = Path("data") / "raw"
 DEFAULT_OUTPUT_DIR = Path("reports") / "data_quality"
-DEFAULT_MAX_ITEMS = 50
 
 # Seuils (rapport G.9).
 DETAIL_RATE_THRESHOLD = 0.99  # compositions, players, events : ≥ 99 % sur les saisons couvertes
@@ -899,7 +900,34 @@ def summary_lines(result: CheckResult) -> list[CheckLine]:
     return lines
 
 
-# --- rapport Markdown --------------------------------------------------------------------------------
+# --- rapports Markdown --------------------------------------------------------------------------------
+#
+# Deux fichiers (le résumé est versionné, les listes non) :
+# - résumé : verdicts et compteurs, par contrôle et par championnat-saison. Aucun nom ni
+#   identifiant de joueur, aucune liste nominative : il peut être committé, alors que les
+#   données restent privées (ADR-0002) ;
+# - détails : listes nominatives (matchs, joueurs, fichiers, tâches), dans `details/`,
+#   dossier ignoré par Git.
+
+ISSUE_TITLES = {
+    "lists": "Listes à regarder",
+    "missing_details": "Matchs terminés sans détail",
+    "lineups": "Compositions à regarder",
+    "players_events": "players ou events vides",
+    "goals": "Écarts entre buts dans events et score",
+    "missing_ids": "Entrées sans player.id",
+    "not_in_profiles": "Titulaires sans profil /players",
+    "minutes": "Minutes hors bornes",
+    "ratings": "Notes hors bornes",
+}
+# En-têtes courts du tableau des anomalies par championnat-saison.
+ISSUE_COLUMNS = {
+    "lists": "Liste", "missing_details": "Sans détail", "lineups": "Compos", "players_events": "players/events",
+    "goals": "Buts", "missing_ids": "Sans id", "not_in_profiles": "Hors profils", "minutes": "Minutes",
+    "ratings": "Notes",
+}
+LEGEND = ("OK : rien à faire. À REGARDER : anomalies à examiner, souvent des données telles que l'API "
+          "les fournit. BLOQUANT : collecte incomplète ou fichier corrompu, à traiter avant le palier suivant (ADR-0002).")
 
 
 def _md(text: object) -> str:
@@ -913,52 +941,49 @@ def _rate_cell(season: SeasonResult, key: str) -> str:
     return _pct(rate.ok, rate.total)
 
 
-def _truncated(items: list[str], max_items: int) -> list[str]:
-    lines = [f"- {item}" for item in items[:max_items]]
-    if len(items) > max_items:
-        lines.append(f"- … et {len(items) - max_items} autre(s)")
-    return lines
+def _bullets(items: Iterable[str]) -> list[str]:
+    return [f"- {_md(item)}" for item in items]
 
 
-def render_markdown(result: CheckResult, max_items: int = DEFAULT_MAX_ITEMS, command: str | None = None) -> str:
-    names = result.league_names
+def _competition(season: SeasonResult) -> str:
+    return f"| {season.scope.tier} | {_md(season.name)} ({season.scope.league}) | {season.scope.season} |"
 
-    def where(issue: Issue) -> str:
-        match = f", match {issue.fixture}" if issue.fixture is not None else ""
-        return f"{names.get(issue.league, issue.league)} ({issue.league}) {issue.season}{match} : {issue.text}"
 
-    def issue_block(family: str, title: str) -> list[str]:
-        items = result.issues[family]
-        if not items:
-            return [f"{title} : aucun cas.", ""]
-        return [f"{title} ({len(items)}) :", "", *_truncated([_md(where(i)) for i in items], max_items), ""]
-
-    label = ", ".join(result.tiers)
-    lines = [
-        f"# Contrôle qualité du brut API-FOOTBALL : {label}",
+def _header(result: CheckResult, title: str, command: str | None) -> list[str]:
+    return [
+        f"# {title}",
         "",
-        f"Généré le {result.generated_at:%Y-%m-%d %H:%M} UTC par `{command or 'python -m foot_predictor.quality.raw_check'}`.",
+        f"Généré le {result.generated_at:%Y-%m-%d %H:%M} UTC par "
+        f"`{command or 'python -m foot_predictor.quality.raw_check'}`.",
         f"Dossier brut : `{result.raw_dir.as_posix()}` (lecture seule). Seuils : rapport de cadrage, G.9.",
-        f"Couverture : `{result.coverage_file}`." if result.coverage_file else "Couverture : inconnue (aucune réponse /leagues).",
+        f"Couverture : `{result.coverage_file}`." if result.coverage_file
+        else "Couverture : inconnue (aucune réponse /leagues).",
         "",
+    ]
+
+
+def render_summary(result: CheckResult, command: str | None = None, details_name: str | None = None) -> str:
+    """Rapport versionné : uniquement des verdicts et des compteurs."""
+    label = ", ".join(result.tiers)
+    lines = _header(result, f"Contrôle qualité du brut API-FOOTBALL : {label}", command)
+    if details_name:
+        lines += [f"Listes détaillées (matchs, joueurs, fichiers, tâches) : `details/{details_name}`, "
+                  "non versionné.", ""]
+    lines += [
         "## Résumé",
         "",
         f"**Verdict : {result.verdict}**",
         "",
         "| Famille | Contrôle | Statut | Détail |",
         "|---|---|---|---|",
-    ]
-    lines += [f"| {c.family} | {_md(c.label)} | {c.status} | {_md(c.detail)} |" for c in result.checks]
-    lines += [
+        *(f"| {c.family} | {_md(c.label)} | {c.status} | {_md(c.detail)} |" for c in result.checks),
         "",
-        "OK : rien à faire. À REGARDER : anomalies à examiner, souvent des données telles que l'API "
-        "les fournit. BLOQUANT : collecte incomplète ou fichier corrompu, à traiter avant le palier suivant (ADR-0002).",
+        LEGEND,
         "",
     ]
     if result.notes:
-        lines += ["Remarques sur le périmètre :", "", *_truncated([_md(n) for n in result.notes], max_items), ""]
+        lines += ["Remarques sur le périmètre :", "", *_bullets(result.notes), ""]
 
-    # 1. Complétude
     lines += [
         "## 1. Complétude",
         "",
@@ -966,7 +991,8 @@ def render_markdown(result: CheckResult, max_items: int = DEFAULT_MAX_ITEMS, com
         "rien pour les coupes. Détails attendus : matchs terminés (dans les coupes, seulement "
         "ceux d'une équipe suivie). « Tapis vert » : scores attribués (AWD, WO), exclus des contrôles de détail.",
         "",
-        "| Palier | Compétition | Saison | Listés | Saison régulière | Équipes | Attendu | Terminés à détailler | Avec détail | Tapis vert |",
+        "| Palier | Compétition | Saison | Listés | Saison régulière | Équipes | Attendu | "
+        "Terminés à détailler | Avec détail | Tapis vert |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for s in result.seasons:
@@ -976,100 +1002,146 @@ def render_markdown(result: CheckResult, max_items: int = DEFAULT_MAX_ITEMS, com
             cells = [s.listed, s.regular if s.expected is not None else "—", s.teams or "—",
                      s.expected if s.expected is not None else "—", s.to_detail,
                      f"{s.detailed} ({_pct(s.detailed, s.to_detail)})", s.awarded]
-        lines.append(f"| {s.scope.tier} | {_md(s.name)} ({s.scope.league}) | {s.scope.season} | "
-                     + " | ".join(str(c) for c in cells) + " |")
-    lines += ["", *issue_block("lists", "Listes à regarder"), *issue_block("missing_details", "Matchs terminés sans détail")]
+        lines.append(_competition(s) + " " + " | ".join(str(c) for c in cells) + " |")
 
-    # 2. Détails
     lines += [
+        "",
         "## 2. Détails des matchs",
         "",
         f"Taux par championnat-saison ; seuil {THRESHOLD_LABEL}. « n. c. » : non couvert d'après /leagues "
         "(non contrôlé). Compositions : taux par équipe pour les titulaires et le gardien.",
         "",
-        "| Palier | Compétition | Saison | Détails | " + " | ".join(lab for _, lab, _ in DETAIL_CHECKS) + " | Profils (pages) |",
-        "|---|---|---|---|" + "---|" * len(DETAIL_CHECKS) + "---|",
+        "| Palier | Compétition | Saison | Détails | " + " | ".join(lab for _, lab, _ in DETAIL_CHECKS)
+        + " | Buts = score | Profils (pages) |",
+        "|---|---|---|---|" + "---|" * len(DETAIL_CHECKS) + "---|---|",
     ]
     for s in result.seasons:
-        if s.detailed or s.list_found:
-            cells = [s.detailed, *(_rate_cell(s, key) for key, _, _ in DETAIL_CHECKS), s.profiles]
-            lines.append(f"| {s.scope.tier} | {_md(s.name)} ({s.scope.league}) | {s.scope.season} | "
-                         + " | ".join(str(c) for c in cells) + " |")
-    lines += ["", *issue_block("lineups", "Compositions à regarder"), *issue_block("players_events", "players ou events vides")]
+        if s.list_found:
+            cells = [s.detailed, *(_rate_cell(s, key) for key, _, _ in DETAIL_CHECKS),
+                     _pct(s.goals.ok, s.goals.total), s.profiles]
+            lines.append(_competition(s) + " " + " | ".join(str(c) for c in cells) + " |")
 
-    # 3. Cohérence
+    per_season: dict[tuple[int, int], Counter] = defaultdict(Counter)
+    for family, issues in result.issues.items():
+        for issue in issues:
+            per_season[(issue.league, issue.season)][family] += 1
     lines += [
-        "## 3. Cohérence : buts dans events = score",
         "",
+        "## 3. Anomalies par championnat-saison",
+        "",
+        "Nombre d'anomalies listées dans le fichier de détails ; championnat-saisons sans anomalie omis.",
+        "",
+    ]
+    rows = [s for s in result.seasons if per_season.get((s.scope.league, s.scope.season))]
+    if rows:
+        lines += ["| Palier | Compétition | Saison | " + " | ".join(ISSUE_COLUMNS.values()) + " |",
+                  "|---|---|---|" + "---|" * len(ISSUE_COLUMNS)]
+        for s in rows:
+            counts = per_season[(s.scope.league, s.scope.season)]
+            lines.append(_competition(s) + " " + " | ".join(str(counts[f]) for f in ISSUE_COLUMNS) + " |")
+    else:
+        lines.append("Aucune.")
+
+    journal = result.journal
+    problems = Counter((row["status"], row["task_type"]) for row in journal.problems)
+    lines += [
+        "",
+        "## 4. Identifiants et journal",
+        "",
+        f"- Joueurs vus : {len(result.names)} ; avec des variantes de nom tolérées : "
+        f"{sum(1 for names in result.names.values() if len(names) > 1)} ; aux noms incompatibles : "
+        f"{len(result.name_conflicts)}.",
+        f"- Profils /players : {len(result.profiles)} ; groupes de doublons probables : {len(result.duplicates)}.",
+        f"- Fichiers : {journal.verified} sha256 conformes, {len(journal.mismatched)} différents, "
+        f"{len(journal.missing)} absents, {len(result.unreadable)} illisibles, {len(journal.unlisted)} hors journal ; "
+        f"{len(journal.bad_lines)} ligne(s) de journal illisible(s).",
+    ]
+    if journal.queue_found and not journal.queue_error:
+        counts = journal.task_counts
+        lines.append("- Tâches des paliers contrôlés : "
+                     + ", ".join(f"{k} {counts[k]}" for k in ("done", "pending", "failed", "suspect")) + ".")
+        lines += [f"  - {status} {task_type} : {count}" for (status, task_type), count in sorted(problems.items())]
+    else:
+        lines.append(f"- File de travail : {'illisible' if journal.queue_error else 'absente'}.")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_details(result: CheckResult, command: str | None = None) -> str:
+    """Listes nominatives, non versionnées : matchs, joueurs, fichiers, tâches."""
+    names = result.league_names
+
+    def where(issue: Issue) -> str:
+        match = f", match {issue.fixture}" if issue.fixture is not None else ""
+        return f"{names.get(issue.league, issue.league)} ({issue.league}) {issue.season}{match} : {issue.text}"
+
+    def issue_block(family: str) -> list[str]:
+        items = result.issues[family]
+        if not items:
+            return [f"{ISSUE_TITLES[family]} : aucun cas.", ""]
+        return [f"{ISSUE_TITLES[family]} ({len(items)}) :", "", *_bullets(where(i) for i in items), ""]
+
+    label = ", ".join(result.tiers)
+    lines = _header(result, f"Contrôle qualité du brut API-FOOTBALL : {label}, listes détaillées", command)
+    lines += [
+        f"**Verdict : {result.verdict}** (résumé chiffré dans le rapport versionné).",
+        "",
+        "Ce fichier contient des noms et des identifiants de joueurs : il reste local "
+        "(`reports/data_quality/details/` est ignoré par Git).",
+        "",
+        "## 1. Complétude", "", *issue_block("lists"), *issue_block("missing_details"),
+        "## 2. Détails des matchs", "", *issue_block("lineups"), *issue_block("players_events"),
+        "## 3. Cohérence", "",
         "Buts comptés : événements `Goal` hors penalties manqués et tirs au but ; un but contre son camp "
         "compte pour l'équipe qui en profite. Score : champ `goals` (prolongation comprise).",
-        "",
-        *issue_block("goals", "Écarts"),
+        "", *issue_block("goals"),
+        "## 4. Identifiants", "", *issue_block("missing_ids"), *issue_block("not_in_profiles"),
     ]
-
-    # 4. Identifiants
-    lines += ["## 4. Identifiants", "", *issue_block("missing_ids", "Entrées sans player.id"),
-              *issue_block("not_in_profiles", "Titulaires sans profil /players")]
     conflicts = result.name_conflicts
-    lines += [
-        "Identifiants associés à plusieurs noms incompatibles (variantes du type « S. Romero » / "
-        f"« Sergio Romero » tolérées) ({len(conflicts)}) :" if conflicts else
-        "Identifiants associés à plusieurs noms incompatibles : aucun.",
-        "",
-    ]
+    lines += [f"Identifiants associés à plusieurs noms incompatibles ({len(conflicts)}) :" if conflicts
+              else "Identifiants associés à plusieurs noms incompatibles : aucun.", ""]
     if conflicts:
-        lines += _truncated([f"{player_id} : " + _md(" | ".join(" / ".join(g) for g in groups))
-                             for player_id, groups in conflicts], max_items) + [""]
+        lines += _bullets(f"{player_id} : " + " | ".join(" / ".join(g) for g in groups)
+                          for player_id, groups in conflicts) + [""]
     duplicates = result.duplicates
     lines += [f"Doublons probables : même nom et même date de naissance, identifiants différents ({len(duplicates)}) :"
               if duplicates else "Doublons probables : aucun.", ""]
     if duplicates:
-        lines += _truncated([f"né le {birth} : " + _md(" ; ".join(f"{pid} {result.profiles[pid].label()}" for pid in ids))
-                             for birth, ids in duplicates], max_items) + [""]
+        lines += _bullets(f"né le {birth} : " + " ; ".join(f"{pid} {result.profiles[pid].label()}" for pid in ids)
+                          for birth, ids in duplicates) + [""]
+    lines += ["## 5. Plausibilité", "", *issue_block("minutes"), *issue_block("ratings")]
 
-    # 5. Plausibilité
-    lines += ["## 5. Plausibilité", "", *issue_block("minutes", "Minutes hors bornes"),
-              *issue_block("ratings", "Notes hors bornes")]
-
-    # 6. Journal
     journal = result.journal
-    lines += [
-        "## 6. Journal et file de travail",
-        "",
-        f"sha256 vérifiés sur tout le dossier brut ({journal.manifests} journal(aux)) : {journal.verified} conformes.",
-        "",
-    ]
+    lines += ["## 6. Journal et file de travail", ""]
     for title, items in (("sha256 différent du journal", journal.mismatched),
                          ("Cités par le journal mais absents du disque", journal.missing),
                          ("Illisibles", result.unreadable),
                          ("Présents sur le disque mais absents du journal (normal pendant une collecte)", journal.unlisted),
                          ("Lignes de journal illisibles", journal.bad_lines)):
         if items:
-            lines += [f"{title} ({len(items)}) :", "", *_truncated([f"`{_md(i)}`" for i in items], max_items), ""]
-    if not journal.queue_found:
-        lines += ["File de travail absente : tâches non vérifiées.", ""]
-    elif journal.queue_error:
+            lines += [f"{title} ({len(items)}) :", "", *_bullets(f"`{i}`" for i in items), ""]
+    if journal.queue_error:
         lines += [f"File de travail illisible : {_md(journal.queue_error)}", ""]
+    elif journal.problems:
+        lines += ["| Statut | Palier | Type | Paramètres | Tentatives | Raison | Fichier |",
+                  "|---|---|---|---|---|---|---|"]
+        lines += [f"| {row['status']} | {row['tier']} | {row['task_type']} | `{_md(row['params'])}` | "
+                  f"{row['attempts']} | {_md(row['last_error'] or '')} | {_md(row['file'] or '')} |"
+                  for row in journal.problems]
     else:
-        counts = journal.task_counts
-        lines += ["Tâches des paliers contrôlés : " + ", ".join(f"{k} {counts[k]}" for k in ("done", "pending", "failed", "suspect")) + ".", ""]
-        if journal.problems:
-            lines += ["| Statut | Palier | Type | Paramètres | Tentatives | Raison | Fichier |", "|---|---|---|---|---|---|---|"]
-            for row in journal.problems[:max_items]:
-                lines.append(f"| {row['status']} | {row['tier']} | {row['task_type']} | `{_md(row['params'])}` | "
-                             f"{row['attempts']} | {_md(row['last_error'] or '')} | {_md(row['file'] or '')} |")
-            if len(journal.problems) > max_items:
-                lines.append(f"\n… et {len(journal.problems) - max_items} autre(s).")
-            lines.append("")
+        lines.append("Aucune tâche failed ou suspect.")
     return "\n".join(lines).rstrip() + "\n"
 
 
 # --- ligne de commande --------------------------------------------------------------------------------
 
+DETAILS_DIRNAME = "details"
 
-def report_path(output_dir: Path, tiers: list[str], all_tiers: bool, when: dt.datetime) -> Path:
-    label = "tous" if all_tiers else "-".join(tiers)
-    return Path(output_dir) / f"raw_check_{label}_{when:%Y-%m-%d}.md"
+
+def report_paths(output_dir: Path, tiers: list[str], all_tiers: bool, when: dt.datetime) -> tuple[Path, Path]:
+    """(résumé versionné, listes détaillées non versionnées)."""
+    stem = f"raw_check_{'tous' if all_tiers else '-'.join(tiers)}_{when:%Y-%m-%d}"
+    output_dir = Path(output_dir)
+    return output_dir / f"{stem}.md", output_dir / DETAILS_DIRNAME / f"{stem}_details.md"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1083,9 +1155,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--palier", action="append", dest="tiers",
                         help="palier à contrôler (P1, P2...) ; répétable ; défaut : tous")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR,
-                        help="dossier du rapport (défaut : reports/data_quality)")
-    parser.add_argument("--max-items", type=int, default=DEFAULT_MAX_ITEMS,
-                        help="nombre maximal d'éléments par liste d'anomalies")
+                        help="dossier des rapports (défaut : reports/data_quality ; listes dans <dossier>/details)")
     return parser
 
 
@@ -1112,15 +1182,16 @@ def main(argv: list[str] | None = None) -> int:
     result = RawChecker(args.raw_dir, config, tiers).run()
     command = "python -m foot_predictor.quality.raw_check " + " ".join(f"--palier {t}" for t in tiers) \
         if args.tiers else "python -m foot_predictor.quality.raw_check"
-    markdown = render_markdown(result, args.max_items, command)
-    target = report_path(args.output_dir, tiers, not args.tiers, result.generated_at)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(markdown, encoding="utf-8")
+    summary_path, details_path = report_paths(args.output_dir, tiers, not args.tiers, result.generated_at)
+    details_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.write_text(render_summary(result, command, details_path.name), encoding="utf-8")
+    details_path.write_text(render_details(result, command), encoding="utf-8")
 
     print(f"Verdict : {result.verdict}")
     for line in result.checks:
         print(f"  [{line.status}] {line.family} - {line.label} : {line.detail}")
-    print(f"Rapport écrit dans {target}")
+    print(f"Résumé (versionné) : {summary_path}")
+    print(f"Listes détaillées (non versionnées) : {details_path}")
     return 1 if result.verdict == BLOCK else 0
 
 

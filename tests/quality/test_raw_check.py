@@ -9,6 +9,7 @@ import copy
 import datetime as dt
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -294,6 +295,22 @@ def test_anomalies_are_detected_and_listed(tmp_path, config, real):
     assert result.verdict == BLOCK
     assert stored.path.exists()
 
+    # Le résumé versionné ne contient que des compteurs ; les listes nominatives vont dans les détails.
+    summary = raw_check.render_summary(result)
+    details = raw_check.render_details(result)
+    player_names = {entry["player"]["name"] for item in broken for team in item["players"] for entry in team["players"]}
+    player_names |= {entry["player"]["name"] for item in broken for lineup in item["lineups"]
+                     for entry in lineup["startXI"] + lineup["substitutes"]}
+    assert [name for name in player_names if name in summary] == []
+    anomalous_ids = {424242, missing_starter, *conflict_ids}
+    assert [pid for pid in anomalous_ids if re.search(rf"\b{pid}\b", summary)] == []
+    assert "D. Blind" in details and "424242" in details and str(missing_starter) in details
+    assert "999002" in details and "999002" not in summary  # match sans détail : listé dans les détails seulement
+    # Anomalies par championnat-saison : liste, sans détail, compos, players/events, buts, sans id,
+    # hors profils, minutes, notes.
+    assert "| P1 | Compétition 39 (39) | 2015 | 1 | 1 | 2 | 1 | 1 | 1 | 1 | 1 | 1 |" in summary
+    assert "failed coachs : 1" in summary and "team" not in summary
+
 
 def test_most_recent_detail_version_wins(tmp_path, config, real):
     raw = tmp_path / "raw"
@@ -453,12 +470,17 @@ def test_main_writes_a_dated_report_and_leaves_the_raw_dir_untouched(tmp_path, r
     assert code == 0  # à regarder, rien de bloquant
     assert snapshot(raw) == before
     [report] = list(out.glob("raw_check_P1_*.md"))
+    [details] = list((out / "details").glob("raw_check_P1_*_details.md"))
+    assert details.name == report.name.replace(".md", "_details.md")
     text = report.read_text(encoding="utf-8")
     assert text.startswith("# Contrôle qualité du brut API-FOOTBALL : P1")
     assert text.index("## Résumé") < text.index("## 1. Complétude")
     assert "**Verdict : À REGARDER**" in text
     assert "--palier P1" in text
-    assert "Verdict : À REGARDER" in capsys.readouterr().out
+    assert f"details/{details.name}" in text
+    assert details.read_text(encoding="utf-8").startswith("# Contrôle qualité du brut API-FOOTBALL : P1, listes détaillées")
+    output = capsys.readouterr().out
+    assert "Verdict : À REGARDER" in output and str(details) in output
 
 
 def test_main_returns_1_when_blocking(tmp_path, real):

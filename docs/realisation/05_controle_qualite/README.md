@@ -6,7 +6,11 @@ Mode d'emploi de `src/foot_predictor/quality/raw_check.py`, qui applique les con
 
 - **Lecture seule** : l'outil lit les fichiers `.json.gz`, le journal `_manifest/*.jsonl` et la file `_queue/api_football.sqlite`. La file est ouverte en SQLite `mode=ro`. Aucun appel réseau, aucune base de données. Il refuse d'écrire son rapport dans le dossier brut.
 - **Sans risque pendant une collecte** : une ligne de journal en cours d'écriture est signalée, pas fatale. Les fichiers écrits mais pas encore journalisés apparaissent « hors journal » (avertissement).
-- **Sortie** : `reports/data_quality/raw_check_<palier>_<AAAA-MM-JJ>.md`, un fichier par palier et par jour. Relancer le même jour remplace le rapport du jour ; l'historique reste dans Git.
+- **Sortie**, deux fichiers par palier et par jour. Relancer le même jour les remplace.
+  - `reports/data_quality/raw_check_<palier>_<AAAA-MM-JJ>.md` : **résumé chiffré, versionné**. Il contient les verdicts et les compteurs par contrôle et par championnat-saison, sans aucun nom ni identifiant de joueur.
+  - `reports/data_quality/details/raw_check_<palier>_<AAAA-MM-JJ>_details.md` : **listes détaillées, ignorées par Git**. Elles donnent les matchs sans détail, les joueurs en cause (noms, identifiants), les fichiers corrompus et les tâches en échec.
+
+  Pourquoi cette séparation : les données restent privées (ADR-0002). Seuls les nombres sont committés ; les listes nominatives restent sur le poste.
 
 ## Commande
 
@@ -21,10 +25,9 @@ uv run python -m foot_predictor.quality.raw_check --palier P1 --raw-dir C:/foot-
 | `--palier P` | palier à contrôler, répétable (`--palier P1 --palier P2`) | tous les paliers du YAML |
 | `--raw-dir D` | dossier brut à lire | `data/raw` |
 | `--config F` | fichier des paliers (périmètre attendu) | `config/collecte_api_football.yaml` |
-| `--output-dir D` | dossier du rapport | `reports/data_quality` |
-| `--max-items N` | éléments affichés par liste d'anomalies (le total est toujours donné) | 50 |
+| `--output-dir D` | dossier du résumé ; les listes vont dans `<D>/details/` | `reports/data_quality` |
 
-Code de retour : `0` si rien n'est bloquant, `1` si au moins un contrôle est bloquant, `2` en cas d'erreur d'usage (palier inconnu, dossier absent).
+Le terminal affiche le verdict de chaque contrôle et le chemin des deux fichiers. Code de retour : `0` si rien n'est bloquant, `1` si au moins un contrôle est bloquant, `2` en cas d'erreur d'usage (palier inconnu, dossier absent).
 
 ## Ce qui est contrôlé
 
@@ -70,4 +73,7 @@ Le périmètre attendu, c'est-à-dire les championnat-saisons de chaque palier, 
 uv run pytest tests/quality -q
 ```
 
-Les tests rangent les 5 matchs réels de `tests/fixtures/api_football/` dans un dossier brut temporaire (fichiers, journal, file), puis y injectent une anomalie de chaque sorte. Ils vérifient aussi que le dossier brut est identique, octet pour octet et date de modification comprise, avant et après le contrôle.
+Les tests rangent les 5 matchs réels de `tests/fixtures/api_football/` dans un dossier brut temporaire (fichiers, journal, file), puis y injectent une anomalie de chaque sorte. Ils vérifient aussi :
+
+- que le dossier brut est identique, octet pour octet et date de modification comprise, avant et après le contrôle ;
+- que le résumé ne contient ni nom de joueur ni identifiant de joueur en anomalie, alors que le fichier de détails les liste.

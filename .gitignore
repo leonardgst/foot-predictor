@@ -31,3 +31,6 @@ models/
 
 # Données (licences et volume ; brut API-FOOTBALL dans data/raw/, ADR-0003)
 /data/
+
+# Rapports qualité : listes détaillées (noms et identifiants de joueurs), jamais versionnées
+/reports/data_quality/details/

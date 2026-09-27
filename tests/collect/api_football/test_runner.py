@@ -70,6 +70,16 @@ def test_full_flow_with_real_payloads(tmp_path, api):
     assert [c[0] for c in session.calls] == ["/status"]
 
 
+def test_details_come_before_lower_priority_tasks(tmp_path, api):
+    """Les lots de détails, créés après l'arrivée des listes, passent avant
+    les blessures et les joueurs déjà en file (priorité, rapport G.3)."""
+    api.player_pages[(39, 2015)] = 2
+    report, session = run_once(tmp_path, api, make_config(("fixtures_list", "fixtures_detail", "injuries", "players")))
+
+    kinds = ["detail" if "ids" in p else e for e, p in session.calls]
+    assert kinds == ["/status", "/fixtures", "detail", "/injuries", "/players", "/players"]
+
+
 def test_api_key_never_written_to_disk(tmp_path, api):
     run_once(tmp_path, api, make_config())
     for path in tmp_path.rglob("*"):

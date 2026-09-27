@@ -19,10 +19,15 @@ Ordre des écritures : fichier, journal, puis file. Un plantage entre deux
 étapes coûte au pire une requête refaite au lancement suivant (nouvelle
 version du fichier), jamais une donnée perdue ou un fichier corrompu.
 
-Quand la file est vide, le plan des paliers déjà planifiés est relancé, pour
-créer les tâches dérivées des listes qui viennent d'arriver (détails,
-entraîneurs, transferts). La collecte s'arrête quand plus rien n'est ajouté,
-ou proprement sur la réserve de quota, le quota du jour épuisé, ou
+La file est traitée par groupes (palier, priorité) : toutes les listes de
+matchs, puis les équipes, puis les détails, etc. Avant chaque groupe, le plan
+des paliers déjà planifiés est relancé, pour créer les tâches dérivées des
+listes qui viennent d'arriver (détails, entraîneurs, transferts). Sans cela,
+les lots de détails, créés seulement à file vide, passeraient après les
+milliers de pages de joueurs, alors qu'ils sont prioritaires.
+
+La collecte s'arrête quand la file est vide et que le plan n'ajoute plus
+rien, ou proprement sur la réserve de quota, le quota du jour épuisé, ou
 `--max-requests`.
 """
 from __future__ import annotations
@@ -148,12 +153,17 @@ class Runner:
             # /status d'abord : quota restant connu avant la première requête de données.
             store_response(self.raw_dir, STATUS_REL_DIR, "status", self.client.status())
             while True:
+                if self.replan:
+                    self._replan()
                 pending = self.queue.list_pending(exclude_ids=self._retry_later)
                 if not pending:
-                    if not self.replan or self._replan() == 0:
-                        break
-                    continue
+                    break
+                # Chaque passe traite au moins une tâche (qui quitte pending ou
+                # est exclue jusqu'au prochain lancement) : la boucle se termine.
+                group = (pending[0].tier, tasks.PRIORITY[pending[0].task_type])
                 for task in pending:
+                    if (task.tier, tasks.PRIORITY[task.task_type]) != group:
+                        break
                     self._execute(task)
         except CollectStop as exc:
             self.report.stop_reason = str(exc)

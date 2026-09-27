@@ -14,6 +14,7 @@
 ## En cours
 
 - Collecteur v2 : PR ouverte depuis `fix/03-collecteur-lots-ids`, à relire et fusionner. Aucune requête réelle n'a encore été faite avec lui.
+- Contrôle qualité du brut (rapport G.9) : PR ouverte depuis `feat/05-controle-qualite-brut` (`src/foot_predictor/quality/raw_check.py`, mode d'emploi `docs/realisation/05_controle_qualite/README.md`). Testé sur les payloads de `tests/fixtures/`, pas encore lancé sur les vraies données.
 
 ## Bloqué
 
@@ -38,7 +39,8 @@
 
 **Moyen terme (d'ici le 19 octobre)**
 
-- [ ] Palier P1 (2-8 oct.) ; outil de contrôle qualité du brut ; contrôles P1 (rapport G.9).
+- [ ] Outil de contrôle qualité du brut (`quality/raw_check.py`). *Écrit et testé ; reste la relecture et la fusion de la PR.*
+- [ ] Palier P1 (2-8 oct.) ; contrôles P1 avec `raw_check --palier P1` : aucun BLOQUANT, chaque « à regarder » examiné, avant de planifier P2.
 - [ ] Paliers P2, P3, P4 et journal quotidien (9-16 oct.).
 - [ ] Fin de collecte et rattrapages (17-18 oct.).
 - [ ] Gel le 19 oct. : `DATA_FREEZE.md`, export sur disque externe, test de restauration, tag `data-freeze-2026-10`.
@@ -62,4 +64,10 @@ Suivi quotidien de la collecte :
 ```bash
 uv run python -m foot_predictor.collect.api_football status
 uv run python -m foot_predictor.collect.api_football run
+```
+
+Contrôle qualité d'un palier (lecture seule, rapport daté dans `reports/data_quality/`) :
+
+```bash
+uv run python -m foot_predictor.quality.raw_check --palier P1 --raw-dir C:/foot-predictor/data/raw
 ```

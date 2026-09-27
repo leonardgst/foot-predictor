@@ -1,0 +1,86 @@
+# Périmètre de collecte API-FOOTBALL, par paliers (ADR-0002).
+#
+# Lu par `python -m foot_predictor.collect.api_football plan --palier <P>`.
+# Un palier ne commence que lorsque le précédent est collecté et contrôlé
+# (rapport G.9). Les identifiants de compétitions sont à confirmer avec la
+# commande `coverage` (docs/realisation/03_collecte/couverture.md).
+#
+# Clés d'un bloc :
+#   name       : nom lisible (affiché par plan et status)
+#   kind       : league (championnat) ou cup (coupe)
+#   leagues    : identifiants API-FOOTBALL
+#   seasons    : first / last (année de début de saison, bornes incluses).
+#                Sans first : toutes les saisons connues de /leagues jusqu'à
+#                last (exige la commande coverage).
+#                requires_coverage : ne garder que les saisons où ce drapeau
+#                de /leagues est vrai (ex. fixtures.lineups).
+#   endpoints  : types de tâches à créer, parmi fixtures_list, fixtures_detail,
+#                teams, injuries, players, coachs, transfers, standings,
+#                sidelined. coachs et transfers exigent teams (liste des
+#                équipes de chaque saison).
+#   detail_teams_from : pour une coupe, ne demander le détail que des matchs
+#                impliquant une équipe d'un championnat (kind: league) de ce
+#                palier, la même saison.
+
+# Quota du jour conservé pour le journal quotidien et les rattrapages (ADR-0002).
+reserve: 500
+
+# Statuts « match terminé » : seuls ces matchs sont mis en lot de détails.
+# Les autres (NS, TBD, PST, SUSP, INT, CANC, ABD...) sont listés à part.
+terminal_statuses: [FT, AET, PEN, AWD, WO]
+
+tiers:
+  P1:
+    description: indispensable
+    blocks:
+      - name: top5
+        kind: league
+        leagues: [39, 140, 78, 135, 61]   # Premier League, La Liga, Bundesliga, Serie A, Ligue 1
+        seasons: {first: 2015, last: 2026}
+        endpoints: [fixtures_list, fixtures_detail, teams, injuries, players, coachs, transfers]
+      - name: d2
+        kind: league
+        leagues: [40, 141, 79, 136, 62]   # Championship, Segunda, 2. Bundesliga, Serie B, Ligue 2
+        seasons: {first: 2015, last: 2026}
+        endpoints: [fixtures_list, fixtures_detail, teams, injuries, players, coachs, transfers]
+      - name: coupes_europe
+        kind: cup
+        leagues: [2, 3, 848]              # Ligue des champions, Ligue Europa, Ligue Europa Conférence
+        seasons: {first: 2015, last: 2026}
+        endpoints: [fixtures_list, fixtures_detail]
+        detail_teams_from: P1
+      - name: coupes_nationales
+        kind: cup
+        leagues: [45, 48, 143, 81, 137, 66]  # FA Cup, League Cup, Copa del Rey, DFB-Pokal, Coppa Italia, Coupe de France
+        seasons: {first: 2015, last: 2026}
+        endpoints: [fixtures_list, fixtures_detail]
+        detail_teams_from: P1
+
+  P2:
+    description: historique ancien (saisons avec compositions uniquement)
+    blocks:
+      - name: top5_d2_historique
+        kind: league
+        leagues: [39, 140, 78, 135, 61, 40, 141, 79, 136, 62]
+        seasons: {last: 2014, requires_coverage: fixtures.lineups}
+        endpoints: [fixtures_list, fixtures_detail]
+
+  P3:
+    description: autres championnats (fournisseurs de joueurs)
+    blocks:
+      - name: autres_championnats
+        kind: league
+        # Pays-Bas, Portugal, Belgique, Écosse, Turquie, Autriche, Suisse,
+        # Danemark, Brésil, Argentine, États-Unis
+        leagues: [88, 94, 144, 179, 203, 218, 207, 119, 71, 128, 253]
+        seasons: {first: 2015, last: 2026}
+        endpoints: [fixtures_list, fixtures_detail, players]
+
+  P4:
+    description: compléments (à définir finement plus tard)
+    # Structure prévue, à compléter :
+    # - standings (classements officiels) : un bloc kind: league avec
+    #   endpoints: [standings] ;
+    # - sidelined (indisponibilités par joueur) : la liste des joueurs à
+    #   interroger reste à définir (sa dérivation n'est pas encore codée).
+    blocks: []

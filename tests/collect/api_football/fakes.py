@@ -31,10 +31,16 @@ def load_real_fixtures() -> list[dict]:
 
 
 class FakeClock:
+    _created = 0
+
     def __init__(self) -> None:
+        # Chaque horloge démarre une heure après la précédente : deux
+        # lancements successifs d'un même test ne produisent jamais le même
+        # nom de fichier (le brut refuserait, à raison, d'écraser).
+        FakeClock._created += 1
         self.monotonic = 1000.0
         self.sleeps: list[float] = []
-        self.utc = dt.datetime(2026, 10, 2, 8, 0, 0, tzinfo=dt.timezone.utc)
+        self.utc = dt.datetime(2026, 10, 2, 8, 0, 0, tzinfo=dt.timezone.utc) + dt.timedelta(hours=FakeClock._created)
 
     def clock(self) -> float:
         return self.monotonic
@@ -127,6 +133,85 @@ def fixture_item(fixture_id: int, *, status: str = "FT", league: int = 39, seaso
         "league": {"id": league, "season": season},
         "teams": {"home": {"id": home}, "away": {"id": away}},
     }
+
+
+class FakeApi:
+    """Fausse API-FOOTBALL cohérente, pour les tests de bout en bout.
+
+    - `listings[(league, season)]` : éléments renvoyés par `/fixtures?league=&season=` ;
+    - `details[id]` : élément complet renvoyé par `/fixtures?ids=` (par défaut
+      les 5 matchs réels ; un id absent n'est pas renvoyé) ;
+    - `teams[(league, season)]` : identifiants d'équipes de `/teams` ;
+    - `player_pages[(league, season)]` : nombre de pages de `/players` ;
+    - `errors[(endpoint, clé de params)]` : `errors` à renvoyer ;
+    - `empty` : ensemble de (endpoint, clé de params) renvoyant results = 0.
+    """
+
+    def __init__(self) -> None:
+        self.listings: dict[tuple[int, int], list[dict]] = {}
+        self.details: dict[int, dict] = {f["fixture"]["id"]: f for f in load_real_fixtures()}
+        self.teams: dict[tuple[int, int], list[int]] = {}
+        self.player_pages: dict[tuple[int, int], int] = {}
+        self.errors: dict[tuple[str, tuple], dict] = {}
+        self.empty: set[tuple[str, tuple]] = set()
+
+    @staticmethod
+    def key(endpoint: str, params: dict) -> tuple[str, tuple]:
+        return endpoint, tuple(sorted(params.items()))
+
+    def __call__(self, endpoint: str, params: dict) -> FakeResponse:
+        key = self.key(endpoint, params)
+        if key in self.errors:
+            return ok([], errors=self.errors[key], results=0)
+        if key in self.empty:
+            return ok([], results=0)
+        if endpoint == "/status":
+            return FakeResponse(200, status_body())
+        if endpoint == "/fixtures" and "ids" in params:
+            ids = [int(i) for i in params["ids"].split("-")]
+            return ok([self.details[i] for i in ids if i in self.details])
+        if endpoint == "/fixtures":
+            return ok(self.listings.get((params["league"], params["season"]), []))
+        if endpoint == "/teams":
+            teams = self.teams.get((params["league"], params["season"]), [])
+            return ok([{"team": {"id": t, "name": f"Équipe {t}"}, "venue": {}} for t in teams])
+        if endpoint == "/players":
+            total = self.player_pages.get((params["league"], params["season"]), 1)
+            page = params.get("page", 1)
+            return ok([{"player": {"id": page * 100 + i}} for i in range(2)], paging={"current": page, "total": total})
+        if endpoint in ("/coachs", "/transfers", "/injuries"):
+            return ok([{"team": params.get("team")}])
+        if endpoint == "/leagues":
+            return ok(leagues_response())
+        raise AssertionError(f"Appel inattendu : {endpoint} {params}")
+
+
+def league_entry(league_id: int, name: str, seasons: dict[int, dict]) -> dict:
+    """Élément de `/leagues` ; `seasons` : année -> surcharges de `coverage`."""
+    base = {
+        "fixtures": {"events": True, "lineups": True, "statistics_fixtures": True, "statistics_players": True},
+        "standings": True, "players": True, "injuries": True, "predictions": True, "odds": False,
+    }
+    items = []
+    for year, overrides in seasons.items():
+        coverage = copy.deepcopy(base)
+        for path, value in overrides.items():
+            target = coverage
+            *parents, leaf = path.split(".")
+            for part in parents:
+                target = target[part]
+            target[leaf] = value
+        items.append({"year": year, "start": f"{year}-08-01", "end": f"{year + 1}-05-31", "current": False,
+                      "coverage": coverage})
+    return {"league": {"id": league_id, "name": name, "type": "League"}, "country": {"name": "England"},
+            "seasons": items}
+
+
+def leagues_response() -> list[dict]:
+    return [
+        league_entry(39, "Premier League", {2013: {"fixtures.lineups": False}, 2014: {}, 2015: {"injuries": False}}),
+        league_entry(45, "FA Cup", {2015: {}}),
+    ]
 
 
 def make_client(session: FakeSession, clock: FakeClock, **kwargs) -> ApiFootballClient:

@@ -8,6 +8,7 @@ et expose l'URL de connexion PostgreSQL correspondante.
 import os
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +20,10 @@ class Settings(BaseSettings):
     postgres_port: int = 5440
     # "disable" en local (Docker), "require" pour Neon en prod
     postgres_sslmode: str = "disable"
+    # Facultative : seul le collecteur API-FOOTBALL en a besoin. SecretStr
+    # l'affiche « ********** » dans les repr et les messages d'erreur ; la
+    # valeur ne se lit qu'avec get_secret_value().
+    api_football_key: SecretStr | None = None
 
     model_config = SettingsConfigDict(
         env_file=f".env.{os.getenv('APP_ENV', 'dev')}",

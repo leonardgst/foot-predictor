@@ -1,3 +1,4 @@
+# Obsolète, remplacé par collect/api_football/ (ADR-0004). Conservé jusqu'à la PR de nettoyage.
 """
 Téléchargement API-Football (v3.football.api-sports.io) -> raw.api_football_fixture_detail.
 

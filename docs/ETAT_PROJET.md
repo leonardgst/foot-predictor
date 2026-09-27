@@ -15,7 +15,7 @@
 ## En cours
 
 - **Collecte P1** : top 5 et D2 (2015-2026), coupes d'Europe et nationales, équipes, blessures, joueurs, entraîneurs, transferts. Suivi : commande `status`.
-- **PR `feat/03-rafraichir-saison`** : commande `refresh --season 2026 [--palier P1]`, qui remet en file les listes de matchs, équipes et blessures de la saison en cours. Le `run` suivant crée les lots des seuls matchs devenus terminaux. Testée sans réseau, jamais lancée sur les vraies données. Mode d'emploi : `docs/realisation/03_collecte/README.md`, section « Saison en cours ».
+- **PR #9** (`feat/03-rafraichir-saison`) : commande `refresh --season 2026 [--palier P1]`, qui remet en file les listes de matchs, équipes et blessures de la saison en cours. Le `run` suivant crée les lots des seuls matchs devenus terminaux. Testée sans réseau, jamais lancée sur les vraies données. Mode d'emploi : `docs/realisation/03_collecte/README.md`, section « Saison en cours ».
 
 ## Bloqué
 

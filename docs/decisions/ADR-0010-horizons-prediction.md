@@ -46,7 +46,7 @@ Option 2.
 
 ## Conséquences
 
-- **MVP.** Les variables des groupes G0 à G3 (rapport I.3) sont compatibles avec H1. Qualité du XI, stabilité et entraîneur (G4 à G6) sont réservés à H2. La disponibilité de G3 en live dépend de la décision M10.
+- **MVP.** Les groupes G0 à G3 (rapport I.3) sont compatibles avec H1. La qualité du XI et la stabilité (G5, G6) sont réservées à H2. L'entraîneur (G4), hors MVP (rapport E.1), peut relever de H1 (entraîneur et ancienneté connus d'après les matchs passés) ou de H2 (entraîneur de la feuille de match) : son horizon sera fixé lors de l'expérience G4, en version intermédiaire. La disponibilité de G3 en live suit l'ADR-0011.
 - **Registres.** Le registre des variables (jalon J4) a une colonne « horizon ». La carte d'identité du modèle et la table `ops.prediction` ont un champ « horizon ».
 - **API.** Les routes `availability` et `predictions` prennent l'horizon en paramètre (rapport F.6).
 - **Journal T-60, s'il est fait.**

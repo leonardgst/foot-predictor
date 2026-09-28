@@ -19,7 +19,7 @@ Constats de la collecte (P1 et P2) :
 
 - **Statistiques joueurs** (notes, minutes, postes) : présentes dans 95,9 % des matchs de P1, et seulement 0,8 % de P2. Les indicateurs fondés sur les joueurs ne sont calculables qu'**à partir de 2015-16**.
 - **Anomalies** : 1 154 notes vides ou hors de la plage 3 à 10 (entrées en fin de match), 22 minutes hors de 0 à 130.
-- **Âge** : 335 titulaires n'ont pas de profil ; ils sont couverts par l'action avant le gel de l'ADR-0008.
+- **Âge** : 335 titulaires n'ont pas de profil. L'ADR-0008 prévoit, sous condition, des requêtes ciblées avant le gel ; si elles ne sont pas faites, l'âge reste manquant pour ces joueurs.
 - **Notes entre championnats.** Les notes API ne sont pas comparables d'un championnat à l'autre. Or le palier P3 apporte le passé de joueurs recrutés hors du top 5 et des D2.
 - **Horizon.** La qualité du XI dépend de la composition : elle relève de l'horizon H2 (ADR-0010) et ne fonctionne pas en live après l'abonnement (ADR-0011).
 - **`hdbscan`.** La dépendance ne sert qu'au MVS. Dans `market_value/clustering/build_clusters.py`, son import est protégé et un repli sur un mélange gaussien existe. Le test qui l'utilise est ignoré si le paquet est absent (`pytest.importorskip`).

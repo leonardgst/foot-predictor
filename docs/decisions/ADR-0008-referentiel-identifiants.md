@@ -1,6 +1,6 @@
 # ADR-0008 — API-FOOTBALL fait foi pour les identifiants ; `staging` reconstruit depuis le brut
 
-- **Statut** : acceptée
+- **Statut** : acceptée ; règle 2 complétée par l'ADR-0011 (appariement des matchs postérieurs au gel)
 - **Date** : 2026-09-28
 - **Référence** : rapport de cadrage, B.4 (D1, D2, D11), F.1, G.13, décision M7 ; `docs/realisation/05_controle_qualite/constats_P1_P2.md` ; ADR-0003
 

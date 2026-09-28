@@ -1,5 +1,7 @@
 # Résultats : Modèle A (Poisson indépendant) vs Modèle B (Dixon-Coles hybride)
 
+> **Résultats historiques (2026-09-22).** Depuis l'ADR-0009, la métrique principale est le log-loss du **total** de buts ; le log-loss du score exact et le Brier 1N2 ci-dessous sont des diagnostics. La saison 2024-25 a déjà servi à décider : ces résultats sont un repère, pas une référence de sélection (ADR-0012). Le choix du modèle sera refait selon le protocole de l'ADR-0012.
+
 Ce document consigne les métriques réelles obtenues en exécutant
 `src/foot_predictor/modeling/run_comparison.py` sur la base `dev` (résultats
 bruts dans `docs/model_results.json`), et la décision qui en découle. Les
@@ -171,8 +173,8 @@ est conservé (implémentation pédagogique complète, testée — voir
 quel. Pistes pour revisiter cette décision plus tard :
 
 - Reproduire l'expérience une fois `squad_avg_age`, `squad_stability_score_season`
-  (z9-z10) et l'agrégat MVS (z11) disponibles (API-Football) : `α`/`β` pourraient
-  capter un signal que z1-z8 ne couvrent pas.
+  (z9-z10) disponibles (API-Football ; l'agrégat MVS z11 est gelé, ADR-0013) :
+  `α`/`β` pourraient capter un signal que z1-z8 ne couvrent pas.
 - Tester la variante "δ réduit" mentionnée en (4).
 - Réévaluer une fois plusieurs saisons supplémentaires accumulées (l'historique
   actuel, 9 saisons de train, est peut-être encore court pour que l'estimation

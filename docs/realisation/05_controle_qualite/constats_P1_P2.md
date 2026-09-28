@@ -34,3 +34,9 @@ Lecture des résumés `reports/data_quality/raw_check_P1_2026-09-28.md` et `raw_
 - **M7 (référentiel)** : les identifiants API sont utilisables comme référentiel maître, à condition de traiter les 1 017 + 101 identifiants aux noms incompatibles et les 33 doublons **avant** de construire la stabilité.
 - **Stabilité (H.7)** : l'historique antérieur à 2015 (P2) permet d'amorcer une décroissance sans remise à zéro dès 2015-16. La stabilité par ligne dépendra de la reconstitution des postes.
 - **Qualité du onze (G.12)** : période utilisable à partir de 2015-16 uniquement.
+
+## Suite donnée (2026-09-28)
+
+- **ADR-0008** : les 1 118 identifiants « aux noms incompatibles » ne sont pas à examiner un par un ; ce sont surtout des variantes de nom. Seules les **collisions** (un identifiant, deux personnes) et les 33 doublons sont traités, par YAML versionné. Un test de collision est ajouté à `raw_check.py` avant le gel.
+- **ADR-0009** : le score officiel au temps réglementaire fait foi ; les événements servent au détail.
+- **ADR-0013** : la qualité du onze, calculable à partir de 2015-16, relève de la version intermédiaire (horizon H2).

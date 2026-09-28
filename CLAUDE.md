@@ -27,7 +27,7 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Modifier ou supprimer quoi que ce soit dans `data/raw/`.
 - Lancer `docker compose down -v` ou supprimer une base.
 - Committer des données (`data/`, `models/`) : licences et volume.
-- Exécuter `ingestion/api_football.py` (raw → staging) avant la correction de l'identification des joueurs (rapport B.4, D1 et D3).
+- Exécuter `ingestion/api_football.py` (raw → staging) : il identifie les joueurs par leur nom et sera remplacé par le nouveau chargeur (ADR-0008).
 
 ## Architecture (résumé)
 

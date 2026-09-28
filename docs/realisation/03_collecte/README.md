@@ -85,6 +85,8 @@ Règles des lots de détails :
 
 On ne commence un palier que lorsque le précédent est collecté **et contrôlé** (rapport G.9). `plan` affiche un avertissement si un palier précédent a encore des tâches en attente.
 
+Le tableau ci-dessous est le calendrier **prévisionnel** de l'ADR-0005. La collecte a pris de l'avance : P1 les 27 et 28 septembre, P2 le 28, P3 lancé le 28. L'avancement réel est suivi dans `docs/ETAT_PROJET.md`.
+
 | Dates | Étape |
 |---|---|
 | 28 sept. → 1er oct. | Collecteur relu et fusionné ; `coverage` ; premier essai limité (20 requêtes) |
@@ -168,7 +170,7 @@ uv run python -m foot_predictor.collect.api_football run
 - **Réponse attendue** : `o` ou `oui` pour confirmer. Toute autre réponse, ou une entrée fermée (tâche planifiée Windows), annule. Pour une tâche planifiée, ajouter `--yes`.
 
 **Quand le lancer** : après les journées de championnat, pour que les matchs du week-end soient terminés dans la nouvelle liste.
-- une fois vers le **10 octobre** ;
+- les lundis **5 et 12 octobre** ;
 - une dernière fois après le dernier week-end avant le gel (17-18 octobre), c'est-à-dire le **19 octobre au matin**, avant `backup`.
 
 Une liste demandée le 17 octobre ne contiendrait pas les matchs de ce week-end. Au coût d'une soixantaine de requêtes, un rafraîchissement supplémentaire ne pose aucun problème de quota.
@@ -192,4 +194,4 @@ Un fichier « hors journal » est un avertissement : il peut apparaître après 
 - **Saison en cours, hors `refresh`** : les entraîneurs et transferts (une tâche par équipe) et les profils joueurs (`players`) de la saison ne sont pas rafraîchis. Un changement d'entraîneur survenu après leur collecte ne sera pas vu.
 - **P4** : `standings` est planifiable dès qu'un bloc est ajouté au YAML ; `sidelined` attend la définition de la liste de joueurs.
 - **Anciens scripts** : `ingestion/api_football_scraper.py` et `injuries_scraper.py` sont obsolètes. Ne plus les lancer ; ils seront supprimés dans une PR de nettoyage.
-- `ingestion/api_football.py` (raw vers staging) ne lit pas ce nouveau format et **ne doit pas être exécuté** (rapport B.4, D1 et D3).
+- `ingestion/api_football.py` (raw vers staging) ne lit pas ce nouveau format et **ne doit pas être exécuté** : il sera remplacé par le nouveau chargeur (ADR-0008).

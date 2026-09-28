@@ -11,14 +11,14 @@
 - **Palier P1** collecté (2026-09-27 et 28) et contrôlé : 50 105 matchs détaillés (100 %), aucun échec, 7 entraîneurs vides côté API (acceptés).
 - **Palier P2** collecté et contrôlé (2026-09-28) : 38 championnat-saisons avant 2015, 14 468 matchs détaillés (100 %). Compositions seules : pas de postes ni de statistiques joueurs.
 - Constats détaillés et conséquences : `docs/realisation/05_controle_qualite/constats_P1_P2.md`.
-- **Décisions M7 à M12 tranchées** (2026-09-28) :
+- **Décisions M7 à M12 tranchées** (2026-09-28, PR #11) :
   - ADR-0008 : API-FOOTBALL fait foi pour les identifiants ;
   - ADR-0009 : cible et métrique. Le critère E.1(4) du rapport est remplacé ;
   - ADR-0010 : deux horizons de prédiction ;
   - ADR-0011 : rejeu et live après l'abonnement ;
   - ADR-0012 : validation glissante et scellés ;
   - ADR-0013 : masse salariale et MVS.
-- **Tri de `docs/`, première passe** (ADR-0014, décision M19) : documents dépassés archivés dans `docs/archives/`, index `docs/README.md`, README racine en vitrine, journal complété (E-006 à E-020), documents vivants alignés sur les ADR.
+- **Tri de `docs/`, première passe** (PR #12, ADR-0014, décision M19) : documents dépassés archivés dans `docs/archives/`, index `docs/README.md`, README racine en vitrine, journal complété (E-006 à E-020), documents vivants alignés sur les ADR.
 
 ## En cours
 

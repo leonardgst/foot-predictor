@@ -18,6 +18,7 @@
   - ADR-0011 : rejeu et live après l'abonnement ;
   - ADR-0012 : validation glissante et scellés ;
   - ADR-0013 : masse salariale et MVS.
+- **Tri de `docs/`, première passe** (ADR-0014, décision M19) : documents dépassés archivés dans `docs/archives/`, index `docs/README.md`, README racine en vitrine, journal complété (E-006 à E-020), documents vivants alignés sur les ADR.
 
 ## En cours
 
@@ -41,6 +42,7 @@
 **Court terme**
 
 - [ ] Terminer P3 (relancer `run` le 29 après 02:00, heure de Paris) puis `raw_check --palier P3`.
+- [ ] Après P3 et la fusion des PR de documentation : retirer de `C:/foot-predictor` les copies non suivies des ADR 0008 à 0013 et de `docs/decisions/README.md` et `docs/ETAT_PROJET.md`, puis `git pull`.
 - [ ] **Test de collision des identifiants de joueurs** dans `quality/raw_check.py`, sans quota (ADR-0008). Détecte un même identifiant chez deux équipes le même jour, deux fois dans un match, ou avec deux dates de naissance. Branche courte, puis lancement sur P1 à P3.
 - [ ] `refresh --season 2026 --palier P1` le **lundi 5 octobre** (d'abord `--dry-run`), puis `run`.
 
@@ -56,8 +58,7 @@
 
 **Long terme**
 
-- **PR de nettoyage** : anciens collecteurs (ADR-0004, 0007), retrait de `hdbscan`, `market_value/` marqué gelé (ADR-0013).
-- Restructuration de `docs/` (rapport K, décision M19).
+- **PR de nettoyage** : anciens collecteurs (ADR-0004, 0007), retrait de `hdbscan`, `market_value/` marqué gelé (ADR-0013), instrumentation de diagnostic de `understat.py`, commentaires de code qui citent des documents archivés et constante inutilisée `RESULTS_MD_PATH` (liste dans la PR du tri de `docs/`).
 - **J3 Référentiel** : `staging` reconstruit depuis le brut, identifiants API, YAML de rapprochement et d'alias (ADR-0008).
 - **J4 Variables v2** : registre des variables avec horizon (ADR-0010).
 - **J5 Protocole et références** : métriques du total (ADR-0009), plis glissants et scellé technique (ADR-0012).

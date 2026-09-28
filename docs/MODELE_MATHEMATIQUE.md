@@ -7,8 +7,8 @@ de prédiction : de la notation la plus générale (ŷ, y, X) jusqu'au contenu r
 de features telle qu'elle existe (ou existera) dans `features.team_match_features`, puis jusqu'à
 trois familles de modèles réalistes entre lesquelles choisir.
 
-Pour le cadrage produit et les sources de données, voir `OBJECTIFS.md` et `RECAP_PROJET.md`
-(sections 2, 3, 6.3, 8). Ce document ne les répète pas, il les traduit en équations.
+Pour le cadrage produit et les sources de données, voir, archivés, [`OBJECTIFS.md`](archives/OBJECTIFS.md)
+et [`RECAP_PROJET.md`](archives/RECAP_PROJET.md) (sections 2, 3, 6.3, 8). Ce document ne les répète pas, il les traduit en équations.
 
 ---
 
@@ -81,7 +81,7 @@ noté `opp(i)`.
 
 On définit d'abord `z_{t,m} ∈ ℝ^p`, le vecteur des variables propres à une équipe `t`, calculées
 **strictement avant** la date du match `m` (ancrage `as_of_date = match_date`, principe déjà en
-place dans le pipeline — voir `RECAP_PROJET.md` section 5 et 8). C'est exactement le contenu
+place dans le pipeline — voir [`RECAP_PROJET.md`](archives/RECAP_PROJET.md) sections 5 et 8, archivé). C'est exactement le contenu
 d'une ligne de `features.team_match_features`, moins les identifiants :
 
 | Composante de z | Colonne source | Signification |

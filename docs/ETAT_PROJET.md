@@ -1,54 +1,48 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-09-27
-**Jalon courant** : J1 — Collecteur v2 (rapport de cadrage, partie L). Critère de fin : détails du top 5 collectés **et contrôlés**.
+**Dernière mise à jour** : 2026-09-28
+**Jalon courant** : J1 — Collecte (rapport de cadrage, partie L) : P1 et P2 terminés et contrôlés, P3 en cours.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel des données le **19 octobre** (ADR-0005)
 
 ## Terminé
 
 - Cadrage intégré (PR #5) : rapport `docs/cadrage/rapport_cadrage_2026-09-24.md`, ADR-0001 à 0006, `CLAUDE.md`, cet état, `docs/JOURNAL_ERREURS.md`.
-- Collecteur v2 fusionné (PR #6) : `rawstore/`, `collect/api_football/`, `config/collecte_api_football.yaml`, ADR-0007, mode d'emploi `docs/realisation/03_collecte/README.md`.
-- Inventaire de couverture fusionné (PR #7) : `docs/realisation/03_collecte/couverture.md`. Les 30 identifiants du YAML sont présents dans `/leagues`, avec le bon nom et le bon pays.
-- Contrôle qualité du brut fusionné (PR #8) : `quality/raw_check.py`, résumé versionné dans `reports/data_quality/`, listes dans `details/` (non versionné). Mode d'emploi : `docs/realisation/05_controle_qualite/README.md`.
-- Collecte P1 lancée le 2026-09-27 dans `C:/foot-predictor` (dossier de collecte, à ne pas toucher pendant qu'elle tourne).
+- Collecteur v2 (PR #6, ADR-0007), inventaire de couverture (PR #7), contrôle qualité du brut (PR #8), commande `refresh` de la saison en cours (PR #9).
+- **Palier P1** collecté (2026-09-27 et 28) et contrôlé : 50 105 matchs détaillés (100 %), aucun échec, 7 entraîneurs vides côté API (acceptés).
+- **Palier P2** collecté et contrôlé (2026-09-28) : 38 championnat-saisons avant 2015, 14 468 matchs détaillés (100 %). Compositions seules : pas de postes ni de statistiques joueurs.
+- Constats détaillés et conséquences : `docs/realisation/05_controle_qualite/constats_P1_P2.md`.
 
 ## En cours
 
-- **Collecte P1** : top 5 et D2 (2015-2026), coupes d'Europe et nationales, équipes, blessures, joueurs, entraîneurs, transferts. Suivi : commande `status`.
-- **PR #9** (`feat/03-rafraichir-saison`) : commande `refresh --season 2026 [--palier P1]`, qui remet en file les listes de matchs, équipes et blessures de la saison en cours. Le `run` suivant crée les lots des seuls matchs devenus terminaux. Testée sans réseau, jamais lancée sur les vraies données. Mode d'emploi : `docs/realisation/03_collecte/README.md`, section « Saison en cours ».
+- **Palier P3** (11 autres championnats, 2015-2026, avec profils joueurs) : lancé le 2026-09-28, environ 6 000 requêtes, fin prévue le 29 septembre.
 
 ## Bloqué
 
 - Rien. Points de vigilance :
   - ne pas exécuter `ingestion/api_football.py` (raw vers staging) avant correction de l'identification des joueurs (rapport B.4, D1 et D3) ;
   - ne jamais lancer `docker compose down -v` ni supprimer `data/raw/` avant le gel ;
-  - travailler le code dans une autre copie du dépôt (`C:/fp-travail`) tant que la collecte tourne dans `C:/foot-predictor` ; n'y lire `data/raw/` qu'en lecture seule.
+  - pas de `git pull` dans `C:/foot-predictor` pendant qu'un `run` tourne ; le code se travaille dans `C:/fp-travail` (worktree).
 
 ## Décisions ouvertes
 
+- **À trancher avant le 19 octobre** (conversation dédiée) : M7 à M12 du rapport, qui deviendront les ADR-0008 et suivantes :
+  M7 référentiel d'identifiants, M8 cible et métrique, M9 horizon de prédiction, M10 fonctionnement après l'abonnement (rejeu, live), M11 protocole de validation (2025-26 sous scellés), M12 masse salariale et MVS.
 - Renouvellement automatique de l'abonnement : à vérifier dans le tableau de bord.
-- À trancher avant le 19 octobre : M7 à M12 (référentiel d'identifiants, cible et métrique, horizon, mode rejeu, protocole de validation, masse salariale et MVS).
 
 ## Prochaines actions
 
 **Court terme**
 
-- [x] Collecteur v2 écrit, relu, fusionné (ADR-0004, PR #6).
-- [x] Clé API dans `.env.dev` (lue par `config.py`, facultative).
-- [x] Inventaire de couverture (`coverage`) et identifiants du YAML vérifiés (PR #7).
-- [x] `plan --palier P1` et lancement de la collecte P1 (2026-09-27).
-- [x] Relire et fusionner la PR #8 (contrôle qualité du brut).
-- [ ] Commande `refresh` de la saison en cours (prompt F). *Écrite et testée ; reste la relecture et la fusion de la PR, puis `git pull` dans `C:/foot-predictor` entre deux `run`.*
-- [ ] `refresh --season 2026 --palier P1` vers le **10 octobre** (d'abord `--dry-run` pour le coût, puis `run`).
-- [ ] À la fin de la collecte P1 : contrôle qualité de P1 (`raw_check --palier P1`). Il faut zéro BLOQUANT et chaque « à regarder » examiné avant de planifier P2 (ADR-0002).
-- [ ] Vérifier une copie du brut, une fois la collecte arrêtée : `backup` vers un dossier temporaire.
+- [ ] Terminer P3 (relancer `run` le 29 après 02:00, heure de Paris) puis `raw_check --palier P3`.
+- [ ] Trancher M7 à M12 → ADR-0008 et suivantes.
+- [ ] `refresh --season 2026 --palier P1` le **lundi 5 octobre** (d'abord `--dry-run`), puis `run`.
 
 **Moyen terme (d'ici le 19 octobre)**
 
-- [ ] Paliers P2, P3, P4 et journal quotidien (9-16 oct.), chacun contrôlé avec `raw_check`.
-- [ ] Fin de collecte et rattrapages (17-18 oct.).
-- [ ] Gel le 19 oct. : dernier `refresh --season 2026` le matin, puis `run`, `raw_check` sur tous les paliers, `DATA_FREEZE.md`, export sur disque externe, test de restauration, tag `data-freeze-2026-10`.
-- [ ] Trancher M7 à M12 (ADR-0008 et suivantes).
+- [ ] `refresh` le **lundi 12 octobre**.
+- [ ] Facultatif : P4 (sidelined, standings) et journal quotidien (prompt D du plan), selon le quota et le temps.
+- [ ] 17-18 oct. : rattrapages uniquement (`status`, `requeue`, `run`).
+- [ ] **19 oct.** : `refresh` le matin, `run`, `raw_check` sur tous les paliers, `DATA_FREEZE.md`, export sur disque externe, test de restauration, commit des résumés de contrôle, tag `data-freeze-2026-10`.
 
 **Long terme**
 
@@ -56,23 +50,16 @@
 
 ## Début de la prochaine session
 
-Dans `C:/fp-travail` (la collecte tourne dans `C:/foot-predictor`) :
-
-```bash
-git status && git log --oneline -5
-uv run pytest -m "not db" -q
-```
-
-Puis reprendre la première case non cochée ci-dessus.
-
 Suivi de la collecte, dans `C:/foot-predictor` (aucune requête) :
 
 ```bash
 uv run python -m foot_predictor.collect.api_football status
 ```
 
-Contrôle qualité d'un palier, depuis `C:/fp-travail`. Il lit le brut en lecture seule et écrit le résumé dans `reports/data_quality/`, les listes dans `reports/data_quality/details/` :
+Contrôle qualité d'un palier (lecture seule du brut) :
 
 ```bash
-uv run python -m foot_predictor.quality.raw_check --palier P1 --raw-dir C:/foot-predictor/data/raw
+uv run python -m foot_predictor.quality.raw_check --palier P3 --raw-dir /c/foot-predictor/data/raw
 ```
+
+Travail sur le code : dans `C:/fp-travail` (`git worktree add`), jamais dans le dossier de collecte pendant un `run`.

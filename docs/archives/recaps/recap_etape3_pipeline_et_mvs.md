@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Récap — Étape 3 : pipeline d'ingestion complet + conception du Market Value Score
 
 Ce document complète `recap_etape2_schema_tables.md`. Il couvre tout ce qui a été

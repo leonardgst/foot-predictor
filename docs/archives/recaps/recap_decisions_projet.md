@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Récapitulatif des décisions — Projet prédiction football
 
 Ce document récapitule toutes les décisions prises jusqu'ici. Il sert de mémoire de référence pour repartir sur des conversations ciblées sans perdre le fil.

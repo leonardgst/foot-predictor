@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # API-Football : quand payer, comment faire, comment me le dire
 
 Guide de décision pour l'abonnement API-Football, qui est le point bloquant du projet (voir `RECAP_PROJET.md`, section 11).

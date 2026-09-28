@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Prochaine étape : clustering de style + calcul du Market Value Score (MVS)
 
 Ce document sert de point de départ pour une nouvelle conversation. Il résume

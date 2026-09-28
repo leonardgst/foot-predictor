@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Foot Predictor — Récap du pipeline d'ingestion
 
 > Document généré à partir de la lecture des fichiers d'ingestion existants

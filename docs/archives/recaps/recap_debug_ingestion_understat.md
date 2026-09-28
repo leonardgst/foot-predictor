@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Récap — Debug de l'ingestion Understat (568 → 0 lignes ignorées)
 
 Ce document complète `recap_etape3_pipeline_et_mvs.md`. Il couvre une session de

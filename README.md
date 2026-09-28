@@ -1,181 +1,34 @@
 # foot-predictor
 
-Projet de data science end-to-end : **prédire le score d'un match de football avant qu'il soit joué**, à partir de données historiques, contextuelles et dynamiques sur les grands championnats européens.
+Prédire la **distribution du nombre de buts** d'un match de football des cinq grands championnats européens, avec une application locale qui explique chaque prédiction.
 
-C'est avant tout un **projet pédagogique** : l'objectif réel est de parcourir tout le cycle de vie d'un projet data (cadrage, ingestion, modèle de données, feature engineering, modélisation, évaluation, mise en production), pas seulement de produire un modèle.
+Le modèle estime les buts attendus de chaque équipe, puis en déduit la loi du total : P(0 but), P(1 but)…, le total attendu, P(plus de 2,5 buts) et un intervalle avec sa couverture annoncée. La métrique principale est le log-loss du total ([ADR-0009](docs/decisions/ADR-0009-cible-metrique.md)).
 
----
+C'est un **projet d'apprentissage** mené seul : la clarté, la justification des choix et la documentation comptent autant que la performance. Contraintes : gratuit, local, sources légales.
 
-## Documentation
+## État
 
-Toute la documentation du projet tient en 3 fichiers, plus l'historique détaillé des récaps :
+- Collecte API-FOOTBALL en cours jusqu'au gel des données du **19 octobre 2026** : paliers P1 et P2 collectés et contrôlés, P3 en cours.
+- Décisions de cadrage consignées dans les ADR 0001 à 0014.
+- Prochain jalon après le gel : référentiel reconstruit depuis le brut (J3), puis variables, protocole et modèle MVP.
 
-| Document | Contenu |
-|---|---|
-| **`README.md`** (ce fichier) | Vue d'ensemble, état d'avancement, démarrage rapide |
-| **`docs/OBJECTIFS.md`** | Cadrage initial : objectif fonctionnel, objectifs pédagogiques, étapes clés d'un projet data |
-| **`docs/RECAP_PROJET.md`** | 👉 Mémoire complète du projet : décisions, stack, infra, schéma de tables, pipeline d'ingestion, incidents résolus, prochaine étape (clustering + MVS), points ouverts |
-| **`docs/MODELE_MATHEMATIQUE.md`** | Formulation mathématique du score exact : construction de X/y, Modèle 0/1, options A/B/C |
-| **`docs/RESULTATS_MODELE.md`** | Résultats réels Modèle A vs Modèle B, décision retenue |
-| **`docs/recaps/`** | Récaps historiques par étape (voir `docs/recaps/README.md`) |
-
-**Pour reprendre le projet dans une nouvelle conversation** : joindre `docs/RECAP_PROJET.md` (et `docs/OBJECTIFS.md` si besoin de recontextualiser le « pourquoi »).
-
-
-> **Depuis le 2026-09-24**, la référence est :
-> [`docs/ETAT_PROJET.md`](docs/ETAT_PROJET.md) (état et prochaines actions),
-> [`docs/decisions/`](docs/decisions/README.md) (décisions),
-> [`docs/cadrage/rapport_cadrage_2026-09-24.md`](docs/cadrage/rapport_cadrage_2026-09-24.md) (cadrage),
-> [`CLAUDE.md`](CLAUDE.md) (consignes pour Claude Code).
-> Les documents ci-dessous seront restructurés ; en cas de contradiction, ces fichiers font foi.
-
----
-
-## Produit visé
-
-Une application qui liste les prochains matchs, avec un bouton **« Prédire »** :
-
-- grisé tant que la **composition officielle** n'est pas publiée (~1h avant le coup d'envoi) ;
-- dégrisé ensuite, avec affichage d'un tableau de variables de prédiction.
-
-**Sortie du modèle** : score exact (buts équipe A / buts équipe B), dont on dérive le résultat 1N2 et des probabilités précises.
-**Périmètre** : 5 grands championnats européens (Premier League, La Liga, Bundesliga, Serie A, Ligue 1).
-
----
-
-## Architecture en un coup d'œil
-
-Architecture en 3 couches (bronze / silver / gold), chacune dans un schéma PostgreSQL dédié :
-
-| Schéma | Rôle | Tables |
-|---|---|---|
-| `raw` | Copie fidèle des données sources (jsonb), rejouable | 6 |
-| `staging` | Référentiel réconcilié, typé, clés uniques par entité | 13 |
-| `features` | Variables calculées, seule couche consommée par le modèle | 3 |
-
-Sources de données actuelles (toutes légales, gratuites ou plan gratuit) :
-
-- **football-data.co.uk** : résultats historiques et cotes
-- **Understat** : xG (équipe et joueur)
-- **API-Football** : compositions et statistiques par joueur et par match
-
-> Transfermarkt a été abandonné (CGU et robots.txt interdisent le scraping) — voir `docs/RECAP_PROJET.md`, section 4.
-
-### Stack
-
-| Aspect | Choix |
-|---|---|
-| Base de données | PostgreSQL |
-| Environnements | 3 bases : **dev** (Docker, port 5440), **test** (Docker, port 5433), **prod** (Neon, cloud) |
-| Migrations | SQLAlchemy + Alembic |
-| Python | `uv`, `pydantic-settings` (bascule via `APP_ENV`) |
-| Éditeur | VSCode + SQLTools |
-| Versioning | Git — `main` ↔ prod, `dev` ↔ test, `feature/*` ↔ développement |
-
----
+Détail et prochaines actions : [`docs/ETAT_PROJET.md`](docs/ETAT_PROJET.md).
 
 ## Démarrage rapide
 
-Prérequis : Docker, `uv`, fichiers `.env.dev` / `.env.test` / `.env.prod` (non commités, modèle dans `.env.example`, encodage **UTF-8 sans BOM**).
+Prérequis : Docker, [`uv`](https://docs.astral.sh/uv/), fichiers `.env.dev` et `.env.test` créés à partir de `.env.example` (encodage UTF-8 **sans BOM**).
 
 ```bash
-# 1. Démarrer les bases dev et test
-docker compose up -d
-
-# 2. Appliquer les migrations (schémas + tables)
-APP_ENV=dev  uv run alembic upgrade head
-APP_ENV=test uv run alembic upgrade head
-APP_ENV=prod uv run alembic upgrade head   # Neon
-
-# 3. Lancer un script d'ingestion (exemple)
-APP_ENV=dev uv run python -m foot_predictor.ingestion.understat
+uv sync --all-groups                      # installer l'environnement
+docker compose up -d                      # bases Postgres dev (5440) et test (5433)
+APP_ENV=dev uv run alembic upgrade head   # migrations
+uv run pytest -m "not db" -q              # tests sans base (CI)
+uv run pytest -q                          # tous les tests (base de test démarrée)
 ```
 
-Ordre du pipeline d'ingestion complet : voir `docs/RECAP_PROJET.md`, section 7.
+Les commandes sont écrites pour un terminal bash (Git Bash sous Windows).
 
----
+## Documentation
 
-## Tests
-
-```bash
-# Suite complète (nécessite la base de test, cf. étape 1 ci-dessus)
-uv run pytest
-
-# Uniquement les tests sans dépendance base de données (rapide, marche sans Docker)
-uv run pytest -m "not db"
-
-# Avec couverture
-uv run pytest --cov=src/foot_predictor --cov-report=term-missing
-```
-
-Les tests marqués `db` (réconciliation cross-source, fenêtres glissantes des features) ouvrent une transaction sur la base de test (`APP_ENV=test`, port 5433) et l'annulent (`rollback`) après chaque test — aucune donnée n'est laissée en base. Si la base de test est injoignable, ces tests sont automatiquement `skip` plutôt que d'échouer.
-
-Structure en miroir de `src/foot_predictor/` : `tests/ingestion/`, `tests/features/`, `tests/mapping_builder/`, `tests/market_value/`, fixtures communes dans `tests/conftest.py`.
-
----
-
-## Structure du dépôt
-
-```
-foot-predictor/
-├── .env.dev / .env.test / .env.prod    (non commités)
-├── .env.example                         (commité)
-├── docker-compose.yml
-├── alembic.ini
-├── pyproject.toml / uv.lock
-├── docs/                                (OBJECTIFS.md, RECAP_PROJET.md, recaps/)
-├── migrations/versions/                 (historique de schéma)
-├── scripts/one_off/                     (diagnostic et fusion ponctuels, dont check_merged_teams_xg.sql)
-├── src/foot_predictor/
-│   ├── config.py
-│   ├── db/                              (models.py, session.py)
-│   ├── ingestion/                       (scrapers + raw → staging + common.py)
-│   ├── features/
-│   ├── modeling/                        (dataset, split, Modèle A Poisson, Modèle B Dixon-Coles, évaluation)
-│   └── market_value/                    (clustering, per90, percentiles — non exécuté)
-└── tests/                               (miroir de src/foot_predictor/ : ingestion/, features/, mapping_builder/, market_value/, modeling/)
-```
-
----
-
-## État d'avancement
-
-**Fait**
-
-- ✅ Infra (Docker dev/test, Neon prod, Alembic) opérationnelle sur les 3 environnements
-- ✅ Schéma `raw` / `staging` / `features` conçu et migré (22 tables, migrations 0001 à 0003)
-- ✅ Pipeline d'ingestion football-data.co.uk + Understat (équipe), backfill 10 saisons (2015-2016 à 2024-2025, 18 011 matchs, 5 championnats)
-- ✅ Abonnement API-Football (plan Pro) pris le 2026-09-22, backfill des compositions/stats en cours (voir `docs/API_FOOTBALL_ABONNEMENT.md`)
-- ✅ `features.team_match_features` recalculée sur l'intégralité du backfill (36 022 lignes, z1-z8)
-- ✅ **Modélisation du score exact** (`src/foot_predictor/modeling/`) : Modèle A (Poisson indépendant, statsmodels GLM) et Modèle B (Dixon-Coles hybride, implémenté à la main) comparés sur un split chronologique (9 saisons train / saison 2024-2025 test). **Décision : Modèle A retenu comme référence**, le Modèle B n'ayant pas démontré de gain mesurable sur nos données — détail complet et hypothèses dans `docs/RESULTATS_MODELE.md`.
-- ✅ Code du module `market_value/` (clustering, per90, percentiles, persistence) écrit — committé sur `dev`, **pas encore exécuté sur de vraies données** (en attente de la fin du backfill API-Football)
-- ✅ Suite de tests automatisés (`pytest`, 178 tests) ciblée sur les zones à risque silencieux : réconciliation cross-source (`ingestion/common.py`), fuzzy matching des noms d'équipe, anti-leakage des fenêtres glissantes (`features/` et `modeling/dataset.py`), calcul per-90 (`market_value/preprocessing/`), correction Dixon-Coles et récupération de paramètres MLE (`modeling/`), scrapers d'ingestion (réseau mocké) et `market_value/clustering`/`performance` (données synthétiques)
-- ✅ CI (GitHub Actions, `.github/workflows/tests.yml`) : `pytest -m "not db"` sur chaque push/PR
-- ✅ **Service d'inférence du Modèle A** (`modeling/predict_service.py`, `live_features.py`, `persistence.py`, `train_and_persist.py`) : pour un match à venir (paire d'équipes + date, ou `staging.match` `status='scheduled'`), calcule ses features en direct et renvoie lambda_home/away, la distribution jointe du score exact et le 1N2 dérivé. Modèle entraîné persisté via `joblib` (`models/`, non versionné, régénérable)
-- ✅ Recalibration 1N2 (Platt scaling / isotonic regression) évaluée sur le test set — gain non démontré, non adoptée en production (détail dans `docs/RESULTATS_MODELE.md` section 5)
-- ✅ Composantes MVS **Potentiel** et **Réputation** implémentées (`market_value/components/`), calculables dès maintenant (n'attendent pas `staging.lineup`)
-- ✅ Code d'ingestion des blessures écrit (`ingestion/injuries_scraper.py`, `ingestion/injuries.py`) et testé sur payloads synthétiques — **pas encore exécuté contre l'API réelle** (quota réservé au backfill des fixtures)
-
-**En cours**
-
-- 🚧 Backfill API-Football (compositions + stats par joueur/match) : quota Pro (7 500/jour) suffisant pour les 18 061 requêtes nécessaires, étalé sur plusieurs jours. Une fois terminé : `squad_avg_age`, `squad_stability_score_season` (z9-z10) et le pipeline `market_value/` (MVS) se débloquent.
-
-**À faire**
-
-- ⬜ Une fois z9-z10 (et l'agrégat MVS, z11) disponibles : réévaluer le Modèle B avec ces features supplémentaires (voir pistes dans `docs/RESULTATS_MODELE.md`)
-- ⬜ Lancer le scraper de blessures contre l'API réelle une fois le backfill des fixtures terminé (le code est prêt, voir ci-dessus)
-- ⬜ Scraping planifié (cron / fréquence)
-- ⬜ Définir comment le MVS remplace `squad_valuation_eur` au niveau équipe
-- ⬜ Spécifier les 3 composantes MVS restantes (Niveau championnat, Disponibilité, Expérience) — bloquées par le backfill API-Football, voir `docs/RECAP_PROJET.md` section 11
-
-Liste complète des points ouverts : `docs/RECAP_PROJET.md`, section 11.
-
----
-
-## ⚠️ Point de vigilance transversal
-
-Corriger un fichier de mapping YAML (`*_teams.yaml`) après coup **ne suffit jamais à lui seul** à réparer une entité déjà créée en base : la logique `get_or_create_*` de `common.py` priorise le `*_source_mapping` déjà enregistré sur le contenu du YAML. Toute correction de mapping doit s'accompagner d'une vérification des entités déjà résolues, en particulier pour `api_football_teams.yaml` une fois l'ingestion API-Football lancée.
-
----
-
-*À maintenir à jour : mettre à jour la section « État d'avancement » à chaque étape terminée, et ajouter les nouvelles décisions dans `docs/RECAP_PROJET.md`.*
+- [`docs/README.md`](docs/README.md) : index de la documentation, ordre de lecture.
+- [`CLAUDE.md`](CLAUDE.md) : règles du projet et consignes pour Claude Code.

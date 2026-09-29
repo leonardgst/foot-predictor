@@ -180,7 +180,6 @@ def ingest_api_football_player_stats(session: Session) -> tuple[int, int]:
             skipped += 1
             continue
 
-        team_by_name = {home_team.name: home_team, away_team.name: away_team}
         # payload["players"] : liste de 2 blocs {"team": {...}, "players": [...]}
         for team_block in payload["players"]:
             api_team_name = team_block["team"]["name"]

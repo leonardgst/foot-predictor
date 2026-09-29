@@ -86,7 +86,9 @@ def _select_xi(X_train, y_train, meta_train, val_cutoff: dt.datetime) -> tuple[f
             }
         )
         predictions = compute_predictions(
-            val_matches, lambda h, a: dixon_coles_matrix(h, a, model.rho, tau_correction)
+            # `model=model` lie le modèle de ce tour de boucle (B023), même si la
+            # fonction n'est appelée qu'ici, avant le tour suivant.
+            val_matches, lambda h, a, model=model: dixon_coles_matrix(h, a, model.rho, tau_correction)
         )
         loss = log_loss_exact_score(predictions)
         search_log.append({"xi": xi, "val_log_loss": loss})
@@ -114,9 +116,7 @@ def main() -> None:
         poisson_model = fit_poisson_model(split.X_train, split.y_train)
         print(poisson_model.summary())
 
-        lambda_train_a = poisson_model.predict_lambda(split.X_train)
         lambda_test_a = poisson_model.predict_lambda(split.X_test)
-        matches_train_a = to_match_level(split.meta_train, split.y_train, lambda_train_a)
         matches_test_a = to_match_level(split.meta_test, split.y_test, lambda_test_a)
 
         metrics_a, predictions_a = _evaluate(matches_test_a, independent_poisson_matrix)

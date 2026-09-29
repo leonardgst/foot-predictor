@@ -58,7 +58,7 @@ def test_excludes_matches_on_or_after_reference_date_anti_leakage(db_session, le
 
 def test_excludes_scheduled_matches(db_session, league, make_match, make_team_match):
     competition, season, teams = league
-    scheduled = make_match(
+    make_match(
         competition_id=competition.id, season_id=season.id,
         match_date=REF_DATE - dt.timedelta(days=1),
         home_team_id=teams["A"].id, away_team_id=teams["B"].id,

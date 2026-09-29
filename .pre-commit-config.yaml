@@ -24,6 +24,13 @@ repos:
       - id: mixed-line-ending
         args: [--fix=no]
 
+  # Notebooks versionnés sans sorties (partie 3, ADR-0034) : ni graphiques, ni chiffres, ni
+  # valeurs de données dans l'historique Git ; le notebook se relit et se réexécute.
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
+
   # Outils du projet, lancés avec les versions de uv.lock.
   - repo: local
     hooks:

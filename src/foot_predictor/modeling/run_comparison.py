@@ -18,7 +18,6 @@ from foot_predictor.db.session import get_session
 from foot_predictor.modeling.dataset import build_dataset
 from foot_predictor.modeling.dixon_coles import fit_dixon_coles, prepare_match_arrays, tau_correction
 from foot_predictor.modeling.evaluation import (
-    MAX_GOALS,
     brier_score_1x2,
     calibration_table_home_win,
     compute_predictions,
@@ -33,7 +32,7 @@ from foot_predictor.modeling.split import chronological_split
 
 # Coupure documentée : dernière saison complète (2024-2025, démarrant en août
 # 2024 pour les 5 championnats suivis) en test, tout le reste en train.
-CUTOFF_DATE = dt.datetime(2024, 8, 1, tzinfo=dt.timezone.utc)
+CUTOFF_DATE = dt.datetime(2024, 8, 1, tzinfo=dt.UTC)
 
 # Grille de recherche pour xi (vitesse de décroissance temporelle, en 1/jour) --
 # sélectionné par validation temporelle interne au train set (jamais sur le
@@ -167,7 +166,7 @@ def main() -> None:
         print(f"Gain de Brier (A - B, positif = B meilleur)    : {delta_brier:+.4f}")
 
         results = {
-            "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "generated_at": dt.datetime.now(dt.UTC).isoformat(),
             "cutoff_date": CUTOFF_DATE.isoformat(),
             "n_train_rows": len(split.X_train),
             "n_test_rows": len(split.X_test),

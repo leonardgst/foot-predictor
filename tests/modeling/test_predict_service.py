@@ -41,7 +41,7 @@ def _fake_persisted_model() -> PersistedPoissonModel:
     return PersistedPoissonModel(
         model=model,
         z_feature_columns=["form_points_last10", "goals_for_last10"],
-        trained_at=dt.datetime.now(dt.timezone.utc),
+        trained_at=dt.datetime.now(dt.UTC),
         n_rows_train=len(X),
     )
 
@@ -72,8 +72,8 @@ def test_predict_match_returns_a_valid_joint_probability_distribution(
     filler_home = make_team("Filler Home Opponent")
     filler_away = make_team("Filler Away Opponent")
 
-    past_date = dt.datetime(2024, 8, 1, tzinfo=dt.timezone.utc)
-    match_date = dt.datetime(2024, 9, 1, tzinfo=dt.timezone.utc)
+    past_date = dt.datetime(2024, 8, 1, tzinfo=dt.UTC)
+    match_date = dt.datetime(2024, 9, 1, tzinfo=dt.UTC)
 
     _seed_one_prior_match(
         make_match, make_team_match, competition_id=competition.id, season_id=season.id,
@@ -115,7 +115,7 @@ def test_predict_match_raises_when_a_team_has_no_history(
             db_session,
             home_team_id=home_team.id,
             away_team_id=away_team.id,
-            match_date=dt.datetime(2024, 9, 1, tzinfo=dt.timezone.utc),
+            match_date=dt.datetime(2024, 9, 1, tzinfo=dt.UTC),
             competition_id=competition.id,
             season_id=season.id,
             persisted_model=_fake_persisted_model(),
@@ -132,8 +132,8 @@ def test_predict_scheduled_match_reads_match_row_and_matches_predict_match(
     filler_home = make_team("Filler Home Opponent")
     filler_away = make_team("Filler Away Opponent")
 
-    past_date = dt.datetime(2024, 8, 1, tzinfo=dt.timezone.utc)
-    match_date = dt.datetime(2024, 9, 1, tzinfo=dt.timezone.utc)
+    past_date = dt.datetime(2024, 8, 1, tzinfo=dt.UTC)
+    match_date = dt.datetime(2024, 9, 1, tzinfo=dt.UTC)
 
     _seed_one_prior_match(
         make_match, make_team_match, competition_id=competition.id, season_id=season.id,
@@ -171,7 +171,7 @@ def test_predict_scheduled_match_raises_if_match_is_not_scheduled(
 
     played_match = make_match(
         competition_id=competition.id, season_id=season.id,
-        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.UTC),
         home_team_id=home_team.id, away_team_id=away_team.id,
         home_goals=1, away_goals=0, status="played",
     )

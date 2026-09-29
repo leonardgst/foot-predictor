@@ -4,13 +4,12 @@ requête vers football-data.co.uk), et idempotence de l'upsert en base
 (`db`)."""
 from __future__ import annotations
 
-import requests
 import pytest
+import requests
 from sqlalchemy import select
 
 from foot_predictor.db.models import FootballDataMatch, SourceIngestionLog
 from foot_predictor.ingestion import football_data_scraper as scraper
-
 
 # ---------------------------------------------------------------------------
 # Fonctions pures : season_code, parse_csv_content

@@ -1,10 +1,12 @@
 """Fusion des équipes dupliquées (brut vs canonique).
 Lance d'abord en dry-run (DRY_RUN=True) pour vérifier, puis repasse à False."""
-import yaml
 from pathlib import Path
-from sqlalchemy import select, func, update, delete
+
+import yaml
+from sqlalchemy import delete, func, select, update
+
+from foot_predictor.db.models import Match, Team, TeamMatch, TeamSourceMapping
 from foot_predictor.db.session import get_session
-from foot_predictor.db.models import Team, Match, TeamMatch, TeamSourceMapping
 
 DRY_RUN = False  # <-- passer à False une fois le dry-run validé
 

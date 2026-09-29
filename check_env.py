@@ -43,8 +43,9 @@ def check_api_football_key():
 
 
 def check_db_connection():
-    from foot_predictor.db.session import get_engine
     from sqlalchemy import text
+
+    from foot_predictor.db.session import get_engine
 
     with get_engine().connect() as conn:
         schemas = {

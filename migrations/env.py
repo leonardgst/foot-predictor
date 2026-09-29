@@ -12,8 +12,8 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from foot_predictor.config import get_settings
-
 from foot_predictor.db.models import Base
+
 target_metadata = Base.metadata
 
 config = context.config

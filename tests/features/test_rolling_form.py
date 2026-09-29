@@ -12,7 +12,7 @@ from foot_predictor.features.rolling_form import FORM_WINDOW, compute_rolling_fo
 
 pytestmark = pytest.mark.db
 
-REF_DATE = dt.datetime(2025, 1, 1, tzinfo=dt.timezone.utc)
+REF_DATE = dt.datetime(2025, 1, 1, tzinfo=dt.UTC)
 
 
 @pytest.fixture

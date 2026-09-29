@@ -12,7 +12,7 @@ from foot_predictor.features.rolling_xg import XG_WINDOW, compute_rolling_xg
 
 pytestmark = pytest.mark.db
 
-REF_DATE = dt.datetime(2025, 1, 1, tzinfo=dt.timezone.utc)
+REF_DATE = dt.datetime(2025, 1, 1, tzinfo=dt.UTC)
 
 
 @pytest.fixture

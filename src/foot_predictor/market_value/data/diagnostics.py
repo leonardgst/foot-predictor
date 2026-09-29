@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import datetime as dt
 
-import pandas as pd
 from sqlalchemy.orm import Session
 
 from foot_predictor.market_value.data.load_player_match_stats import (

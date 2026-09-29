@@ -13,16 +13,13 @@ Pour une entité (équipe, compétition, joueur) rencontrée dans une source don
 """
 from __future__ import annotations
 
+import datetime as dt
 from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import select
+from sqlalchemy import Date, cast, select
 from sqlalchemy.orm import Session
-
-import datetime as dt
-
-from sqlalchemy import Date, cast, func
 
 from foot_predictor.db.models import (
     Competition,

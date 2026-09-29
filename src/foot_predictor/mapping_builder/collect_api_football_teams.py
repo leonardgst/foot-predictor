@@ -64,8 +64,9 @@ def collect_api_football_team_names(
 
 
 if __name__ == "__main__":
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     correspondence = yaml.safe_load(
         (Path(__file__).parent / "leagues_correspondence.yaml").read_text(encoding="utf-8")

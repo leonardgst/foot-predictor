@@ -67,7 +67,7 @@ def _build_synthetic_dataset() -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     teams = list(TRUE_ALPHA.keys())
     records = []
     match_id = 0
-    base_date = dt.datetime(2020, 1, 1, tzinfo=dt.timezone.utc)
+    base_date = dt.datetime(2020, 1, 1, tzinfo=dt.UTC)
 
     for round_idx in range(N_ROUNDS):
         for home in teams:

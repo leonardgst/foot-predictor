@@ -26,7 +26,7 @@ def test_own_and_opponent_blocks_are_inverted_between_home_and_away_rows(
     match = make_match(
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.UTC),
         home_team_id=home_team.id,
         away_team_id=away_team.id,
         home_goals=2,
@@ -85,7 +85,7 @@ def test_features_are_scoped_to_this_match_not_another_match_of_the_same_team(
     older_match = make_match(
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 8, 1, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 8, 1, tzinfo=dt.UTC),
         home_team_id=team_a.id,
         away_team_id=team_c.id,
         home_goals=1,
@@ -100,7 +100,7 @@ def test_features_are_scoped_to_this_match_not_another_match_of_the_same_team(
     match = make_match(
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.UTC),
         home_team_id=team_a.id,
         away_team_id=team_b.id,
         home_goals=2,
@@ -133,7 +133,7 @@ def test_rows_with_a_missing_feature_value_are_dropped_and_counted(
     match = make_match(
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.UTC),
         home_team_id=team_a.id,
         away_team_id=team_b.id,
         home_goals=1,
@@ -166,7 +166,7 @@ def test_matches_missing_features_entirely_on_one_side_are_dropped_and_counted(
     match = make_match(
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.UTC),
         home_team_id=team_a.id,
         away_team_id=team_b.id,
         home_goals=1,

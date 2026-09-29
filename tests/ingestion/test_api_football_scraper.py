@@ -5,13 +5,12 @@ api-sports.io), filtrage des fixtures non terminées, et logique de skip
 plusieurs jours (`db`, cf. docstring du module)."""
 from __future__ import annotations
 
-import requests
 import pytest
+import requests
 from sqlalchemy import select
 
 from foot_predictor.db.models import ApiFootballFixtureDetail, SourceIngestionLog
 from foot_predictor.ingestion import api_football_scraper as scraper
-
 
 # ---------------------------------------------------------------------------
 # _headers

@@ -11,7 +11,6 @@ from sqlalchemy import select
 from foot_predictor.db.models import SourceIngestionLog, UnderstatPlayerMatch
 from foot_predictor.ingestion import understat_player_scraper as scraper
 
-
 # ---------------------------------------------------------------------------
 # fetch_league_players / fetch_player_matches : chaîne client mockée
 # ---------------------------------------------------------------------------

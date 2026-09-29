@@ -5,8 +5,6 @@ API-Football n'est jamais effectué dans ces tests.
 """
 from __future__ import annotations
 
-import os
-
 import pytest
 from sqlalchemy import select
 

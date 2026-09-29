@@ -23,7 +23,6 @@ from foot_predictor.market_value.persistence.save_results import (
     save_style_profiles,
 )
 from foot_predictor.market_value.preprocessing.normalize import (
-    STYLE_FEATURE_COLUMNS,
     normalize_style_vectors,
 )
 from foot_predictor.market_value.preprocessing.per90 import (

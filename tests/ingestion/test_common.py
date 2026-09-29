@@ -8,7 +8,7 @@ import datetime as dt
 import pytest
 from sqlalchemy import select
 
-from foot_predictor.db.models import Match, MatchSourceMapping, Player, Team, TeamSourceMapping
+from foot_predictor.db.models import Match, MatchSourceMapping, Team, TeamSourceMapping
 from foot_predictor.ingestion.common import (
     get_or_create_competition,
     get_or_create_match,
@@ -133,7 +133,7 @@ def test_resolve_match_cross_source_uses_existing_mapping_directly(db_session, m
     match = make_match(
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.UTC),
         home_team_id=home.id,
         away_team_id=away.id,
     )
@@ -144,7 +144,7 @@ def test_resolve_match_cross_source_uses_existing_mapping_directly(db_session, m
         "understat-ref-1",
         home_team_id=home.id,
         away_team_id=away.id,
-        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.UTC),
     )
     assert resolved_first.id == match.id
 
@@ -156,7 +156,7 @@ def test_resolve_match_cross_source_uses_existing_mapping_directly(db_session, m
         "understat-ref-1",
         home_team_id=home.id,
         away_team_id=away.id,
-        match_date=dt.datetime(1999, 1, 1, tzinfo=dt.timezone.utc),  # date absurde : ignorée si mapping trouvé
+        match_date=dt.datetime(1999, 1, 1, tzinfo=dt.UTC),  # date absurde : ignorée si mapping trouvé
     )
     assert resolved_second.id == match.id
 
@@ -168,7 +168,7 @@ def test_resolve_match_cross_source_tolerates_one_day_offset(db_session, match_c
     match = make_match(
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 11, 29, 20, 0, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 29, 20, 0, tzinfo=dt.UTC),
         home_team_id=home.id,
         away_team_id=away.id,
     )
@@ -179,7 +179,7 @@ def test_resolve_match_cross_source_tolerates_one_day_offset(db_session, match_c
         "understat-ref-2",
         home_team_id=home.id,
         away_team_id=away.id,
-        match_date=dt.datetime(2024, 11, 30, 1, 0, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 30, 1, 0, tzinfo=dt.UTC),
     )
 
     assert resolved is not None
@@ -198,7 +198,7 @@ def test_resolve_match_cross_source_beyond_tolerance_returns_none(db_session, ma
     make_match(
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 11, 27, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 27, tzinfo=dt.UTC),
         home_team_id=home.id,
         away_team_id=away.id,
     )
@@ -209,7 +209,7 @@ def test_resolve_match_cross_source_beyond_tolerance_returns_none(db_session, ma
         "understat-ref-3",
         home_team_id=home.id,
         away_team_id=away.id,
-        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.timezone.utc),  # 3 jours d'écart
+        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.UTC),  # 3 jours d'écart
     )
 
     assert resolved is None
@@ -227,7 +227,7 @@ def test_resolve_match_cross_source_ambiguous_pair_within_two_days(db_session, m
     match_league = make_match(
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 11, 29, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 29, tzinfo=dt.UTC),
         home_team_id=home.id,
         away_team_id=away.id,
     )
@@ -237,7 +237,7 @@ def test_resolve_match_cross_source_ambiguous_pair_within_two_days(db_session, m
     match_cup = make_match(
         competition_id=cup.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.UTC),
         home_team_id=home.id,
         away_team_id=away.id,
     )
@@ -248,7 +248,7 @@ def test_resolve_match_cross_source_ambiguous_pair_within_two_days(db_session, m
         "understat-ref-ambiguous",
         home_team_id=home.id,
         away_team_id=away.id,
-        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.UTC),
     )
 
     assert resolved is not None
@@ -264,7 +264,7 @@ def test_get_or_create_match_idempotent_update_does_not_duplicate(db_session, ma
         "fd-ref-1",
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.UTC),
         home_team_id=home.id,
         away_team_id=away.id,
         home_goals=None,
@@ -279,7 +279,7 @@ def test_get_or_create_match_idempotent_update_does_not_duplicate(db_session, ma
         "fd-ref-1",
         competition_id=competition.id,
         season_id=season.id,
-        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.timezone.utc),
+        match_date=dt.datetime(2024, 11, 30, tzinfo=dt.UTC),
         home_team_id=home.id,
         away_team_id=away.id,
         home_goals=2,

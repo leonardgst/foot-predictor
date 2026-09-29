@@ -21,8 +21,6 @@ documentée en tête de ingestion/understat.py :
 """
 from __future__ import annotations
 
-import time
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from understatapi import UnderstatClient

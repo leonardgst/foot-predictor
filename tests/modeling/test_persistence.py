@@ -22,7 +22,7 @@ def test_save_then_load_roundtrips_predictions(tmp_path):
     persisted = PersistedPoissonModel(
         model=model,
         z_feature_columns=["form_points_last10"],
-        trained_at=dt.datetime.now(dt.timezone.utc),
+        trained_at=dt.datetime.now(dt.UTC),
         n_rows_train=4,
     )
     path = tmp_path / "model.joblib"

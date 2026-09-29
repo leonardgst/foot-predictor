@@ -11,7 +11,7 @@ from foot_predictor.features.standing import compute_standings_before_date
 
 pytestmark = pytest.mark.db
 
-REF_DATE = dt.datetime(2025, 1, 1, tzinfo=dt.timezone.utc)
+REF_DATE = dt.datetime(2025, 1, 1, tzinfo=dt.UTC)
 
 
 @pytest.fixture

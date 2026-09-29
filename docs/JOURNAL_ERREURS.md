@@ -15,6 +15,84 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-028 — Faux écart de quota : environ 120 requêtes « consommées ailleurs » (2026-09-29)
+
+- **Contexte** : suivi du quota pendant la collecte des profils ciblés et de P4.
+- **Message d'erreur** : aucun ; le quota restant passait de 6 307 (dernière réponse à 06:41 UTC) à 6 188 (`/status` à 09:35 UTC), sans aucune requête entre les deux.
+- **Cause** : l'en-tête `x-ratelimit-requests-remaining` n'est pas monotone. Pendant une collecte, sa valeur alterne entre deux séries décalées d'environ 120 requêtes, par paliers de 30 secondes : une partie des serveurs de l'API retarde d'environ une minute, soit 120 requêtes à 2 par seconde. La valeur de 06:41 était une valeur en retard ; `/status` donne la valeur à jour.
+- **Solution** : aucune requête n'était en cause. Le décompte par poste se fait à partir des lignes du journal de requêtes, pas des différences d'en-tête ; pour le quota restant exact, se fier à `/status`.
+- **Fichiers concernés** : aucun (constat sur l'API).
+- **Prévention** : ne pas conclure à une consommation extérieure sur un écart inférieur à environ 150 ; comparer les `/status` successifs.
+- **Test de non-régression** : sans objet.
+
+## E-027 — `--dry-run` qui crée la file de travail (2026-09-29)
+
+- **Contexte** : `plan-sidelined --dry-run` sur un dossier brut sans file SQLite.
+- **Message d'erreur** : aucun ; le test « la simulation ne modifie rien » échouait, car `_queue/api_football.sqlite` apparaissait.
+- **Cause** : `WorkQueue.in_raw_dir()` crée le fichier et son schéma s'ils n'existent pas. Ouvrir la file pour la lire suffit donc à écrire dans le brut.
+- **Solution** : en simulation, la file n'est ouverte que si elle existe déjà ; sinon, personne n'a été demandé.
+- **Fichiers concernés** : `src/foot_predictor/collect/api_football/cli.py`, `sidelined.py`.
+- **Prévention** : pour toute nouvelle commande `--dry-run`, un test compare le dossier brut avant et après.
+- **Test de non-régression** : `tests/collect/api_football/test_sidelined.py::test_plan_sidelined_cli_dry_run_changes_nothing`.
+
+## E-026 — Documentation d'API-FOOTBALL illisible par les outils (HTTP 403) (2026-09-29)
+
+- **Contexte** : vérification du point d'accès des profils de joueurs (`/players/profiles`) avant toute requête réelle.
+- **Message d'erreur** : `The server returned HTTP 403 Forbidden` sur `www.api-football.com/documentation-v3`, `documentation_v3`, les articles du site et `api-sports.io`.
+- **Cause** : le site refuse les lecteurs automatiques.
+- **Solution** : lecture de la spécification OpenAPI officielle, recopiée dans la bibliothèque `fabricatorsltd/api-sports` (`api-specs/football/openapi.yaml`, via `gh api`). Elle a servi pour `/players/profiles`, `/sidelined`, `/fixtures/lineups` et `/fixtures` ; les citations sont dans le README 03.
+- **Fichiers concernés** : `docs/realisation/03_collecte/README.md`.
+- **Prévention** : citer la source exacte d'une vérification ; en cas de doute, vérifier la page dans un navigateur.
+- **Test de non-régression** : sans objet.
+
+## E-025 — Réponses d'avant-match comptées comme détails reçus (2026-09-29)
+
+- **Contexte** : conception du journal T-60 (`t60`), avant toute collecte réelle.
+- **Message d'erreur** : aucun ; défaut repéré à la relecture.
+- **Cause** : le journal de requêtes enregistre `fixture_ids` pour toute requête `/fixtures?ids=`, et le planificateur ne redemande jamais un match qui y figure. Une réponse d'avant-match (compositions seules) aurait marqué le match comme « détaillé » : le vrai détail n'aurait jamais été demandé.
+- **Solution** : `fixture_ids_in_manifest` ignore les fichiers de `api_football/daily/`.
+- **Fichiers concernés** : `src/foot_predictor/collect/api_football/plan.py`.
+- **Prévention** : tout nouveau type de réponse `/fixtures?ids=` doit être rangé hors de `fixtures_detail/` et testé contre le planificateur.
+- **Test de non-régression** : `tests/collect/api_football/test_t60.py::test_t60_responses_are_stored_as_daily_files_and_never_count_as_details`.
+
+## E-024 — `plan-profiles` sélectionnait 3 056 joueurs au lieu de 925 (2026-09-29)
+
+- **Contexte** : première simulation des profils ciblés sur le brut réel.
+- **Message d'erreur** : aucun ; 1 269 titulaires du top 5 sans date, contre 167 attendus d'après `raw_check`.
+- **Cause** : le dossier `fixtures_detail/league=39/` contient aussi les saisons 2010-2014 du palier P2, qui n'a pas de profils. Les titulaires de ces saisons, souvent retirés avant 2015, étaient comptés.
+- **Solution** : ne lire que les saisons du bloc (`seasons.first` à `seasons.last`).
+- **Fichiers concernés** : `src/foot_predictor/collect/api_football/profiles.py`.
+- **Prévention** : un même dossier de championnat peut appartenir à deux paliers ; toute lecture du brut par championnat filtre sur les saisons du bloc.
+- **Test de non-régression** : `tests/collect/api_football/test_profiles.py::test_known_births_and_starters_read_the_raw_dir` (saison P2 exclue).
+
+## E-023 — Test de collision : 1 186 collisions « même match » au premier lancement (2026-09-29)
+
+- **Contexte** : premier lancement du test de collision sur P1 à P3.
+- **Message d'erreur** : aucun ; 1 186 identifiants « deux fois dans un même match » et 27 identifiants « même jour » (319 cas).
+- **Cause** : trois particularités de l'API :
+  - l'identifiant `0` est donné aux joueurs inconnus (1 680 entrées) ;
+  - dans 31 matchs, tout le bloc de statistiques porte le `team.id` adverse ;
+  - dans 24 matchs, des entrées de statistiques sont répétées à l'identique.
+- **Solution** :
+  - identifiant 0 écarté ;
+  - « statistiques inversées » à partir de 5 joueurs dans ce cas dans un même match, la composition faisant foi ;
+  - entrées identiques (même équipe, même numéro) distinguées des numéros différents, qui sont de vraies collisions.
+
+  Résultat : 81 identifiants en collision réelle.
+- **Fichiers concernés** : `src/foot_predictor/quality/raw_check.py`.
+- **Prévention** : lire des exemples du fichier de détails avant de conclure sur un compteur.
+- **Test de non-régression** : `tests/quality/test_raw_check.py::test_same_match_collisions_and_their_false_positives`, `test_swapped_statistics_do_not_create_same_day_collisions`.
+
+## E-022 — Module chargé par chemin : `AttributeError` dans `dataclasses` (2026-09-29)
+
+- **Contexte** : tests de `scripts/taches_planifiees/creer_taches.py`, chargé avec `importlib.util.spec_from_file_location`.
+- **Message d'erreur** : `AttributeError: 'NoneType' object has no attribute '__dict__'` (dans `dataclasses.py`).
+- **Cause** : `@dataclass` cherche le module de la classe dans `sys.modules` ; un module chargé par chemin n'y est pas inscrit.
+- **Solution** : `sys.modules[spec.name] = module` avant `exec_module`, puis retrait à la fin du test.
+- **Fichiers concernés** : `tests/test_taches_planifiees.py`.
+- **Prévention** : même motif pour tout script de `scripts/` testé par chemin.
+- **Test de non-régression** : `tests/test_taches_planifiees.py`.
+
 ## E-021 — PR fusionnée dans une branche déjà fusionnée au lieu de `main` (2026-09-29)
 
 - **Contexte** : la PR #12 (tri de `docs/`) avait été ouverte avec pour base `docs/01-adr-0008-0013`, la branche de la PR #11, pour ne montrer que ses propres commits. La #11 a été fusionnée dans `main` avant la #12, et sa branche n'a pas été supprimée.

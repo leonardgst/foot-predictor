@@ -16,6 +16,8 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
+from foot_predictor.seal import SEAL_DATE
+
 MATCH_RATE_TARGET = 99.5  # ADR-0008, critère de révision de la règle 2
 TOP5 = (39, 140, 78, 135, 61)
 
@@ -90,7 +92,108 @@ def collect(connection) -> dict:
         "SELECT exclusion_reason, count(*) FROM staging.match WHERE excluded GROUP BY 1 ORDER BY 1"
     ).all())  # fmt: skip
     data["teams_by_origin"] = dict(q("SELECT origin, count(*) FROM staging.team GROUP BY 1 ORDER BY 1").all())
+    data["shots"] = collect_shots(connection)
     return data
+
+
+# Tirs par match (les deux équipes) selon football-data (fd) et API-FOOTBALL (api), matchs
+# de championnat terminés et non exclus, **avant le scellé seulement** (ADR-0012, ADR-0028) :
+# une valeur de tir est une valeur de match, elle ne se lit pas après le 30 juin 2025.
+SHOTS_SQL = """
+WITH per_team AS (
+    SELECT m.id AS match_id, c.api_league_id AS league, c.name, s.year,
+           e.shots AS fd_shots, e.shots_on_target AS fd_sot,
+           a.shots_total AS api_shots, a.shots_on_goal AS api_sot
+    FROM staging.match m
+    JOIN staging.competition c ON c.id = m.competition_id AND c.kind = 'league'
+    JOIN staging.season s ON s.id = m.season_id
+    JOIN staging.team_match tm ON tm.match_id = m.id
+    LEFT JOIN staging.team_match_stats_external e ON e.team_match_id = tm.id AND e.source = 'football_data'
+    LEFT JOIN staging.team_match_stats a ON a.team_match_id = tm.id
+    WHERE m.match_date < :seal AND m.status = 'played' AND NOT m.excluded
+      AND EXISTS (SELECT 1 FROM staging.match_source_mapping msm WHERE msm.match_id = m.id)
+), per_match AS (
+    SELECT match_id, league, name, year,
+           bool_and(fd_shots IS NOT NULL AND fd_sot IS NOT NULL) AS fd_ok,
+           bool_and(api_shots IS NOT NULL AND api_sot IS NOT NULL) AS api_ok,
+           bool_and(fd_shots = api_shots AND fd_sot = api_sot) AS same,
+           sum(abs(fd_shots - api_shots)) AS d_shots, sum(abs(fd_sot - api_sot)) AS d_sot
+    FROM per_team GROUP BY 1, 2, 3, 4
+)
+SELECT league, name, year, count(*) AS matches,
+       count(*) FILTER (WHERE fd_ok) AS fd_matches,
+       count(*) FILTER (WHERE api_ok) AS api_matches,
+       count(*) FILTER (WHERE fd_ok AND api_ok) AS common,
+       count(*) FILTER (WHERE fd_ok AND api_ok AND same) AS identical,
+       coalesce(sum(d_shots) FILTER (WHERE fd_ok AND api_ok), 0) AS abs_diff_shots,
+       coalesce(sum(d_sot) FILTER (WHERE fd_ok AND api_ok), 0) AS abs_diff_sot
+FROM per_match GROUP BY 1, 2, 3 ORDER BY 1, 3
+"""
+
+
+def collect_shots(connection) -> list[dict]:
+    """Présence des tirs par source et recouvrement sur les matchs communs, par championnat-saison."""
+    connection.execute(text("SET max_parallel_workers_per_gather = 0"))  # /dev/shm du conteneur (E-035)
+    return [dict(r) for r in connection.execute(text(SHOTS_SQL), {"seal": SEAL_DATE}).mappings()]
+
+
+def render_shots(rows: list[dict]) -> list[str]:
+    """Section « tirs » : couverture football-data et API, recouvrement sur les matchs communs (ADR-0029)."""
+    lines = [
+        "",
+        "## 6. Tirs de football-data et d'API-FOOTBALL (ADR-0029)",
+        "",
+        f"Matchs de championnat terminés, non exclus, rattachés à football-data, **avant le "
+        f"{SEAL_DATE:%d/%m/%Y}** (scellé, ADR-0012). « Complet » : tirs et tirs cadrés des deux équipes. "
+        "Écart moyen absolu : par équipe et par match, sur les matchs communs.",
+        "",
+    ]
+    if not rows:
+        return lines + ["- Aucun tir chargé."]
+    keys = ("matches", "fd_matches", "api_matches", "common", "identical", "abs_diff_shots", "abs_diff_sot")
+    by_league: dict[tuple, dict] = {}
+    for r in rows:
+        agg = by_league.setdefault((r["league"], r["name"]), dict.fromkeys(keys, 0))
+        for key in keys:
+            agg[key] += r[key]
+    total = {key: sum(a[key] for a in by_league.values()) for key in keys}
+
+    def row(label: str, a: dict) -> list:
+        teams = 2 * a["common"]
+        return [
+            label,
+            a["matches"],
+            _pct(a["fd_matches"], a["matches"]),
+            _pct(a["api_matches"], a["matches"]),
+            a["common"],
+            _pct(a["identical"], a["common"]),
+            f"{a['abs_diff_shots'] / teams:.2f}" if teams else "-",
+            f"{a['abs_diff_sot'] / teams:.2f}" if teams else "-",
+        ]
+
+    headers = [
+        "Championnat",
+        "Matchs",
+        "football-data complet",
+        "API complet",
+        "Communs",
+        "Identiques",
+        "Écart tirs",
+        "Écart cadrés",
+    ]
+    lines += _table(headers, [row(f"{name} ({league})", a) for (league, name), a in sorted(by_league.items())])
+    lines += ["", *_table(headers, [row("Total", total)])]
+    first: dict[tuple, int] = {}
+    for r in rows:
+        if r["fd_matches"] and (r["league"], r["name"]) not in first:
+            first[(r["league"], r["name"])] = r["year"]
+    lines += [
+        "",
+        "Première saison avec des tirs football-data : "
+        + ", ".join(f"{name} {year}-{(year + 1) % 100:02d}" for (_, name), year in sorted(first.items()))
+        + ".",
+    ]
+    return lines
 
 
 def render(data: dict, today: dt.date) -> str:
@@ -267,6 +370,8 @@ def render(data: dict, today: dt.date) -> str:
         + ".",
         "",
     ]
+    lines += render_shots(data.get("shots") or [])
+    lines.append("")
     return "\n".join(lines)
 
 

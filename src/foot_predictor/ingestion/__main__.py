@@ -41,19 +41,21 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(errors="backslashreplace")
     args = build_parser().parse_args(argv)
-    engine = create_engine(get_settings().database_url)
     if args.command == "check-referentiel":
         from foot_predictor.ingestion.referentiel_check import run_check
 
-        path = run_check(engine, args.output_dir)
+        path = run_check(create_engine(get_settings().database_url), args.output_dir)
         print(f"Rapport : {path}")
         return 0
 
     from foot_predictor.ingestion.pipeline import LoadRefused, run_load
 
+    # Arguments vérifiés avant de lire la configuration de la base : une erreur de chemin
+    # ne dépend pas de la présence d'un .env (le test tournait mal dans un clone sans .env).
     if not args.raw_dir.is_dir():
         print(f"Brut introuvable : {args.raw_dir}", file=sys.stderr)
         return 2
+    engine = create_engine(get_settings().database_url)
     try:
         with tempfile.TemporaryDirectory(prefix="fp_load_") as tmp:
             summary = run_load(

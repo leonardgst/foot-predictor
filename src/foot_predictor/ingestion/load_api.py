@@ -219,6 +219,8 @@ COLUMNS = {
     "competition_source_mapping": ("id", "competition_id", "source_name", "source_ref"),
     "team_source_mapping": ("id", "team_id", "source_name", "source_ref"),
     "match_source_mapping": ("id", "match_id", "source_name", "source_ref"),
+    # Remplie par load_external : tirs de football-data par équipe et par match (migration 0005, ADR-0029).
+    "team_match_stats_external": ("id", "source", "team_match_id", "shots", "shots_on_target"),
     "lineup": (
         "id",
         "match_id",

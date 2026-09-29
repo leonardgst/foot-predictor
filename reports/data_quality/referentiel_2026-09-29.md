@@ -4,7 +4,7 @@ Produit par `python -m foot_predictor.ingestion check-referentiel`. Chiffres seu
 
 ## 1. Dernier chargement
 
-- `ops.load_run` n° 2, 2026-09-29 13:37 UTC, commit `223297f`, durée 563.0 s.
+- `ops.load_run` n° 4, 2026-09-29 18:27 UTC, commit `9c2a459`, durée 444.1 s.
 
 | Table | Lignes |
 |---|---|
@@ -23,6 +23,7 @@ Produit par `python -m foot_predictor.ingestion check-referentiel`. Chiffres seu
 | team | 3 267 |
 | team_match | 335 752 |
 | team_match_stats | 168 640 |
+| team_match_stats_external | 204 794 |
 | team_source_mapping | 387 |
 
 ## 2. Identité des joueurs (ADR-0008, règle 1)
@@ -147,3 +148,27 @@ Matchs terminés sans composition : attendu dans les coupes (seuls les matchs d'
 | UEFA Europa Conference League (848) | cup | 2439 | 0 | 2331 | 2038 | 0 | 8 | 0 |
 
 Matchs exclus par motif : annule 345, tapis_vert 8.
+
+
+## 6. Tirs de football-data et d'API-FOOTBALL (ADR-0029)
+
+Matchs de championnat terminés, non exclus, rattachés à football-data, **avant le 01/07/2025** (scellé, ADR-0012). « Complet » : tirs et tirs cadrés des deux équipes. Écart moyen absolu : par équipe et par match, sur les matchs communs.
+
+| Championnat | Matchs | football-data complet | API complet | Communs | Identiques | Écart tirs | Écart cadrés |
+|---|---|---|---|---|---|---|---|
+| Premier League (39) | 9500 | 100.00 % | 40.02 % | 3802 | 90.93 % | 0.05 | 0.02 |
+| Championship (40) | 13800 | 99.99 % | 39.63 % | 5469 | 86.73 % | 0.09 | 0.03 |
+| Ligue 1 (61) | 9102 | 80.73 % | 39.00 % | 3550 | 80.90 % | 0.11 | 0.04 |
+| Ligue 2 (62) | 9314 | 30.73 % | 34.66 % | 2862 | 66.39 % | 0.54 | 0.21 |
+| Bundesliga (78) | 7650 | 83.99 % | 39.99 % | 3058 | 42.12 % | 0.45 | 0.16 |
+| 2. Bundesliga (79) | 7646 | 41.87 % | 40.32 % | 2446 | 23.59 % | 0.70 | 0.23 |
+| Serie A (135) | 9204 | 82.41 % | 41.26 % | 3798 | 56.24 % | 1.04 | 0.32 |
+| Serie B (136) | 10782 | 28.58 % | 32.56 % | 3058 | 63.70 % | 0.75 | 0.27 |
+| La Liga (140) | 9500 | 80.00 % | 40.16 % | 3815 | 83.98 % | 0.10 | 0.04 |
+| Segunda División (141) | 11550 | 31.82 % | 35.78 % | 3672 | 61.90 % | 0.29 | 0.07 |
+
+| Championnat | Matchs | football-data complet | API complet | Communs | Identiques | Écart tirs | Écart cadrés |
+|---|---|---|---|---|---|---|---|
+| Total | 98048 | 66.37 % | 38.19 % | 35530 | 68.67 % | 0.38 | 0.13 |
+
+Première saison avec des tirs football-data : Premier League 2000-01, Championship 2000-01, Ligue 1 2005-06, Ligue 2 2017-18, Bundesliga 2000-01, 2. Bundesliga 2000-01, Serie A 2005-06, Serie B 2017-18, La Liga 2005-06, Segunda División 2017-18.

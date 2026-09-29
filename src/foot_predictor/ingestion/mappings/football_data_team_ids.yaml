@@ -1,0 +1,404 @@
+# Équipes football-data -> team.id API-FOOTBALL (ADR-0008, règle 2 ; partie 2, sous-étape 2.5).
+#
+# BROUILLON PRODUIT PAR DU CODE, puis relu (diff Git) avant usage :
+#   uv run python -m foot_predictor.mapping_builder teams \
+#       --raw-dir C:/foot-predictor/data/raw --external-raw-dir data/raw
+# Méthode : appariement par le calendrier, sans comparer les noms
+# (src/foot_predictor/mapping_builder/schedule_match.py). Une correspondance ambiguë
+# n'est jamais devinée : elle reste dans `non_apparies`, avec sa raison.
+#
+# teams         nom football-data -> identifiant d'équipe API-FOOTBALL
+# hors_api      noms présents seulement hors de la couverture API : le chargeur crée une
+#               équipe « hors_api » (sans identifiant API)
+# non_apparies  noms présents dans la couverture API, sans correspondance sûre : à relire
+
+hors_api:
+- Ahlen
+- Albinoleffe
+- Alcoyano
+- Algeciras
+- Alicante
+- Ancona
+- Ath Bilbao B
+- Babelsberg
+- Badajoz
+- Beauvais
+- Besancon
+- Bradford
+- Burghausen
+- CZ Jena
+- Cannes
+- Chemnitz
+- Ciudad de Murcia
+- Colchester
+- Compostela
+- Crewe
+- Ein Trier
+- Erfurt
+- Essen
+- Extremadura
+- Gallipoli
+- Gillingham
+- Granada 74
+- Grimsby
+- Grosseto
+- Guadalajara
+- Gubbio
+- Gueugnon
+- Jaen
+- Koblenz
+- Libourne
+- Llagostera
+- Lleida
+- Lubeck
+- Malaga B
+- Mannheim
+- Messina
+- Murcia
+- Nocerina
+- Oberhausen
+- Offenbach
+- Piacenza
+- Pistoiese
+- Poli Ejido
+- Pontevedra
+- Portogruaro
+- Ravenna
+- Real Madrid B
+- Real Union
+- Recreativo
+- Reutlingen
+- Rimini
+- Rouen
+- Saarbrucken
+- Salamanca
+- Schweinfurt
+- Scunthorpe
+- Sete
+- Siegen
+- Southend
+- Stockport
+- Stuttgarter K
+- Terrassa
+- Tranmere
+- Treviso
+- Triestina
+- U.Las Palmas
+- Unterhaching
+- Valence
+- Varese
+- Vecindario
+- Virtus Lanciano
+- Walsall
+- Wasquehal
+- Wimbledon
+- Xerez
+non_apparies: {}
+teams:
+  Aachen: 4259
+  Aalen: 1327
+  Ajaccio: 98
+  Ajaccio GFCO: 100
+  Alaves: 542
+  Albacete: 722
+  Alcorcon: 711
+  Alessandria: 878
+  Almeria: 723
+  Amiens: 87
+  Amorebieta: 9380
+  Andorra: 8157
+  Angers: 77
+  Annecy: 3012
+  Arezzo: 876
+  Arles: 4652
+  Arsenal: 42
+  Ascoli: 507
+  Aston Villa: 66
+  Atalanta: 499
+  Ath Bilbao: 531
+  Ath Madrid: 530
+  Augsburg: 170
+  Auxerre: 108
+  Avellino: 528
+  Barcelona: 529
+  Barcelona B: 712
+  Bari: 508
+  Barnsley: 747
+  Bastia: 1305
+  Bayern Munich: 157
+  Benevento: 506
+  Betis: 543
+  Beziers: 109
+  Bielefeld: 188
+  Birmingham: 54
+  Blackburn: 67
+  Blackpool: 1356
+  Bochum: 176
+  Bologna: 500
+  Bolton: 68
+  Bordeaux: 78
+  Boulogne: 1299
+  Bourg Peronnas: 430
+  Bournemouth: 35
+  Braunschweig: 744
+  Brentford: 55
+  Brescia: 518
+  Brest: 106
+  Brighton: 51
+  Bristol City: 56
+  Burgos: 9580
+  Burnley: 44
+  Burton: 748
+  CA Bastia: 1312
+  Cadiz: 724
+  Caen: 88
+  Cagliari: 490
+  Cardiff: 43
+  Carpi: 519
+  Carrarese: 1581
+  Cartagena: 5262
+  Castellon: 5254
+  Catania: 1580
+  Catanzaro: 1687
+  Celta: 538
+  Celta B: 9571
+  Cesena: 509
+  Ceuta: 10139
+  Chambly: 1291
+  Charlton: 1335
+  Chateauroux: 107
+  Chelsea: 49
+  Chievo: 491
+  Cittadella: 510
+  Clermont: 99
+  Como: 895
+  Concarneau: 1300
+  Cordoba: 713
+  Cosenza: 10137
+  Cottbus: 1320
+  Coventry: 1346
+  Cremonese: 520
+  Creteil: 1307
+  Crotone: 501
+  Crystal Palace: 52
+  Cultural Leonesa: 725
+  Darmstadt: 181
+  Derby: 69
+  Dijon: 89
+  Doncaster: 1354
+  Dortmund: 165
+  Dresden: 183
+  Duisburg: 187
+  Dunkerque: 1304
+  Eibar: 545
+  Ein Frankfurt: 169
+  Elche: 797
+  Eldense: 9692
+  Elversberg: 1660
+  Empoli: 511
+  Erzgebirge Aue: 190
+  Espanol: 540
+  Everton: 45
+  Evian Thonon Gaillard: 3006
+  Extremadura UD: 860
+  FC Koln: 192
+  FeralpiSalo: 884
+  Ferrol: 9409
+  Fiorentina: 502
+  Foggia: 521
+  Fortuna Dusseldorf: 158
+  Frankfurt FSV: 1332
+  Freiburg: 160
+  Frosinone: 512
+  Fuenlabrada: 4906
+  Fulham: 36
+  Genoa: 495
+  Getafe: 546
+  Gimnastic: 714
+  Girona: 547
+  Granada: 715
+  Grenoble: 101
+  Greuther Furth: 178
+  Guingamp: 90
+  Hamburg: 175
+  Hannover: 166
+  Hansa Rostock: 1321
+  Heidenheim: 180
+  Hercules: 4666
+  Hertha: 159
+  Hoffenheim: 167
+  Holstein Kiel: 191
+  Huddersfield: 37
+  Huesca: 726
+  Hull: 64
+  Ibiza: 9390
+  Ingolstadt: 184
+  Inter: 505
+  Ipswich: 57
+  Istres: 3267
+  Juve Stabia: 863
+  Juventus: 496
+  Kaiserslautern: 745
+  Karlsruhe: 785
+  La Coruna: 544
+  Las Palmas: 534
+  Latina: 804
+  Laval: 433
+  Lazio: 487
+  Le Havre: 111
+  Le Mans: 1298
+  Lecce: 867
+  Lecco: 6379
+  Leeds: 63
+  Leganes: 537
+  Leicester: 46
+  Lens: 116
+  Leonesa: 725
+  Levante: 539
+  Leverkusen: 168
+  Lille: 79
+  Lincoln: 1379
+  Liverpool: 40
+  Livorno: 868
+  Logrones: 5280
+  Lorca: 721
+  Lorient: 97
+  Lugo: 716
+  Luton: 1359
+  Lyon: 80
+  M'gladbach: 163
+  Magdeburg: 179
+  Mainz: 164
+  Malaga: 535
+  Mallorca: 798
+  Man City: 50
+  Man United: 33
+  Mantova: 1693
+  Marseille: 81
+  Martigues: 3200
+  Metz: 112
+  Middlesbrough: 70
+  Milan: 489
+  Millwall: 58
+  Milton Keynes Dons: 1348
+  Mirandes: 799
+  Modena: 899
+  Monaco: 91
+  Montpellier: 82
+  Monza: 1579
+  Munich 1860: 786
+  Nancy: 102
+  Nantes: 83
+  Napoli: 492
+  Newcastle: 34
+  Nice: 84
+  Nimes: 92
+  Niort: 113
+  Norwich: 71
+  Nott'm Forest: 65
+  Novara: 513
+  Numancia: 717
+  Nurnberg: 171
+  Orleans: 103
+  Osasuna: 727
+  Osnabruck: 1324
+  Oviedo: 718
+  Oxford: 1338
+  Paderborn: 185
+  Padova: 870
+  Palermo: 522
+  Paris FC: 114
+  Paris SG: 85
+  Parma: 523
+  Pau FC: 1297
+  Perugia: 524
+  Pescara: 525
+  Peterboro: 1350
+  Pisa: 801
+  Plymouth: 1357
+  Ponferradina: 4907
+  Pordenone: 862
+  Portsmouth: 1355
+  Preston: 59
+  Preußen Münster: 1313
+  Pro Vercelli: 526
+  QPR: 72
+  Quevilly Rouen: 431
+  RB Leipzig: 173
+  Rayo Majadahonda: 861
+  Reading: 53
+  Real Madrid: 541
+  Red Star: 104
+  Regensburg: 177
+  Reggiana: 880
+  Reggina: 1692
+  Reims: 93
+  Rennes: 94
+  Reus Deportiu: 729
+  Rodez: 1301
+  Roma: 497
+  Rotherham: 73
+  Sabadell: 9593
+  Salernitana: 514
+  Sampdoria: 498
+  Sandhausen: 189
+  Santander: 4665
+  Sassuolo: 488
+  Schalke 04: 174
+  Sedan: 1310
+  Sevilla: 536
+  Sevilla B: 730
+  Sheffield United: 62
+  Sheffield Weds: 74
+  Siena: 1583
+  Sochaux: 115
+  Sociedad: 548
+  Sociedad B: 9585
+  Southampton: 41
+  Sp Gijon: 731
+  Spal: 493
+  Spezia: 515
+  St Etienne: 1063
+  St Pauli: 186
+  Stoke: 75
+  Strasbourg: 95
+  Stuttgart: 172
+  Sudtirol: 1578
+  Sunderland: 746
+  Swansea: 76
+  Tenerife: 719
+  Ternana: 516
+  Torino: 503
+  Tottenham: 47
+  Toulouse: 96
+  Tours: 432
+  Trapani: 803
+  Troyes: 110
+  UCAM Murcia: 800
+  Udinese: 494
+  Ulm: 1652
+  Union Berlin: 182
+  Valencia: 532
+  Valenciennes: 105
+  Valladolid: 720
+  Vallecano: 728
+  Vannes: 3129
+  Venezia: 517
+  Verona: 504
+  Vicenza: 1584
+  Villarreal: 533
+  Villarreal B: 9595
+  Virtus Entella: 527
+  Watford: 38
+  Wehen: 1319
+  Werder Bremen: 162
+  West Brom: 60
+  West Ham: 48
+  Wigan: 61
+  Wolfsburg: 161
+  Wolves: 39
+  Wrexham: 1837
+  Wurzburger Kickers: 784
+  Wycombe: 1358
+  Yeovil: 1377
+  Zaragoza: 732

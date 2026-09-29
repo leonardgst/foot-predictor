@@ -1,0 +1,78 @@
+# Doublons de joueurs : identifiant API secondaire -> identifiant API principal
+# (ADR-0008, règle 3 ; partie 2, sous-étape 2.5).
+#
+# BROUILLON PRODUIT PAR DU CODE, puis relu (diff Git) avant usage :
+#   uv run python -m foot_predictor.mapping_builder player-aliases --raw-dir C:/foot-predictor/data/raw
+# Groupes candidats : même nom et même date de naissance dans les profils (raw_check).
+# Retenus seulement si les identifiants ne jouent jamais le même match ni le même jour ;
+# les groupes douteux restent hors de ce fichier (décompte dans le retour de la partie 2).
+# Principal : l'identifiant qui a le plus de présences (à égalité, le plus petit).
+# Exception assumée à la règle « aucun identifiant de joueur versionné » : l'ADR-0008
+# exige un YAML versionné. Jamais de nom ni de date de naissance ici.
+
+aliases:
+  48841: 2812
+  71954: 221104
+  75665: 114001
+  93040: 38792
+  96337: 41168
+  133078: 93674
+  133996: 102775
+  134254: 87680
+  135871: 137213
+  136562: 190620
+  138942: 16038
+  189740: 350504
+  192819: 351979
+  198480: 334597
+  217530: 5694
+  258509: 6161
+  274274: 633362
+  278359: 157814
+  278781: 2032
+  288289: 305829
+  288292: 305839
+  288293: 305835
+  288294: 305837
+  292457: 201898
+  301652: 286471
+  302433: 292453
+  302434: 286476
+  309265: 325140
+  314691: 289746
+  317987: 317418
+  329278: 102466
+  330418: 613219
+  342382: 53893
+  372229: 294685
+  376373: 350364
+  386756: 342408
+  391051: 287885
+  396483: 557462
+  398095: 129044
+  401105: 327727
+  404017: 557460
+  409765: 368851
+  416110: 415117
+  419844: 10545
+  440756: 482074
+  448176: 439843
+  459401: 625548
+  463984: 631004
+  475496: 283304
+  510801: 510589
+  511032: 507490
+  513484: 396481
+  529600: 531344
+  615969: 469483
+  619620: 505906
+  641150: 55530
+  643029: 105385
+  644248: 194461
+  644403: 54232
+  656701: 62155
+  663578: 37258
+  663579: 37237
+  663584: 93682
+  667335: 279893
+  673293: 82012

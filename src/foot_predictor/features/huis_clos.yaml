@@ -1,0 +1,177 @@
+# Matchs à huis clos (groupe G0, variable behind_closed_doors ; ADR-0033, décision d.10e de la partie 3).
+#
+# Une période par championnat (identifiant de ligue API-FOOTBALL), bornes incluses (dates UTC des matchs).
+# statut :
+#   huis_clos      : matchs officiellement sans public (hors personnel)          -> indicateur 1
+#   jauge_reduite  : public partiel (jauge nationale ou régionale), gardé pour la partie 4 -> indicateur 0
+#   incertain      : sources insuffisantes, ou régime différent selon les clubs  -> indicateur 0, signalé
+# Une date hors de toute période vaut 0 (public normal). Aucune période n'est devinée : sans
+# source sûre, la période est « incertain ».
+#
+# Pour 2019-20, les périodes commencent à la suspension de mars 2020 : aucun match de
+# championnat n'a eu lieu entre la suspension et la reprise, qui s'est faite partout à huis clos.
+# Sources lues le 2026-09-29.
+
+sources:
+  eng_2019: https://en.wikipedia.org/wiki/2019%E2%80%9320_Premier_League
+  eng_pl_2020: https://en.wikipedia.org/wiki/2020%E2%80%9321_Premier_League
+  eng_ch_2020: https://en.wikipedia.org/wiki/2020%E2%80%9321_EFL_Championship
+  eng_tiers: https://www.skysports.com/football/news/11669/12143932/premier-league-clubs-confirm-plans-for-return-of-fans-in-december
+  ger_2019: https://en.wikipedia.org/wiki/2019%E2%80%9320_Bundesliga
+  ger_2020: https://de.wikipedia.org/wiki/Fu%C3%9Fball-Bundesliga_2020/21
+  ger_nov_2020: https://www.goal.com/en/news/bundesliga-matches-played-behind-closed-doors-coronavirus/mbdsj9ufkq9s1nkgu9e6213uc
+  ger_dec_2021: https://www.kicker.de/beschluss-ab-28-dezember-kehren-deutschlandweit-die-geisterspiele-zurueck-883829/artikel
+  ger_berlin_2022: https://sport.sky.de/fussball/artikel/bundesliga-keine-geisterspiele-in-berlin-senat-erlaubt-zuschauer/12502900/35311
+  ita_2019: https://en.wikipedia.org/wiki/2019%E2%80%9320_Serie_A
+  ita_oct_2020: https://www.eurosport.it/calcio/serie-a/2020-2021/serie-a-nuovo-dpcm-stadi-a-porte-chiuse-stop-ai-mille-tifosi_sto7967885/story.shtml
+  ita_jun_2021: https://www.corrieredellosport.it/news/calcio/2021/04/20-80978643/nuovo_decreto_covid_pubblico_negli_stadi_dal_1_giugno
+  esp_2019: https://en.wikipedia.org/wiki/2019%E2%80%9320_La_Liga
+  esp_may_2021: https://www.france24.com/en/live-news/20210516-after-long-absence-fans-return-for-two-la-liga-matches
+  esp_may_2021_bis: https://www.euronews.com/2021/05/17/spanish-football-recovery-up-to-5-000-fans-heading-to-la-liga-games
+  fra_2020: https://fr.wikipedia.org/wiki/Championnat_de_France_de_football_2020-2021
+  fra_playoffs_2021: https://en.wikipedia.org/wiki/2020%E2%80%9321_Ligue_1
+
+# Périodes communes à plusieurs championnats d'un même pays (mêmes règles nationales).
+periods:
+  # --- Angleterre : Premier League (39), Championship (40) ---
+  - leagues: [39, 40]
+    start: 2020-03-13
+    end: 2020-08-31
+    status: huis_clos
+    source: eng_2019
+    note: "suspension le 13 mars 2020, reprise à huis clos (17 juin en PL, 20 juin en Championship) jusqu'aux barrages d'août"
+  - leagues: [39, 40]
+    start: 2020-09-01
+    end: 2020-12-01
+    status: huis_clos
+    source: eng_pl_2020
+    note: "début de saison sans public"
+  - leagues: [40]
+    start: 2020-09-19
+    end: 2020-09-19
+    status: incertain
+    source: eng_ch_2020
+    note: "deux matchs pilotes devant 1 000 spectateurs ce jour-là ; les autres à huis clos"
+  - leagues: [39, 40]
+    start: 2020-12-02
+    end: 2021-01-03
+    status: incertain
+    source: eng_tiers
+    note: "système de paliers ; 2 000 spectateurs en palier 2, huis clos en palier 3, selon le club et la semaine"
+  - leagues: [39, 40]
+    start: 2021-01-04
+    end: 2021-05-17
+    status: huis_clos
+    source: eng_pl_2020
+    note: "troisième confinement national (4 janvier 2021) jusqu'à la réouverture du 17 mai"
+  - leagues: [39, 40]
+    start: 2021-05-18
+    end: 2021-06-30
+    status: jauge_reduite
+    source: eng_pl_2020
+    note: "10 000 spectateurs ou 25 % de la capacité (deux dernières journées de PL, barrages du Championship)"
+
+  # --- Allemagne : Bundesliga (78), 2. Bundesliga (79) ---
+  - leagues: [78, 79]
+    start: 2020-03-11
+    end: 2020-07-11
+    status: huis_clos
+    source: ger_2019
+    note: "premier match à huis clos le 11 mars 2020, suspension le 13, reprise à huis clos le 16 mai jusqu'aux barrages de juillet"
+  - leagues: [78, 79]
+    start: 2020-09-18
+    end: 2020-11-01
+    status: jauge_reduite
+    source: ger_2020
+    note: "jusqu'à 20 % de la capacité selon le Land, huis clos dans certains stades"
+  - leagues: [78, 79]
+    start: 2020-11-02
+    end: 2021-05-21
+    status: huis_clos
+    source: ger_nov_2020
+    note: "huis clos général dès le 2 novembre 2020 (ger_2020 : exclusion générale des spectateurs, dernier spectateur admis au 34e jour seulement)"
+  - leagues: [78, 79]
+    start: 2021-05-22
+    end: 2021-05-31
+    status: incertain
+    source: ger_2020
+    note: "dernière journée avec un public limité pour certains matchs ; barrages sans information"
+  - leagues: [78, 79]
+    start: 2021-12-28
+    end: 2022-02-28
+    status: incertain
+    source: ger_dec_2021
+    note: "huis clos national décidé le 28 décembre 2021, mais Berlin a admis du public (ger_berlin_2022) ; fin de la période non documentée"
+
+  # --- Italie : Serie A (135), Serie B (136) ---
+  - leagues: [135, 136]
+    start: 2020-03-05
+    end: 2020-08-31
+    status: huis_clos
+    source: ita_2019
+    note: "décret du 4 mars 2020 (huis clos), suspension le 9 mars, reprise à huis clos en juin jusqu'aux barrages d'août"
+  - leagues: [135, 136]
+    start: 2020-09-19
+    end: 2020-10-25
+    status: jauge_reduite
+    source: ita_oct_2020
+    note: "environ 1 000 spectateurs admis"
+  - leagues: [135, 136]
+    start: 2020-10-26
+    end: 2021-05-16
+    status: huis_clos
+    source: ita_oct_2020
+    note: "décret du 24 octobre 2020 (accès réservé au personnel) ; public autorisé seulement à partir du 1er juin 2021 (ita_jun_2021)"
+  - leagues: [135, 136]
+    start: 2021-05-17
+    end: 2021-06-30
+    status: incertain
+    source: ita_jun_2021
+    note: "dérogations possibles avant le 1er juin pour des événements particuliers ; fin de saison et barrages"
+
+  # --- Espagne : La Liga (140), Segunda División (141) ---
+  - leagues: [140, 141]
+    start: 2020-03-12
+    end: 2020-08-31
+    status: huis_clos
+    source: esp_2019
+    note: "suspension le 12 mars 2020, reprise à huis clos le 11 juin jusqu'aux barrages d'août (le match à huis clos du 10 mars n'est pas couvert)"
+  - leagues: [140, 141]
+    start: 2020-09-01
+    end: 2021-05-15
+    status: huis_clos
+    source: esp_may_2021
+    note: "saison 2020-21 sans public jusqu'au retour partiel du 16 mai 2021"
+  - leagues: [140, 141]
+    start: 2021-05-16
+    end: 2021-06-30
+    status: incertain
+    source: esp_may_2021_bis
+    note: "jusqu'à 5 000 spectateurs dans les régions à faible incidence (Valence, Galice), huis clos ailleurs"
+
+  # --- France : Ligue 1 (61), Ligue 2 (62) ---
+  # 2019-20 : championnats arrêtés en mars 2020, sans reprise ; les matchs de début mars ont eu un public.
+  - leagues: [61, 62]
+    start: 2020-08-21
+    end: 2020-10-29
+    status: jauge_reduite
+    source: fra_2020
+    note: "jauge nationale de 5 000 spectateurs, réduite ou huis clos selon les préfectures"
+  - leagues: [61, 62]
+    start: 2020-10-30
+    end: 2021-05-18
+    status: huis_clos
+    source: fra_2020
+    note: "rassemblements de plus de 30 personnes interdits à partir du 30 octobre 2020"
+  - leagues: [61, 62]
+    start: 2021-05-19
+    end: 2021-05-26
+    status: incertain
+    source: fra_2020
+    note: "réouverture nationale partielle le 19 mai 2021 ; retour effectif du public en dernière journée non documenté"
+  - leagues: [61, 62]
+    start: 2021-05-27
+    end: 2021-05-30
+    status: huis_clos
+    source: fra_playoffs_2021
+    note: "barrages de relégation joués à huis clos (affluence 0)"

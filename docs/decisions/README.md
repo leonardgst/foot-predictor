@@ -27,6 +27,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0019](ADR-0019-palier-p4.md) | Palier P4 : classements du top 5 et des D2, indisponibilités des titulaires du top 5 | acceptée | 2026-09-29 | M2 (ADR-0002) |
 | [0020](ADR-0020-collisions-numero-composition.md) | Collisions : exclusion automatique au chargement, numéro de la composition pour « deux numéros dans la même équipe » | acceptée | 2026-09-29 | M7 (remplace 0015) |
 | [0021](ADR-0021-code-gel-tag-v0.2.0.md) | Session de gel : code du tag `v0.2.0`, pas de mise à jour du checkout principal avant le tag du gel | acceptée | 2026-09-29 | M5 (complète 0018) |
+| [0022](ADR-0022-workflow-git.md) | Workflow Git : `main` et branches courtes, PR pour tout, merge commit, tags, hooks | acceptée | 2026-09-29 | M15 |
 
 **Décisions encore ouvertes** :
 

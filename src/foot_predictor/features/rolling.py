@@ -123,27 +123,39 @@ def compute_rolling(
     rows = team_rows(matches, coefficients)
     mu = league_means(rows, max_age)
     result = {name: np.full(len(rows), np.nan) for name in _output_columns(half_lives)}
+    # Le poids se sépare : 0,5^((J − j)/h) = 0,5^(J/h) · 0,5^(−j/h). Une somme pondérée sur la
+    # fenêtre [J − A, J − 1] devient une différence de sommes cumulées des 0,5^(−j/h) · x_j, prises
+    # dans l'ordre chronologique. Un historique tronqué à une date en est exactement le préfixe :
+    # les valeurs d'avant la coupe sont identiques au bit près (contrôle d'invariance, 3.7).
+    # L'échelle 0,5^(−j/h) croît au plus jusqu'à 2^160 environ (j compté depuis 2000) : sans risque.
     for _team, index in rows.groupby("team_id", sort=False).groups.items():
         idx = rows.index.get_indexer(index)
         day = rows["day"].to_numpy()[idx].astype(np.int64)
         history = rows["history"].to_numpy()[idx]
         values = {q: rows[q].to_numpy(dtype="float64", na_value=np.nan)[idx] for q in QUANTITIES}
-        gap = day[:, None] - day[None, :]  # J − j_i : > 0 pour un match d'un jour antérieur
-        window = (gap >= 1) & (gap <= max_age) & history[None, :]
-        last = np.where(window, gap, np.iinfo(np.int64).max).min(axis=1)
-        result["days_since_last_league_match"][idx] = np.where(window.any(axis=1), last, np.nan)
+        hi = np.searchsorted(day, day, side="left")  # premier match du jour J ou après : exclu
+        lo = np.searchsorted(day, day - max_age, side="left")  # premier match du jour J − A ou après
+        positions = np.where(history, np.arange(len(day)), -1)
+        last_valid = np.maximum.accumulate(positions) if len(day) else positions
+        previous = np.where(hi > 0, last_valid[np.maximum(hi - 1, 0)], -1)
+        gap_last = np.where(previous >= 0, day - day[np.maximum(previous, 0)], np.nan)
+        result["days_since_last_league_match"][idx] = np.where(gap_last <= max_age, gap_last, np.nan)
         for h in half_lives:
-            decay = np.where(window, 0.5 ** (gap / h), 0.0)
+            scale_past = 0.5 ** (-day / h)
+            scale_now = 0.5 ** (day / h)
             for kind, quantities in (("goals", ("goals_for", "goals_against")), ("xgp", ("xgp_for", "xgp_against"))):
-                known = ~np.isnan(values[quantities[0]]) & ~np.isnan(values[quantities[1]])
-                weights = decay * known[None, :]
-                weight_sum = weights.sum(axis=1)
+                known = history & ~np.isnan(values[quantities[0]]) & ~np.isnan(values[quantities[1]])
+                w = np.where(known, scale_past, 0.0)
+                cum_w = np.concatenate([[0.0], np.cumsum(w)])
+                weight_sum = (cum_w[hi] - cum_w[lo]) * scale_now
+                weight_sum = np.where(hi > lo, weight_sum, 0.0)
                 result[f"{kind}_weight_h{h}"][idx] = weight_sum
                 prior = mu[kind].to_numpy()[idx]
                 for q in quantities:
-                    x = np.nan_to_num(values[q])
+                    cum_x = np.concatenate([[0.0], np.cumsum(w * np.nan_to_num(values[q]))])
+                    total = np.where(hi > lo, (cum_x[hi] - cum_x[lo]) * scale_now, 0.0)
                     with np.errstate(invalid="ignore", divide="ignore"):
-                        shrunk = (weights @ x + prior_weight * prior) / (weight_sum + prior_weight)
+                        shrunk = (total + prior_weight * prior) / (weight_sum + prior_weight)
                     result[f"{q}_ewm_h{h}"][idx] = np.where(weight_sum > 0, shrunk, np.nan)
     out = rows[["match_id", "team_id", "is_home"]].copy()
     for name, values in result.items():

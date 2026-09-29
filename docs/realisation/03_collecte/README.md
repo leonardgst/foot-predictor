@@ -275,8 +275,9 @@ schtasks //Query //FO TABLE | grep FootPredictor
 schtasks //Query //TN FootPredictor_t60_2026-10-10 //V //FO LIST
 # Lancer une tâche tout de suite (consomme du quota !)
 schtasks //Run //TN FootPredictor_refresh_2026-10-05
-# Tester un script à blanc, sans requête (journal dans data/logs/)
-cmd //c "scripts	aches_planifiees	60.cmd 2026-10-10 --dry-run"
+# Tester un script à blanc, sans requête (journal dans data/logs/).
+# Apostrophes : Bash laisse les antislashs intacts ; cmd refuse les barres obliques.
+cmd //c 'scripts\taches_planifiees\t60.cmd 2026-10-10 --dry-run'
 # Créer (ou recréer) toutes les tâches, puis les supprimer toutes
 uv run python scripts/taches_planifiees/creer_taches.py            # simulation
 uv run python scripts/taches_planifiees/creer_taches.py --apply

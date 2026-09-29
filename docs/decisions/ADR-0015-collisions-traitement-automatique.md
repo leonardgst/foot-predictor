@@ -1,6 +1,6 @@
 # ADR-0015 — Collisions d'identifiants de joueurs : traitement automatique au chargement
 
-- **Statut** : proposée (à trancher avant le jalon J3)
+- **Statut** : remplacée par l'ADR-0020 (2026-09-29 : option 2 affinée, numéro de la composition pour « deux numéros dans la même équipe »)
 - **Date** : 2026-09-29
 - **Référence** : ADR-0008 (règle 3 et critère de révision) ; `docs/realisation/05_controle_qualite/constats_collisions.md` ; résumé `reports/data_quality/raw_check_P1-P2-P3_2026-09-29.md`
 

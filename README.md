@@ -8,11 +8,7 @@ C'est un **projet d'apprentissage** mené seul : la clarté, la justification de
 
 ## État
 
-- Collecte API-FOOTBALL en cours jusqu'au gel des données du **19 octobre 2026** : paliers P1 et P2 collectés et contrôlés, P3 en cours.
-- Décisions de cadrage consignées dans les ADR 0001 à 0014.
-- Prochain jalon après le gel : référentiel reconstruit depuis le brut (J3), puis variables, protocole et modèle MVP.
-
-Détail et prochaines actions : [`docs/ETAT_PROJET.md`](docs/ETAT_PROJET.md).
+L'état courant (partie en cours, prochaines actions, dates) est tenu à jour dans [`docs/ETAT_PROJET.md`](docs/ETAT_PROJET.md), et les décisions dans l'[index des ADR](docs/decisions/README.md). Cette page ne le recopie pas, pour ne pas se périmer.
 
 ## Démarrage rapide
 

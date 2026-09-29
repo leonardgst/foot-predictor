@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-029 — Tabulations dans une commande documentée, à la place de `\t` (2026-09-29)
+
+- **Contexte** : relecture du README de l'étape 03 (partie 2), commande d'essai à blanc du script T-60.
+- **Message d'erreur** : aucun à l'écriture ; copiée dans Git Bash, la commande échouait, car le chemin `scripts\taches_planifiees\t60.cmd` contenait deux tabulations (`scripts<TAB>aches_planifiees<TAB>60.cmd`).
+- **Cause** : même famille que les `"\n"` cassés dans `cli.py` pendant la partie 1. Un fichier réécrit par un script, avec une chaîne qui contenait des antislashs : `\t` et `\n` ont été interprétés comme des caractères de contrôle au lieu d'être recopiés.
+- **Solution** : commande réécrite à la main, entre apostrophes (`cmd //c 'scripts\taches_planifiees\t60.cmd 2026-10-10 --dry-run'`), testée depuis le worktree en `--dry-run`. Les barres obliques ne conviennent pas : `cmd` les prend pour des options. Aucune autre occurrence dans les `.md`, `.py`, `.yaml` et `.cmd` hors `docs/archives/`.
+- **Fichiers concernés** : `docs/realisation/03_collecte/README.md`.
+- **Prévention** : modifier les fichiers avec l'outil d'édition plutôt qu'avec un script ; relire le `diff` (`git diff | cat -A` montre les tabulations en `^I`) ; contrôle pre-commit qui refuse tabulations et caractères de contrôle (partie 2, sous-étape 2.1).
+- **Test de non-régression** : le hook pre-commit de 2.1.
+
 ## E-028 — Faux écart de quota : environ 120 requêtes « consommées ailleurs » (2026-09-29)
 
 - **Contexte** : suivi du quota pendant la collecte des profils ciblés et de P4.

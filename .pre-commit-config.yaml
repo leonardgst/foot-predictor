@@ -38,12 +38,12 @@ repos:
         name: ruff (contrôle)
         entry: uv run ruff check --fix --force-exclude
         language: system
-        types_or: [python, pyi]
+        types_or: [python, pyi, jupyter]  # notebooks compris, comme en CI (ruff check .)
       - id: ruff-format
         name: ruff (formatage)
         entry: uv run ruff format --force-exclude
         language: system
-        types_or: [python, pyi]
+        types_or: [python, pyi, jupyter]  # notebooks compris, comme en CI (ruff check .)
       - id: caracteres-controle
         name: tabulations et caractères de contrôle (E-029)
         entry: uv run python -m foot_predictor.outils.caracteres

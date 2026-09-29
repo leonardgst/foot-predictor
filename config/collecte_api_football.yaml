@@ -77,10 +77,16 @@ tiers:
         endpoints: [fixtures_list, fixtures_detail, players]
 
   P4:
-    description: compléments (à définir finement plus tard)
-    # Structure prévue, à compléter :
-    # - standings (classements officiels) : un bloc kind: league avec
-    #   endpoints: [standings] ;
-    # - sidelined (indisponibilités par joueur) : la liste des joueurs à
-    #   interroger reste à définir (sa dérivation n'est pas encore codée).
-    blocks: []
+    description: compléments (classements officiels ; indisponibilités par plan-sidelined)
+    blocks:
+      # Classements officiels du top 5 et des D2, saisons terminées seulement :
+      # la saison en cours (2026) aurait un classement vite périmé. Les saisons
+      # sans classement d'après /leagues (coverage.standings) sont écartées.
+      - name: classements_top5_d2
+        kind: league
+        leagues: [39, 140, 78, 135, 61, 40, 141, 79, 136, 62]
+        seasons: {first: 2010, last: 2025}
+        endpoints: [standings]
+    # sidelined (indisponibilités par joueur) : pas de bloc ici. Les titulaires
+    # du top 5 sont mis en lots de 20 par la commande plan-sidelined, une fois
+    # pour toutes (voir collect/api_football/sidelined.py).

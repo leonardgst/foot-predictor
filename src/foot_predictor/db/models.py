@@ -565,3 +565,31 @@ class LoadRun(Base):
     counts: Mapped[dict | None] = mapped_column(JSONB)  # décomptes par table et par motif
     fingerprints: Mapped[dict | None] = mapped_column(JSONB)  # empreinte md5 de chaque table
     duration_seconds: Mapped[float | None] = mapped_column(Numeric(10, 1))
+
+
+# ---------------------------------------------------------------------------
+# features : traçabilité des jeux de données (migration 0006, ADR-0030)
+# ---------------------------------------------------------------------------
+
+
+class DatasetVersion(Base):
+    """Une version construite du jeu de données (instantané Parquet dans data/datasets/<version>/).
+
+    Aucune clé étrangère vers `staging` : la trace survit à un `load`, qui vide `staging`.
+    """
+
+    __tablename__ = "dataset_version"
+    __table_args__ = (UniqueConstraint("version", name="uq_dataset_version_version"), {"schema": "features"})
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    version: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    git_commit: Mapped[str | None] = mapped_column(Text)
+    alembic_revision: Mapped[str] = mapped_column(Text, nullable=False)
+    load_run_id: Mapped[int | None] = mapped_column(ForeignKey("ops.load_run.id"))
+    registry_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    manifest_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    parameters: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    scope: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    counts: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    path: Mapped[str] = mapped_column(Text, nullable=False)

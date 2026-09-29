@@ -35,7 +35,7 @@ def clean_database(_test_engine):
     yield _test_engine
     with _test_engine.begin() as connection:
         connection.execute(text("TRUNCATE staging.competition, staging.team, staging.player, staging.coach CASCADE"))
-        connection.execute(text("TRUNCATE ops.load_run"))
+        connection.execute(text("TRUNCATE ops.load_run CASCADE"))  # et features.dataset_version (0006)
 
 
 @pytest.mark.db

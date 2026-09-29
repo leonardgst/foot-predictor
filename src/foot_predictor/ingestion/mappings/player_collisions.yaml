@@ -1,0 +1,14 @@
+# Exceptions à l'exclusion automatique des collisions d'identifiants (ADR-0020 ; partie 2, 2.5).
+#
+# Par défaut, le chargeur exclut les entrées en collision (joueur inconnu, qui compte 0),
+# sauf « deux numéros dans la même équipe » résolu par le numéro de la composition.
+# Ce fichier ne sert qu'aux exceptions, chacune prouvée dans le brut :
+#
+#   exceptions:
+#     - fixture: 123456      # identifiant de match API
+#       player: 7890         # identifiant de joueur API (jamais de nom)
+#       action: keep         # keep : garder l'entrée ; exclude : l'exclure
+#       preuve: "numéro 8 dans la composition et les statistiques"
+#
+# Vide au 2026-09-29 : aucune exception retenue (ADR-0020).
+exceptions: []

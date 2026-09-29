@@ -47,6 +47,9 @@ from foot_predictor.ingestion import raw_api
 from foot_predictor.rawstore.store import SUFFIX, VERSION_SEPARATOR
 
 POSITION_BUCKETS = {"G": "Goalkeeper", "D": "Defender", "M": "Midfielder", "F": "Attacker"}
+TOP5_LEAGUES = frozenset({39, 140, 78, 135, 61})  # population d'évaluation (ADR-0012)
+REVISION_SHARE = 0.10  # ADR-0020 : part des titularisations d'une saison perdue par exclusion
+REVISION_MIN_STARTS = 10
 
 # Statut API -> statut du référentiel, et motif d'exclusion (ADR-0009).
 PLAYED = {"FT", "AET", "PEN"}
@@ -210,6 +213,10 @@ COLUMNS = {
         "collision_excluded",
     ),  # fmt: skip
     "team_match_stats": ("id", "team_match_id", *TEAM_STATS_COLUMNS),
+    # Remplies par load_external (football-data) : lien vers la source d'origine.
+    "competition_source_mapping": ("id", "competition_id", "source_name", "source_ref"),
+    "team_source_mapping": ("id", "team_id", "source_name", "source_ref"),
+    "match_source_mapping": ("id", "match_id", "source_name", "source_ref"),
     "lineup": (
         "id",
         "match_id",
@@ -434,12 +441,14 @@ class ApiLoad:
         self.names: dict[int, Counter] = defaultdict(Counter)
         self.coach_names: dict[int, str] = {}
         self.resolved_candidates: set[tuple[int, int]] = set()  # (match, joueur) « deux numéros » résolus (2b)
+        self._detailed: set[int] = set()  # matchs qui ont un détail
         seen_details = 0
         for fid, item in self.details():
             if fid not in self.match_ids:
                 self.counts["details_without_list"] += 1
                 continue
             seen_details += 1
+            self._detailed.add(fid)
             lineups = [x for x in item.get("lineups") or [] if isinstance(x, dict)]
             stats = [x for x in item.get("players") or [] if isinstance(x, dict)]
             for lineup in lineups:
@@ -585,7 +594,9 @@ class ApiLoad:
                         if self.excluded(fid, pid, classified):
                             per_team[team]["excluded"] += 1
                             self.counts["lineup_entries_excluded"] += 1
+                            self._track_top5(fid, pid, started, kept=False)
                             continue
+                        self._track_top5(fid, pid, started, kept=True)
                         internal = self.player_ids.get(self.aliases.get(pid, pid))
                         if internal is None:  # ne devrait pas arriver : même règle que build_players
                             self.counts["lineup_entries_player_missing"] += 1
@@ -652,8 +663,44 @@ class ApiLoad:
                 team_match[(fid, team)] = fields
 
         self._emit_team_match(team_match, tms_id)
+        self._revision_criteria()
         for table in ("lineup", "player_match_stats"):
             self.counts[table] = self.rows.counts[table]
+
+    def _track_top5(self, fid: int, pid: int, started: bool, kept: bool) -> None:
+        """Titularisations gardées ou exclues, par (joueur, championnat du top 5, saison) : ADR-0020.
+
+        Une entrée exclue n'a plus d'identifiant en base : ce décompte ne peut se faire
+        qu'ici, pendant le chargement. Il ne sort que sous forme de nombres.
+        """
+        info = self.match_info.get(fid)
+        if info is None or info["league"] not in TOP5_LEAGUES:
+            return
+        if not hasattr(self, "_top5_starts"):
+            self._top5_starts: Counter = Counter()
+            self._top5_excluded: Counter = Counter()
+            self._top5_matches_hit: set[int] = set()
+        if not kept:
+            self._top5_matches_hit.add(fid)
+        if started:
+            key = (pid, info["league"], info["season"])
+            self._top5_starts[key] += 1
+            if not kept:
+                self._top5_excluded[key] += 1
+
+    def _revision_criteria(self) -> None:
+        """Critères de révision de l'ADR-0020, en nombres (repris par check-referentiel)."""
+        starts = getattr(self, "_top5_starts", Counter())
+        excluded = getattr(self, "_top5_excluded", Counter())
+        top5_league_matches = sum(
+            1 for fid, info in self.match_info.items() if info["league"] in TOP5_LEAGUES and fid in self._detailed
+        )
+        shares = [excluded[key] / n for key, n in starts.items() if n >= REVISION_MIN_STARTS and excluded[key]]
+        self.counts["top5_matches_detailed"] = top5_league_matches
+        self.counts["top5_matches_with_excluded_entry"] = len(getattr(self, "_top5_matches_hit", set()))
+        self.counts["top5_player_seasons_with_excluded_starts"] = len(shares)
+        self.counts["top5_player_seasons_over_10pct"] = sum(1 for share in shares if share > REVISION_SHARE)
+        self.counts["top5_max_share_excluded_pct"] = round(100 * max(shares), 1) if shares else 0
 
     def _stats_row(self, row_id: int, match_id: int, player: int, team: int, s: dict) -> tuple:
         games, goals, shots = s.get("games") or {}, s.get("goals") or {}, s.get("shots") or {}

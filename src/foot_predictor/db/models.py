@@ -12,9 +12,11 @@ import datetime as dt
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
+    Integer,
     Numeric,
     SmallInteger,
     Text,
@@ -57,11 +59,17 @@ class Base(DeclarativeBase):
 
 class Competition(Base):
     __tablename__ = "competition"
-    __table_args__ = {"schema": "staging"}
+    __table_args__ = (
+        UniqueConstraint("api_league_id", name="uq_competition_api_league_id"),
+        CheckConstraint("kind IN ('league', 'cup')", name="ck_competition_kind"),
+        {"schema": "staging"},
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     country: Mapped[str | None] = mapped_column(Text)
+    api_league_id: Mapped[int | None] = mapped_column(Integer)  # migration 0004 (ADR-0008)
+    kind: Mapped[str | None] = mapped_column(Text)  # « league » ou « cup »
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -73,29 +81,40 @@ class CompetitionSourceMapping(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    competition_id: Mapped[int] = mapped_column(ForeignKey("staging.competition.id"), nullable=False)
+    competition_id: Mapped[int] = mapped_column(ForeignKey("staging.competition.id"), nullable=False, index=True)
     source_name: Mapped[str] = mapped_column(Text, nullable=False)
     source_ref: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class Season(Base):
     __tablename__ = "season"
-    __table_args__ = {"schema": "staging"}
+    __table_args__ = (
+        UniqueConstraint("competition_id", "year", name="uq_season_competition_year"),
+        {"schema": "staging"},
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    competition_id: Mapped[int] = mapped_column(ForeignKey("staging.competition.id"), nullable=False)
+    competition_id: Mapped[int] = mapped_column(ForeignKey("staging.competition.id"), nullable=False, index=True)
     label: Mapped[str] = mapped_column(Text, nullable=False)
     start_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
     end_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    year: Mapped[int | None] = mapped_column(SmallInteger)  # année de début, comme l'API (2023 = 2023-24)
 
 
 class Team(Base):
     __tablename__ = "team"
-    __table_args__ = {"schema": "staging"}
+    __table_args__ = (
+        UniqueConstraint("api_team_id", name="uq_team_api_team_id"),
+        CheckConstraint("origin IN ('api', 'hors_api')", name="ck_team_origin"),
+        CheckConstraint("origin IS DISTINCT FROM 'api' OR api_team_id IS NOT NULL", name="ck_team_api_id_origin"),
+        {"schema": "staging"},
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     country: Mapped[str | None] = mapped_column(Text)
+    api_team_id: Mapped[int | None] = mapped_column(Integer)
+    origin: Mapped[str | None] = mapped_column(Text)  # « api » ou « hors_api » (football-data seul)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -107,17 +126,21 @@ class TeamSourceMapping(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False)
+    team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False, index=True)
     source_name: Mapped[str] = mapped_column(Text, nullable=False)
     source_ref: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class Player(Base):
     __tablename__ = "player"
-    __table_args__ = {"schema": "staging"}
+    __table_args__ = (
+        UniqueConstraint("api_player_id", name="uq_player_api_player_id"),
+        {"schema": "staging"},
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     full_name: Mapped[str] = mapped_column(Text, nullable=False)
+    api_player_id: Mapped[int | None] = mapped_column(Integer)
     birth_date: Mapped[dt.date | None] = mapped_column(Date)
     nationality: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -131,25 +154,46 @@ class PlayerSourceMapping(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False)
+    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False, index=True)
     source_name: Mapped[str] = mapped_column(Text, nullable=False)
     source_ref: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class Match(Base):
     __tablename__ = "match"
-    __table_args__ = {"schema": "staging"}
+    __table_args__ = (
+        UniqueConstraint("api_fixture_id", name="uq_match_api_fixture_id"),
+        CheckConstraint("exclusion_reason IN ('tapis_vert', 'annule', 'abandonne')", name="ck_match_exclusion_reason"),
+        CheckConstraint("excluded = (exclusion_reason IS NOT NULL)", name="ck_match_excluded_has_reason"),
+        CheckConstraint("origin IN ('api', 'hors_api')", name="ck_match_origin"),
+        CheckConstraint("origin IS DISTINCT FROM 'api' OR api_fixture_id IS NOT NULL", name="ck_match_api_id_origin"),
+        {"schema": "staging"},
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    competition_id: Mapped[int] = mapped_column(ForeignKey("staging.competition.id"), nullable=False)
-    season_id: Mapped[int] = mapped_column(ForeignKey("staging.season.id"), nullable=False)
-    match_date: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    home_team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False)
-    away_team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False)
+    competition_id: Mapped[int] = mapped_column(ForeignKey("staging.competition.id"), nullable=False, index=True)
+    season_id: Mapped[int] = mapped_column(ForeignKey("staging.season.id"), nullable=False, index=True)
+    match_date: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    home_team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False, index=True)
+    away_team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False, index=True)
     home_goals: Mapped[int | None] = mapped_column(SmallInteger)
     away_goals: Mapped[int | None] = mapped_column(SmallInteger)
     status: Mapped[str] = mapped_column(match_status_enum, nullable=False, server_default="scheduled")
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Migration 0004. home_goals/away_goals : score final (prolongations comprises) ;
+    # *_goals_90 : temps réglementaire, la cible de l'ADR-0009.
+    api_fixture_id: Mapped[int | None] = mapped_column(BigInteger)
+    kickoff_utc: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    status_short: Mapped[str | None] = mapped_column(Text)
+    round: Mapped[str | None] = mapped_column(Text)
+    home_goals_90: Mapped[int | None] = mapped_column(SmallInteger)
+    away_goals_90: Mapped[int | None] = mapped_column(SmallInteger)
+    home_penalties: Mapped[int | None] = mapped_column(SmallInteger)
+    away_penalties: Mapped[int | None] = mapped_column(SmallInteger)
+    excluded: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    exclusion_reason: Mapped[str | None] = mapped_column(Text)
+    origin: Mapped[str | None] = mapped_column(Text)
 
 
 class MatchSourceMapping(Base):
@@ -160,7 +204,7 @@ class MatchSourceMapping(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    match_id: Mapped[int] = mapped_column(ForeignKey("staging.match.id"), nullable=False)
+    match_id: Mapped[int] = mapped_column(ForeignKey("staging.match.id"), nullable=False, index=True)
     source_name: Mapped[str] = mapped_column(Text, nullable=False)
     source_ref: Mapped[str] = mapped_column(Text, nullable=False)
 
@@ -174,13 +218,76 @@ class TeamMatch(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     match_id: Mapped[int] = mapped_column(ForeignKey("staging.match.id"), nullable=False)
-    team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False)
+    team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False, index=True)
     is_home: Mapped[bool] = mapped_column(Boolean, nullable=False)
     goals_for: Mapped[int | None] = mapped_column(SmallInteger)
     goals_against: Mapped[int | None] = mapped_column(SmallInteger)
     xg_for: Mapped[float | None] = mapped_column(Numeric(4, 2))
     xg_against: Mapped[float | None] = mapped_column(Numeric(4, 2))
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Migration 0004
+    coach_id: Mapped[int | None] = mapped_column(ForeignKey("staging.coach.id"), index=True)
+    formation: Mapped[str | None] = mapped_column(Text)
+    unknown_starters: Mapped[int | None] = mapped_column(SmallInteger)  # identifiant absent ou 0 (ADR-0008)
+    collision_excluded: Mapped[int | None] = mapped_column(SmallInteger)  # entrées exclues (ADR-0020)
+
+
+class Coach(Base):
+    __tablename__ = "coach"
+    __table_args__ = (
+        UniqueConstraint("api_coach_id", name="uq_coach_api_coach_id"),
+        {"schema": "staging"},
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    api_coach_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CoachSourceMapping(Base):
+    __tablename__ = "coach_source_mapping"
+    __table_args__ = (
+        UniqueConstraint("source_name", "source_ref", name="uq_coach_source_mapping"),
+        {"schema": "staging"},
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    coach_id: Mapped[int] = mapped_column(ForeignKey("staging.coach.id"), nullable=False, index=True)
+    source_name: Mapped[str] = mapped_column(Text, nullable=False)
+    source_ref: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class TeamMatchStats(Base):
+    """Statistiques d'équipe d'un match (bloc `statistics` de l'API), migration 0004."""
+
+    __tablename__ = "team_match_stats"
+    __table_args__ = (
+        UniqueConstraint("team_match_id", name="uq_team_match_stats"),
+        {"schema": "staging"},
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    team_match_id: Mapped[int] = mapped_column(ForeignKey("staging.team_match.id"), nullable=False)
+    shots_on_goal: Mapped[int | None] = mapped_column(SmallInteger)
+    shots_off_goal: Mapped[int | None] = mapped_column(SmallInteger)
+    shots_total: Mapped[int | None] = mapped_column(SmallInteger)
+    shots_blocked: Mapped[int | None] = mapped_column(SmallInteger)
+    shots_inside_box: Mapped[int | None] = mapped_column(SmallInteger)
+    shots_outside_box: Mapped[int | None] = mapped_column(SmallInteger)
+    fouls: Mapped[int | None] = mapped_column(SmallInteger)
+    corners: Mapped[int | None] = mapped_column(SmallInteger)
+    offsides: Mapped[int | None] = mapped_column(SmallInteger)
+    possession_pct: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    yellow_cards: Mapped[int | None] = mapped_column(SmallInteger)
+    red_cards: Mapped[int | None] = mapped_column(SmallInteger)
+    goalkeeper_saves: Mapped[int | None] = mapped_column(SmallInteger)
+    passes_total: Mapped[int | None] = mapped_column(SmallInteger)
+    passes_accurate: Mapped[int | None] = mapped_column(SmallInteger)
+    passes_pct: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    expected_goals: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    created_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Lineup(Base):
@@ -192,11 +299,14 @@ class Lineup(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     match_id: Mapped[int] = mapped_column(ForeignKey("staging.match.id"), nullable=False)
-    team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False)
-    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False)
+    team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False, index=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False, index=True)
     started: Mapped[bool] = mapped_column(Boolean, nullable=False)
     position: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    shirt_number: Mapped[int | None] = mapped_column(SmallInteger)  # migration 0004
+    grid: Mapped[str | None] = mapped_column(Text)
+    position_bucket: Mapped[str | None] = mapped_column(position_bucket_enum)
 
 
 class PlayerMatchStats(Base):
@@ -208,8 +318,8 @@ class PlayerMatchStats(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     match_id: Mapped[int] = mapped_column(ForeignKey("staging.match.id"), nullable=False)
-    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False)
-    team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False)
+    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False, index=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("staging.team.id"), nullable=False, index=True)
 
     minutes: Mapped[int | None] = mapped_column(SmallInteger)
     rating: Mapped[float | None] = mapped_column(Numeric(3, 1))
@@ -244,6 +354,9 @@ class PlayerMatchStats(Base):
     npxg: Mapped[float | None] = mapped_column(Numeric(4, 2))
 
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    shirt_number: Mapped[int | None] = mapped_column(SmallInteger)  # migration 0004
+    substitute: Mapped[bool | None] = mapped_column(Boolean)
+    captain: Mapped[bool | None] = mapped_column(Boolean)
 
 
 class PlayerInjury(Base):
@@ -251,7 +364,7 @@ class PlayerInjury(Base):
     __table_args__ = {"schema": "staging"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False)
+    player_id: Mapped[int] = mapped_column(ForeignKey("staging.player.id"), nullable=False, index=True)
     start_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
     end_date: Mapped[dt.date | None] = mapped_column(Date)  # NULL tant que le joueur n'a pas repris
     injury_type: Mapped[str | None] = mapped_column(Text)
@@ -404,3 +517,30 @@ class PlayerMarketValueScore(Base):
     mvs_total: Mapped[float | None] = mapped_column(Numeric(5, 2))  # 0-100
 
     computed_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ---------------------------------------------------------------------------
+# ops (migration 0004)
+# ---------------------------------------------------------------------------
+
+
+class LoadRun(Base):
+    """Une exécution de `load` : quand, quel code, quels journaux lus, quels décomptes."""
+
+    __tablename__ = "load_run"
+    __table_args__ = (
+        CheckConstraint("status IN ('running', 'ok', 'failed')", name="ck_load_run_status"),
+        {"schema": "ops"},
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    started_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    git_commit: Mapped[str | None] = mapped_column(Text)
+    raw_dir: Mapped[str] = mapped_column(Text, nullable=False)
+    external_raw_dir: Mapped[str | None] = mapped_column(Text)
+    manifests: Mapped[dict] = mapped_column(JSONB, nullable=False)  # journal lu -> sha256
+    counts: Mapped[dict | None] = mapped_column(JSONB)  # décomptes par table et par motif
+    fingerprints: Mapped[dict | None] = mapped_column(JSONB)  # empreinte md5 de chaque table
+    duration_seconds: Mapped[float | None] = mapped_column(Numeric(10, 1))

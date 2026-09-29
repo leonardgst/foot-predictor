@@ -58,6 +58,10 @@ extend-exclude = [
     "tests/rawstore",
     "tests/quality",
     "tests/test_taches_planifiees.py",
+    # Migrations déjà appliquées : jamais réécrites, même pour le formatage (partie 2, 2.4).
+    "migrations/versions/0001_create_schemas.py",
+    "migrations/versions/0002_create_tables.py",
+    "migrations/versions/0003_market_value_score.py",
 ]
 
 [tool.ruff.lint]

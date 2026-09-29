@@ -32,7 +32,13 @@ def _test_engine():
         with engine.connect():
             pass
     except Exception as exc:
-        pytest.skip(f"Base de test Postgres injoignable ({settings.postgres_host}:{settings.postgres_port}) : {exc}")
+        message = f"Base de test Postgres injoignable ({settings.postgres_host}:{settings.postgres_port}) : {exc}"
+        # En CI (FP_REQUIRE_DB=1), la base est un service du workflow : un test `db`
+        # sauté en silence cacherait un problème. Avant la partie 2, les 66 tests
+        # `db` n'y tournaient jamais.
+        if os.getenv("FP_REQUIRE_DB") == "1":
+            pytest.fail(message)
+        pytest.skip(message)
     yield engine
     engine.dispose()
 

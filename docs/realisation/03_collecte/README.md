@@ -34,8 +34,9 @@ Toutes s'écrivent `uv run python -m foot_predictor.collect.api_football <comman
 | `backup --dest <dossier>` | copie `data/raw/` (sauf `_lock/`) vers un dossier vide et vérifie chaque sha256 ; refusé si une commande tient le verrou | 0 |
 | `freeze --dest D --restore-to R` | gel : verrou, `raw_check` de tous les paliers, sauvegarde, test de restauration, brouillon de `docs/DATA_FREEZE.md` (voir [`gel.md`](gel.md)) | 0 |
 | `rebuild-manifest` | reconstruit le journal depuis les fichiers, dans un **nouveau** fichier | 0 |
-| `refresh --season S [--palier P] [--dry-run] [--yes]` | remet en file les listes de matchs, équipes et blessures d'une saison en cours ; affiche le coût du prochain `run` et demande confirmation | 0 (le `run` suivant : quelques dizaines) |
+| `refresh --season S [--palier P] [--league L] [--dry-run] [--yes]` | remet en file les listes de matchs, équipes et blessures d'une saison en cours ; affiche le coût du prochain `run` et demande confirmation | 0 (le `run` suivant : quelques dizaines) |
 | `plan-profiles [--palier P] [--limit N] [--dry-run]` | met en file le profil (`/players/profiles`) des titulaires sans date de naissance dans le brut (ADR-0008) | 0 (le `run` suivant : 1 par joueur) |
+| `plan-sidelined [--limit N] [--dry-run]` | met en file `/sidelined` pour les titulaires du top 5 (2015-2026), par lots de 20 joueurs, palier P4 | 0 (le `run` suivant : 1 par lot) |
 | `t60 --date J --max-requests N [--dry-run]` | journal T-60 : compositions annoncées avant le coup d'envoi des matchs du top 5 du jour (ADR-0010) | de 15 à 75 selon le jour |
 | `t60-report` | bilan du journal T-60 : part des titulaires annoncés présents dans le détail d'après-match (lecture seule) | 0 |
 | `lock-status` | état du verrou du dossier brut ; code 0 : libre, 1 : une commande tourne | 0 |
@@ -224,6 +225,21 @@ uv run python -m foot_predictor.collect.api_football --wait-lock 120 t60 --date 
 uv run python -m foot_predictor.collect.api_football t60-report
 ```
 
+## Palier P4 et listes isolées
+
+- **Une seule liste** : `refresh --season S --palier P --league L` remet en file la liste de cette compétition seulement. Exemple : MLS 2017, dont un match manquait (constats P3, section c) ; coût : 1 requête, plus 1 lot de détails si un match terminé apparaît.
+- **Classements** (`standings`) : `plan --palier P4`, puis `run`. La documentation v3 le décrit ainsi : « Get the standings for a league or a team », avec plusieurs classements possibles dans une saison.
+- **Indisponibilités** (`/sidelined`) : la documentation v3 accepte `players` avec « Maximum of 20 players ids ». `plan-sidelined` met en lot les titulaires du top 5 de 2015 à 2026, une fois pour toutes. Un joueur déjà présent dans une tâche `sidelined` n'est jamais remis en lot. Une réponse vide est normale (joueur jamais blessé) : `done`, pas `suspect`.
+
+```bash
+uv run python -m foot_predictor.collect.api_football refresh --season 2017 --palier P3 --league 253 --yes
+uv run python -m foot_predictor.collect.api_football plan --palier P4
+uv run python -m foot_predictor.collect.api_football plan-sidelined --dry-run
+uv run python -m foot_predictor.collect.api_football plan-sidelined
+uv run python -m foot_predictor.collect.api_football run --dry-run
+uv run python -m foot_predictor.collect.api_football run --max-requests <budget>
+```
+
 ## Tâches planifiées (du 5 au 18 octobre 2026)
 
 Les `refresh` et le journal T-60 tournent seuls, par des tâches planifiées Windows. Elles lancent des scripts versionnés, avec leurs plafonds de requêtes.
@@ -330,6 +346,6 @@ Un fichier « hors journal » est un avertissement : il peut apparaître après 
 ## Limites connues (à traiter plus tard)
 
 - **Saison en cours, hors `refresh`** : les entraîneurs et transferts (une tâche par équipe) et les profils joueurs (`players`) de la saison ne sont pas rafraîchis. Un changement d'entraîneur survenu après leur collecte ne sera pas vu.
-- **P4** : `standings` est planifiable dès qu'un bloc est ajouté au YAML ; `sidelined` attend la définition de la liste de joueurs.
+- **P4** : `standings` passe par le bloc `classements_top5_d2` du YAML (saisons terminées, 2010-2025). `sidelined` passe par `plan-sidelined`, pas par le YAML : le planificateur, relancé avant chaque groupe de `run`, recomposerait les lots de 20 à chaque nouveau titulaire.
 - **Anciens scripts** : `ingestion/api_football_scraper.py` et `injuries_scraper.py` sont obsolètes. Ne plus les lancer ; ils seront supprimés dans une PR de nettoyage.
 - `ingestion/api_football.py` (raw vers staging) ne lit pas ce nouveau format et **ne doit pas être exécuté** : il sera remplacé par le nouveau chargeur (ADR-0008).

@@ -1,20 +1,20 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-09-29 (fin de la partie 2, phase A)
-**Partie courante** : 2/6, socle propre et référentiel (J3). **Phase A faite** ; la **phase B** reprend après la session de gel du **lundi 19 octobre**, sur demande.
+**Dernière mise à jour** : 2026-09-29 (fin de la partie 3, phase A)
+**Partie courante** : 3/6, variables v2 et exploration (J4). **Phase A faite** ; la **phase B** (3.11) reprend après la session de gel du **lundi 19 octobre** et la phase B de la partie 2, sur demande.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé
 
-- Cadrage, collecteur v2, P1 à P4 collectés et contrôlés ; partie 1 (PR #15 à #21) : collisions, profils ciblés, verrou, T-60, 9 tâches planifiées, `freeze`.
-- **Partie 2, phase A** (2026-09-29, PR #22 à #31), retour dans `docs/retours/partie-2a_2026-09-29.md` :
-  - réparations : commande T-60 du README, **code du gel figé au tag `v0.2.0`** (ADR-0021), répétition du passage sur ce tag réussie ;
-  - décisions : collisions 2b (ADR-0020), M15 workflow Git (0022), M17 Understat écarté (0023), bruts externes (0024), M14 bases (0025), M13 Windows (0026), périmètre des chargeurs (0027) ;
-  - outillage : ruff, pre-commit (gitleaks, caractères de contrôle), CI avec Postgres et **tous** les tests ;
-  - nettoyage : anciens collecteurs et ancien chargement retirés, `scripts/archives/`, `hdbscan` et `understatapi` retirés, branches fusionnées supprimées ;
-  - brut football-data : 270 CSV (10 divisions, 2000-01 à 2026-27) dans `C:/fp-travail/data/raw` ;
-  - migration 0004 ; YAML de rapprochement produits depuis le brut ; chargeurs API et football-data ;
-  - **`load` : deux reconstructions complètes identiques (375 s et 563 s)** ; appariement football-data 99,98 % ; rapport `reports/data_quality/referentiel_2026-09-29.md`.
+- Cadrage, collecteur v2, collecte P1 à P4 ; partie 1 (PR #15 à #21) ; partie 2, phase A (PR #22 à #31) : référentiel reconstruit par `load`.
+- **Partie 3, phase A** (2026-09-29, PR #32 à #41), retour dans `docs/retours/partie-3a_2026-09-29.md` :
+  - gel réparé : `PRE_COMMIT_ALLOW_NO_CONFIG=1` exporté dès l'étape 4 (push et push de tag compris), répété sur un clone (E-034) ;
+  - scellé technique : date unique, porte unique `features/sources.py` filtrée en SQL, journal `reports/sealed_tests.md` vide (ADR-0028) ;
+  - tirs de football-data dans `staging` (migration 0005, ADR-0029) ; rupture de série de la Serie A de 2018-19 à 2020-21 constatée ;
+  - registre des variables, migration 0006 (`features.dataset_version`), anciens modules dans `features/legacy/` (ADR-0030) ;
+  - Elo par pays, réglé sur 2005-06 à 2014-15 et figé (ADR-0031) ; glissants et `xg_proxy` (ADR-0032) ; calendrier et huis clos (ADR-0033) ;
+  - **jeu `ds-2026-09-29-83d28f3b`** : 196 098 lignes, 5 s par `build`, déterministe, invariance à la date de coupe exacte sur données réelles ;
+  - 4 notebooks descriptifs, catalogue généré, chapitre LaTeX « Données et variables » (ADR-0034).
 
 ## En cours
 
@@ -24,40 +24,37 @@
 
 - Rien. Points de vigilance :
   - **aucun `git pull` dans `C:/foot-predictor` avant l'étape 7 du gel** (ADR-0021) ; ensuite, `lock-status` avant chaque `git pull` ;
-  - portable **allumé, branché, capot ouvert, session ouverte** aux dates des tâches ; ne pas fermer leur fenêtre noire ;
-  - `load` ne vise que `foot_predictor_travail` ; l'ancienne base `foot_predictor_dev` reste intacte (ADR-0025) ;
-  - **scellé (ADR-0012)** : aucune analyse des résultats des matchs joués à partir du 1er juillet 2025 ;
-  - copies sur le disque externe non faites (permissions de la session, E-031) : dump de l'ancienne base (`C:/fp_dumps/`) et CSV football-data. À faire à la main, ou en phase B sur accord.
+  - portable **allumé, branché, capot ouvert, session ouverte** aux dates des tâches ;
+  - **jamais de `load` pendant une tâche** (lundis 5 et 12 octobre de 07:45 à 11:00, ou verrou occupé) ;
+  - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ;
+  - copies sur le disque externe non faites (E-031) : `C:/fp_dumps/` et les CSV football-data.
 
 ## Décisions ouvertes
 
-- Renouvellement automatique de l'abonnement : à vérifier dans le tableau de bord, à couper au gel.
-- Conditions de football-data (ADR-0023) : interprétation à relire.
-- ADR-0020 : 4 joueur-saisons du top 5 perdent plus de 10 % de leurs titularisations ; scission par équipe à étudier au J9.
-- Rapport, décisions 16, 18 et 20 à 22 (dont M22, orchestration, et WSL2 après le gel).
+- **Tirs de la Serie A de 2018-19 à 2020-21** : garder football-data (biais de +0,27 xG par équipe et par match) ou prendre les tirs d'API-FOOTBALL là où ils existent (ADR-0029, ADR-0032). À trancher avant la partie 4.
+- Renouvellement automatique de l'abonnement : à couper au gel. Conditions de football-data (ADR-0023) : à relire.
+- Rapport, décisions 16, 18, 20 à 22.
 
 ## Prochaines actions
 
-**Automatiques (tâches planifiées, journaux dans `C:/foot-predictor/data/logs/`)**
-
-| Date | Tâche |
-|---|---|
-| lun. 5 oct., 08:00 | `refresh` saison 2026, puis `run` (250 au plus) |
-| ven. 9, sam. 10, dim. 11, lun. 12 oct. | journal T-60 (80 requêtes au plus par jour) |
-| lun. 12 oct., 08:00 | `refresh`, puis `run` (250 au plus) |
-| ven. 16, sam. 17, dim. 18 oct. | journal T-60 |
-
-Le lendemain de chaque tâche, si possible : `grep ERREUR data/logs/*.log` et `status`.
+**Automatiques** (tâches planifiées, journaux dans `C:/foot-predictor/data/logs/`) : `refresh` puis `run` les lundis 5 et 12 octobre à 08:00 ; journal T-60 les 9, 10, 11, 12, 16, 17 et 18 octobre.
 
 **Session de gel, lundi 19 octobre** : suivre `docs/realisation/03_collecte/gel.md` (code du tag `v0.2.0`).
 
-**Reprise de la partie 2 à la phase B après la session de gel** (commandes exactes : `docs/realisation/04_referentiel/README.md`, section « Phase B ») :
+**Reprise de la partie 2 à la phase B après la session de gel** : 2.10 (`load` sur le brut définitif, recopie des CSV), 2.11 (chemins gelés, dont E-036), 2.12 (tag `v0.3.0`). Commandes : `docs/realisation/04_referentiel/README.md`, section « Phase B ».
 
-- [ ] 2.10 : vérifier le tag `data-freeze-2026-10`, `docs/DATA_FREEZE.md` sur `main`, `C:/foot-predictor` à jour, verrou libre ; `load` sur le brut définitif, `check-referentiel` (appariement ≥ 99,5 %) ; recopie des CSV football-data vers `C:/foot-predictor/data/raw`, sha256 vérifiés.
-- [ ] 2.11 : ruff et pre-commit sur les chemins gelés ; `raw_check` appelle `ingestion/collisions.py` (résumé identique octet pour octet, hors date).
-- [ ] 2.12 : tag `v0.3.0`, retour final `docs/retours/partie-2_<date>.md`.
+**Reprise de la partie 3 à la phase B après la session de gel et la phase B de la partie 2** (3.11, sur demande) :
 
-**Long terme** : 3. variables et exploration (J4) ; 4. protocole, références et modèle MVP (J5, J6) ; 5. inférence, API et interface, `v1.0.0` (J7, J8) ; 6. version intermédiaire (J9).
+```bash
+cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
+git tag -l v0.3.0                                          # phase B de la partie 2 faite
+uv run python -m foot_predictor.features build             # nouveau staging (brut définitif)
+uv run python -m foot_predictor.features check --invariance
+# comparer, pour les matchs antérieurs au 2025-07-01, les lignes de la nouvelle version à ds-2026-09-29-83d28f3b
+# puis tag v0.4.0, ETAT_PROJET.md, docs/retours/partie-3_<date>.md
+```
+
+**Long terme** : 4. protocole, références et modèle MVP (J5, J6) ; 5. inférence, API et interface, `v1.0.0` (J7, J8) ; 6. version intermédiaire (J9).
 
 ## Commandes de la session de gel (19 octobre)
 
@@ -74,7 +71,7 @@ uv run python -m foot_predictor.collect.api_football status
 uv run python -m foot_predictor.collect.api_football t60-report
 cd /c/fp-travail && git fetch origin --tags && git switch --no-track -c data/03-gel-2026-10 v0.2.0
 export PRE_COMMIT_ALLOW_NO_CONFIG=1   # dès l'étape 4 : sans elle, tout commit, push et push de tag échoue sur ce tag (E-034)
-uv sync --all-groups && uv run pytest -m "not db" -q                 # 288 réussis (répété le 29/09)
+uv sync --all-groups && uv run pytest -m "not db" -q   # 288 réussis ; si seul test_freeze échoue (E-036), relancer
 uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw freeze \
     --dest D:/foot-predictor/data-freeze-2026-10/raw --restore-to C:/fp_restauration/raw
 # même terminal (variable exportée) : commit, git push -u origin data/03-gel-2026-10, PR, fusion,

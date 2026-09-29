@@ -63,6 +63,39 @@ Identifiants distincts ; un identifiant peut compter dans plusieurs colonnes. «
 
 **Mise à jour après les profils ciblés (même jour, ADR-0016)** : 97 groupes de doublons sur 47 377 profils, dont toujours aucun seulement inter-paliers. Les collisions sont inchangées (81 identifiants).
 
+## Impact sur le top 5 (mesure du 2026-09-29, partie 2)
+
+Mesure faite pour les critères de révision de l'ADR-0015, que la partie 1 n'avait pas chiffrés. Même détection que `raw_check` (P1 à P3 ensemble), par un script en lecture seule qui hérite de `raw_check` sans le modifier. Population : **matchs de championnat du top 5** (P1 et P2), soit 29 170 matchs détaillés, dont 27 164 avant le 1er juillet 2025. Aucun score ni aucun but n'est lu (scellé, ADR-0012).
+
+**Matchs touchés** (au moins une entrée en collision, tous types) : **46 sur 29 170 (0,16 %)** ; 43 sur 27 164 avant le 1er juillet 2025.
+
+| Championnat | Matchs touchés |
+|---|---|
+| Serie A | 24 sur 6 131 (0,39 %) |
+| La Liga | 9 sur 6 149 (0,15 %) |
+| Premier League | 6 sur 6 130 (0,10 %) |
+| Ligue 1 | 4 sur 5 812 (0,07 %) |
+| Bundesliga | 3 sur 4 948 (0,06 %) |
+
+| Type | Identifiants (tous paliers) | Matchs du top 5 | Tous matchs |
+|---|---|---|---|
+| Même jour, deux équipes | 26 | 41 | 270 |
+| Même match, deux numéros dans la même équipe | 51 | 5 | 295 |
+| Même match, deux équipes | 13 | 0 | 14 |
+| Deux naissances | 3 | 0 | 430 |
+
+**Temps de jeu des identifiants en collision** (titularisations dans une saison de championnat du top 5) :
+
+- 19 identifiants en collision ont été titulaires au moins une fois dans le top 5 ;
+- **9** l'ont été au moins 20 fois dans une même saison (13 au seuil de 10). Ils totalisent 808 titularisations dans le top 5, dont 31 seraient exclues par l'exclusion simple (option 2) ;
+- 4 joueur-saisons (au moins 10 titularisations) perdraient plus de 10 % de leurs titularisations : de 11 % à 25 %.
+
+**« Deux numéros dans la même équipe »** : 297 cas (identifiant, match), tous paliers. Dans **189** (64 %), la composition porte l'identifiant avec un seul numéro, et une seule entrée de statistiques a ce numéro : le cas se résout sans ambiguïté, l'autre entrée appartient à un coéquipier. Les 108 autres ne se résolvent pas : l'identifiant figure deux fois dans la composition elle-même (frères ou jumeaux), ou n'y figure pas. 5 cas sont dans des matchs du top 5.
+
+**Avec cette résolution (option 2b)** : 42 matchs du top 5 touchés (0,14 %) et 30 titularisations exclues, toutes du type « même jour ». Les 4 joueur-saisons au-dessus de 10 % restent.
+
+**Décision** : ADR-0020 (option 2b, qui remplace l'ADR-0015). La scission par équipe des cas « même jour » à fort temps de jeu est reportée au J9 (horizon H2).
+
 ## Comparaison au critère de révision de l'ADR-0008
 
 L'ADR-0008 prévoit de revoir la règle 3 au-delà de « quelques dizaines de collisions réelles (seuil indicatif : 50) ». **Avec 81 identifiants, le seuil est dépassé.** En proportion, l'identifiant API reste très fiable : 81 identifiants sur 70 569 joueurs vus (0,11 %).

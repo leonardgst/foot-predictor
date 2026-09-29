@@ -28,6 +28,8 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0020](ADR-0020-collisions-numero-composition.md) | Collisions : exclusion automatique au chargement, numéro de la composition pour « deux numéros dans la même équipe » | acceptée | 2026-09-29 | M7 (remplace 0015) |
 | [0021](ADR-0021-code-gel-tag-v0.2.0.md) | Session de gel : code du tag `v0.2.0`, pas de mise à jour du checkout principal avant le tag du gel | acceptée | 2026-09-29 | M5 (complète 0018) |
 | [0022](ADR-0022-workflow-git.md) | Workflow Git : `main` et branches courtes, PR pour tout, merge commit, tags, hooks | acceptée | 2026-09-29 | M15 |
+| [0023](ADR-0023-sources-externes-understat.md) | Sources externes : football-data retenu, Understat écarté (`robots.txt`), xG d'API-FOOTBALL seulement | acceptée | 2026-09-29 | M17 |
+| [0024](ADR-0024-bruts-externes.md) | Bruts externes : dossier racine séparé jusqu'au gel, CSV octet pour octet, même journal que l'API | acceptée | 2026-09-29 | M3 (ADR-0003) |
 
 **Décisions encore ouvertes** :
 
@@ -36,7 +38,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 Rapport, partie M :
 
 - 13 à 22 : importantes, non bloquantes. Les plus liées aux ADR ci-dessus :
-  - 17 : Understat, qui conditionne l'xG en live (ADR-0011) ;
+  - 17 : tranchée par l'ADR-0023 (Understat écarté) ;
   - 16 : variante de stabilité ;
   - 19 : restructuration de la documentation, première passe faite (ADR-0014).
 - 23 à 28 et 30 : reportables. La décision 29 (données dérivées de Transfermarkt) est confirmée par l'ADR-0013.

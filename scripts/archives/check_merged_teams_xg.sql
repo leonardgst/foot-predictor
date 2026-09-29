@@ -1,3 +1,5 @@
+-- ARCHIVE (partie 2, ADR-0008) : contrôle ponctuel des 19 fusions manuelles de l'ancien
+-- référentiel (base dev). Conservé pour mémoire ; sans objet sur le référentiel reconstruit.
 SELECT t.name,
        COUNT(*) AS nb_team_match,
        COUNT(tm.xg_for) AS nb_avec_xg

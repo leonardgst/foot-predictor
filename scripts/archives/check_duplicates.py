@@ -1,3 +1,6 @@
+# ARCHIVE (partie 2, ADR-0008) : script ponctuel de l'ancien référentiel, qui identifiait
+# les équipes par leur nom. NE PLUS EXÉCUTER : `staging` est reconstruit depuis le brut par
+# `python -m foot_predictor.ingestion load`. Conservé pour mémoire.
 """Diagnostic (lecture seule) : détecte les paires (nom brut / nom canonique)
 qui existent TOUTES LES DEUX comme staging.team distincts."""
 

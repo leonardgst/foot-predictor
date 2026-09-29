@@ -1,3 +1,6 @@
+# ARCHIVE (partie 2, ADR-0008) : script ponctuel de l'ancien référentiel, qui identifiait
+# les équipes par leur nom. NE PLUS EXÉCUTER : `staging` est reconstruit depuis le brut par
+# `python -m foot_predictor.ingestion load`. Conservé pour mémoire.
 """Diagnostic (lecture seule) : liste les valeurs brutes home_team/away_team
 réellement stockées dans raw.football_data_match pour une division donnée, et
 les compare caractère par caractère aux clés de football_data_teams.yaml.

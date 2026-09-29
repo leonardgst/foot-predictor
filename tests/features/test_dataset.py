@@ -161,3 +161,18 @@ def test_snapshot_is_deterministic(tmp_path):
     assert (
         manifest_a["version"].startswith("ds-2026-09-29-") and len(manifest_a["version"]) == len("ds-2026-09-29-") + 8
     )
+
+
+def test_latest_dataset_is_the_most_recent_not_the_last_name(tmp_path):
+    """Deux versions du même jour : la plus récente est celle écrite en dernier, pas la dernière par nom."""
+    import os
+
+    from foot_predictor.features.sources import list_datasets
+
+    for name, mtime in (("ds-2026-09-29-ffffffff", 1000), ("ds-2026-09-29-00000000", 2000)):
+        folder = tmp_path / name
+        folder.mkdir()
+        manifest = folder / "manifest.json"
+        manifest.write_text(json.dumps({"date": "2026-09-29"}), encoding="utf-8")
+        os.utime(manifest, (mtime, mtime))
+    assert list_datasets(tmp_path)[-1] == "ds-2026-09-29-00000000"

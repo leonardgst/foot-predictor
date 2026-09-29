@@ -183,11 +183,25 @@ def load_matches(
 
 
 def list_datasets(root: Path | None = None) -> list[str]:
-    """Versions de jeux de données présentes (dossiers `ds-*` contenant un manifeste), triées."""
+    """Versions de jeux de données présentes (dossiers `ds-*` avec un manifeste), de la plus ancienne à la plus récente.
+
+    Ordre : date du manifeste, puis date d'écriture du manifeste. Le nom seul ne suffit pas : deux
+    versions du même jour se départagent par leur sha256, qui n'a rien de chronologique.
+    """
+    import json
+
     from foot_predictor.features.dataset import DATASETS_ROOT
 
     base = Path(root) if root else DATASETS_ROOT
-    return sorted(p.name for p in base.glob("ds-*") if (p / "manifest.json").exists()) if base.exists() else []
+    if not base.exists():
+        return []
+    found = []
+    for folder in base.glob("ds-*"):
+        manifest = folder / "manifest.json"
+        if manifest.exists():
+            date = json.loads(manifest.read_text(encoding="utf-8")).get("date", "")
+            found.append((date, manifest.stat().st_mtime, folder.name))
+    return [name for _, _, name in sorted(found)]
 
 
 def load_dataset(version: str | None = None, root: Path | None = None) -> tuple[pd.DataFrame, dict]:

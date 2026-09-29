@@ -11,7 +11,7 @@ Le MVP a besoin d'un jeu de données **figé et reproductible** : les plis de la
 Faits de la partie 3 :
 
 - 10 championnats (top 5 et D2), de 2000-01 à 2024-25 : environ 98 000 matchs, donc environ 196 000 lignes (match, équipe) ;
-- 290 matchs de barrage ou de play-offs dans les championnats API, aucun avant 2010 (football-data ne les a pas) ;
+- 249 matchs de barrage ou de play-offs dans les championnats API avant le scellé, aucun avant 2010 (football-data ne les a pas) ; *correction factuelle du 2026-09-29 : « 290 » dans la première rédaction, erreur d'addition de l'étape 0* ;
 - 66 colonnes au registre, dont 54 variables (3 demi-vies candidates).
 
 ## Options envisagées

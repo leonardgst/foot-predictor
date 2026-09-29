@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-035 — `could not resize shared memory segment` en lisant tous les matchs (2026-09-29)
+
+- **Contexte** : premier essai de la porte de lecture des matchs (`features/sources.py`, partie 3, sous-étape 3.1) sur la base de travail.
+- **Message d'erreur** : `psycopg.errors.DiskFull: could not resize shared memory segment "/PostgreSQL..." to 33554432 bytes: No space left on device`.
+- **Cause** : Postgres planifie une jointure parallèle (hachage partagé) sur toute la table des matchs ; dans un conteneur Docker, `/dev/shm` est limité à 64 Mo par défaut. Le disque n'est pas plein.
+- **Solution** : `set max_parallel_workers_per_gather = 0` dans la session de lecture, juste avant la requête (2,7 s pour 150 599 matchs). Le conteneur n'est pas modifié (aucune commande `docker compose` dans cette partie).
+- **Fichiers concernés** : `src/foot_predictor/features/sources.py`.
+- **Prévention** : toute nouvelle lecture volumineuse passe par la porte ; si une autre requête lourde est ajoutée ailleurs, désactiver le parallélisme de la même façon. Une option durable (`shm_size` dans `docker-compose.yml`) est à étudier après le gel.
+- **Test de non-régression** : lecture complète lancée dans `features build` (sous-étape 3.7) ; pas de test automatique (la limite dépend du conteneur).
+
 ## E-034 — Hooks Git sans configuration sur le tag `v0.2.0` : commit **et** push refusés (2026-09-29)
 
 - **Contexte** : relecture de la procédure de gel (partie 3, sous-étape 3.0). Les hooks `pre-commit` et `pre-push` installés en partie 2 dans `C:/foot-predictor/.git/hooks` sont communs à tous les checkouts du dépôt, worktree compris. La branche du gel part du tag `v0.2.0`, qui n'a pas de `.pre-commit-config.yaml`.

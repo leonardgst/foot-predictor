@@ -159,6 +159,19 @@ def sidelined_task(tier: str, player: int) -> Task:
     return Task(tier, "sidelined", {"player": player}, _dir("sidelined"), f"player={player}")
 
 
+SIDELINED_BATCH_MAX = 20  # « Maximum of 20 players ids » (documentation v3, /sidelined)
+
+
+def sidelined_batch_task(tier: str, players: list[int]) -> Task:
+    """`/sidelined?players=id-id-...` : indisponibilités de 20 joueurs au plus,
+    en une requête. Nom de fichier : hash des identifiants, comme les lots de détails."""
+    if not 0 < len(players) <= SIDELINED_BATCH_MAX:
+        raise ValueError(f"Un lot contient de 1 à {SIDELINED_BATCH_MAX} joueurs, reçu {len(players)}.")
+    ids = "-".join(str(i) for i in sorted(players))
+    stem = hashlib.sha256(ids.encode("ascii")).hexdigest()[:12]
+    return Task(tier, "sidelined", {"players": ids}, _dir("sidelined", "lots"), stem)
+
+
 def player_profile_task(tier: str, player: int) -> Task:
     """`/players/profiles?player=` : le profil d'un joueur (date de naissance
     comprise), toutes saisons confondues. Une requête par joueur : ce point

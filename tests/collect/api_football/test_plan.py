@@ -57,7 +57,9 @@ def test_real_config_file_is_valid():
     cfg = load_config()
     assert set(cfg.tiers) == {"P1", "P2", "P3", "P4"}
     assert cfg.reserve == 500
-    assert cfg.tiers["P4"] == []
+    [standings] = cfg.tiers["P4"]  # sidelined : commande plan-sidelined, pas de bloc
+    assert standings.endpoints == ("standings",) and standings.seasons.last == 2025
+    assert set(standings.leagues) == {39, 140, 78, 135, 61, 40, 141, 79, 136, 62}
     p1_leagues = {league for block in cfg.tiers["P1"] for league in block.leagues}
     assert {39, 140, 78, 135, 61, 40, 141, 79, 136, 62, 2, 3, 848, 45, 48, 143, 81, 137, 66} == p1_leagues
 

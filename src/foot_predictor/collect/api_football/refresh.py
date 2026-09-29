@@ -95,13 +95,21 @@ def build_refresh_plan(
     season: int,
     tiers: list[str],
     now: dt.datetime | None = None,
+    leagues: list[int] | None = None,
 ) -> RefreshPlan:
-    """Ce que `refresh` ferait, sans rien modifier."""
+    """Ce que `refresh` ferait, sans rien modifier.
+
+    `leagues` limite le rafraîchissement à ces compétitions : par exemple
+    redemander une seule liste (MLS 2017) sans refaire toutes celles de la
+    saison.
+    """
     now = now or dt.datetime.now(dt.timezone.utc)
     planner = Planner(config, raw_dir, queue)
     candidates: dict[str, Task] = {}
     for tier in tiers:
         for task in planner.season_tasks(tier, season, REFRESH_ENDPOINTS):
+            if leagues is not None and task.params.get("league") not in leagues:
+                continue
             candidates.setdefault(task.key, task)  # une même requête n'existe qu'une fois dans la file
     items = [RefreshItem(task, queue.status_of(task)) for task in candidates.values()]
     refreshed_leagues = {item.task.params["league"] for item in items

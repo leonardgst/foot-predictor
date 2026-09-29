@@ -18,6 +18,9 @@ Décisions : ADR-0005 (calendrier : gel le 19, marge les 20 et 21, fin de l'abon
 - Les tâches planifiées du 5 au 18 octobre ont tourné. Leurs journaux d'exécution sont dans `C:/foot-predictor/data/logs/`.
 - Le disque externe est branché sur `D:`. La copie intermédiaire du 29 septembre (`D:/foot-predictor/copie-2026-06-29/`) **ne se touche pas**.
 - Deux dossiers ne doivent pas encore exister : la destination `D:/foot-predictor/data-freeze-2026-10/` et le dossier de restauration `C:/fp_restauration/`.
+- **Code exécuté : celui du tag `v0.2.0`** (collecteur v2, répété le 29 septembre ; ADR-0021), jamais `origin/main`. `main` contient la partie 2 (dépendances, `config.py`, outillage) : un échec de `uv` le jour de l'échéance serait grave.
+  - `C:/foot-predictor` reste sur `b1aee22` (= `v0.2.0`) : **aucun `git pull` avant l'étape 7**, après le tag du gel.
+  - La branche du gel, dans le worktree, part du tag `v0.2.0` (étape 4).
 
 ## Étapes
 
@@ -31,8 +34,10 @@ schtasks //Query //FO TABLE | grep FootPredictor        # toutes passées ; aucu
 grep -l "ERREUR" data/logs/*.log                          # aucune erreur attendue
 tail -n 20 data/logs/refresh_2026-10-12.log data/logs/t60_2026-10-18.log
 uv run python -m foot_predictor.collect.api_football lock-status   # doit dire « libre »
-git pull --ff-only
+git log -1 --oneline                                      # b1aee22 (tag v0.2.0) : pas de git pull ici
 ```
+
+Pas de `git pull` à cette étape : le checkout principal garde le code du tag `v0.2.0` jusqu'à l'étape 7 (ADR-0021).
 
 ### 2. Dernier rafraîchissement, le matin (quota : environ 60 à 150 requêtes)
 
@@ -59,11 +64,16 @@ Reporter les nombres dans `DATA_FREEZE.md` (étape 6). Critère de l'ADR-0010 : 
 
 ```bash
 cd /c/fp-travail
-git fetch origin
-git switch --no-track -c data/03-gel-2026-10 origin/main
+git status                                   # propre ; sinon, committer ou mettre de côté d'abord
+git fetch origin --tags
+git switch --no-track -c data/03-gel-2026-10 v0.2.0
+uv sync --all-groups                         # environnement du tag v0.2.0 (dépendances de la partie 1)
+uv run pytest -m "not db" -q                 # 288 tests réussis attendus
 ```
 
-**Pourquoi `freeze` se lance depuis le worktree** : la commande écrit `docs/DATA_FREEZE.md` et le résumé `reports/data_quality/raw_check_tous_<date>.md` dans le dossier courant. Lancée depuis le checkout principal, elle y laisserait des fichiers non suivis, qui bloqueraient le prochain `git pull` (E-021). Le code est le même : la branche part d'`origin/main`. Le brut est lu dans le checkout principal avec `--raw-dir`, et `freeze` n'envoie aucune requête.
+**Pourquoi le tag `v0.2.0`, et pas `origin/main`** (ADR-0021) : c'est le code répété à blanc le 29 septembre et celui du checkout principal. `main` contient la partie 2, dont les dépendances et `config.py` ont changé. La PR du gel se fusionne ensuite dans `main` normalement : elle n'ajoute que `docs/DATA_FREEZE.md` et un résumé de contrôle, sans conflit.
+
+**Pourquoi `freeze` se lance depuis le worktree** : la commande écrit `docs/DATA_FREEZE.md` et le résumé `reports/data_quality/raw_check_tous_<date>.md` dans le dossier courant. Lancée depuis le checkout principal, elle y laisserait des fichiers non suivis, qui bloqueraient le `git pull` de l'étape 7 (E-021). Le code est le même dans les deux dossiers : celui du tag `v0.2.0`. Le brut est lu dans le checkout principal avec `--raw-dir`, et `freeze` n'envoie aucune requête.
 
 ### 5. Gel : contrôle, sauvegarde, test de restauration, brouillon
 
@@ -84,7 +94,8 @@ La commande enchaîne cinq étapes et s'arrête à la première en échec :
 
 - Relire `docs/DATA_FREEZE.md` et compléter les sections « À compléter » : heure du gel, bilan T-60, MLS 2017, renouvellement coupé, tâches supprimées.
 - Vérifier qu'il ne contient **aucun nom ni identifiant de joueur** et aucun résultat de match (ADR-0012).
-- Commit `data(gel): ...` avec `docs/DATA_FREEZE.md` et le résumé `raw_check_tous_<date>.md`, puis la PR, et la fusion après une CI verte.
+- Commit `data(gel): ...` avec `docs/DATA_FREEZE.md` et le résumé `raw_check_tous_<date>.md`, puis la PR (base `main`), et la fusion après une CI verte.
+- **Hooks Git** : les hooks pre-commit installés en partie 2 sont communs au worktree et au checkout principal. Le tag `v0.2.0` n'a pas de `.pre-commit-config.yaml` : sur cette branche, committer avec `PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit ...`. Le hook `pre-push` lance les tests sans base du code de la branche (ceux du tag).
 
 ### 7. Tag, ménage, abonnement
 
@@ -92,9 +103,14 @@ La commande enchaîne cinq étapes et s'arrête à la première en échec :
 git fetch origin
 git tag -a data-freeze-2026-10 origin/main -m "Gel des données API-FOOTBALL du 2026-10-19 (docs/DATA_FREEZE.md)"
 git push origin data-freeze-2026-10
-cd /c/foot-predictor && uv run python -m foot_predictor.collect.api_football lock-status && git pull --ff-only
-uv run python scripts/taches_planifiees/creer_taches.py --delete   # tâches toutes passées
+cd /c/foot-predictor
+uv run python scripts/taches_planifiees/creer_taches.py --delete   # tâches toutes passées (code du tag v0.2.0)
+uv run python -m foot_predictor.collect.api_football lock-status && git pull --ff-only
+uv sync --all-groups                                               # dépendances de main (partie 2)
+cd /c/fp-travail && git switch --detach origin/main && uv sync --all-groups   # worktree revenu sur main
 ```
+
+Le `git pull` du checkout principal n'a lieu qu'ici, après le tag du gel : c'est la seule mise à jour de `C:/foot-predictor` depuis la partie 1, et `lock-status` reste exigé juste avant.
 
 - **Abonnement** : couper le renouvellement automatique dans le tableau de bord d'API-FOOTBALL (ADR-0005).
 - **`C:/fp_restauration/`** : ce n'est qu'une copie. La supprimer une fois le tag posé.

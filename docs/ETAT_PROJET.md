@@ -24,14 +24,14 @@
 ## Bloqué
 
 - Rien. Points de vigilance :
-  - **avant tout `git pull` dans `C:/foot-predictor`** : `lock-status` doit répondre « libre » (`CLAUDE.md`) ;
+  - **aucun `git pull` dans `C:/foot-predictor` avant l'étape 7 du gel** (code du tag `v0.2.0`, ADR-0021) ; ensuite, `lock-status` doit répondre « libre » avant chaque `git pull` (`CLAUDE.md`) ;
   - le portable doit être **allumé, branché, capot ouvert, session ouverte** aux dates des tâches ; ne pas fermer leur fenêtre noire ;
   - ne pas exécuter `ingestion/api_football.py` ; ne jamais lancer `docker compose down -v` ni supprimer `data/raw/` ;
   - **scellé (ADR-0012)** : aucune analyse des résultats des matchs joués à partir du 1er juillet 2025.
 
 ## Décisions ouvertes
 
-- **ADR-0015 (proposée)** : traitement des 81 collisions (exclusion automatique au chargement). À trancher avant J3.
+- ~~ADR-0015~~ : tranchée le 2026-09-29 par l'ADR-0020 (exclusion automatique, numéro de la composition pour « deux numéros dans la même équipe »).
 - Renouvellement automatique de l'abonnement : à vérifier dans le tableau de bord, à couper au gel.
 - Rapport, décisions 13 à 22 (M13 à M15 et M17 en partie 2).
 
@@ -62,16 +62,21 @@
 
 ## Commandes de la session de gel (19 octobre)
 
+Code exécuté : celui du tag `v0.2.0`, jamais `origin/main` (ADR-0021). Aucun `git pull` dans `C:/foot-predictor` avant l'étape 7 de `gel.md`.
+
 ```bash
 cd /c/foot-predictor
 schtasks //Query //FO TABLE | grep FootPredictor
 grep -l ERREUR data/logs/*.log
-uv run python -m foot_predictor.collect.api_football lock-status && git pull --ff-only
+uv run python -m foot_predictor.collect.api_football lock-status   # libre ; PAS de git pull ici
 uv run python -m foot_predictor.collect.api_football refresh --season 2026 --yes
 uv run python -m foot_predictor.collect.api_football run --max-requests 300
 uv run python -m foot_predictor.collect.api_football status
 uv run python -m foot_predictor.collect.api_football t60-report
-cd /c/fp-travail && git fetch origin && git switch --no-track -c data/03-gel-2026-10 origin/main
+cd /c/fp-travail && git fetch origin --tags && git switch --no-track -c data/03-gel-2026-10 v0.2.0
+uv sync --all-groups && uv run pytest -m "not db" -q
 uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw freeze \
     --dest D:/foot-predictor/data-freeze-2026-10/raw --restore-to C:/fp_restauration/raw
+# commit : PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit ... ; PR, fusion, tag data-freeze-2026-10
+# puis seulement : suppression des tâches, lock-status, git pull --ff-only et uv sync dans C:/foot-predictor
 ```

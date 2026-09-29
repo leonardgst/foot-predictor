@@ -1,0 +1,212 @@
+% Chapitre « Données et variables » (partie 3, jalon J4).
+% Sources : docs/MODELE_MATHEMATIQUE.md, ADR-0008 à 0012, 0023, 0028 à 0033, et le code de
+% src/foot_predictor/features/ (elo.py, rolling.py, xg_proxy.py, rest.py, sources.py, seal.py).
+
+\chapter{Données et variables}
+\label{chap:donnees}
+
+Ce chapitre décrit d'où viennent les données, la règle temporelle qui s'impose à toutes les
+variables, puis les variables du MVP : l'Elo (groupe G1), les moyennes glissantes et le
+\og xG estimé \fg{} (groupe G2), le calendrier et le contexte (groupes G3 et G0). Il se termine
+par le scellé, qui protège la saison de test. Les paramètres cités sont ceux figés le
+29 septembre 2026.
+
+% ---------------------------------------------------------------------------------------------
+\section{Sources et référentiel}
+\label{sec:sources}
+
+Les données brutes sont des fichiers immuables : les réponses d'API-FOOTBALL (de 2010 à 2026
+selon les championnats) et les fichiers CSV de football-data (de 2000-01 à 2026-27). Une
+commande reconstruit entièrement le référentiel \code{staging} à partir du brut (ADR-0008) :
+\begin{itemize}
+  \item les équipes, les matchs et les joueurs sont identifiés par les identifiants
+        d'API-FOOTBALL ;
+  \item un match de football-data est apparié au match API de même équipe à domicile, même équipe
+        à l'extérieur, à un jour près ; hors de la couverture de l'API, football-data crée le
+        match (origine \og hors API \fg{}) ;
+  \item les tirs et tirs cadrés de chaque équipe viennent de football-data (ADR-0029).
+\end{itemize}
+La \emph{cible} est le nombre de buts de chaque équipe au temps réglementaire (ADR-0009). Les matchs
+annulés, abandonnés ou sur tapis vert sont exclus : ils ne donnent ni ligne ni historique.
+
+Le périmètre du MVP compte dix championnats (les cinq premières divisions européennes et leurs
+deuxièmes divisions), de 2000-01 à 2024-25 : \(98\,049\) matchs de saison régulière, donc
+\(196\,098\) lignes \((m, e)\), une par match \(m\) et par équipe \(e\).
+
+% ---------------------------------------------------------------------------------------------
+\section{Règle temporelle}
+\label{sec:regle}
+
+Notons \(j_m\) le jour d'un match (date UTC du coup d'envoi ; date de football-data pour un match
+hors API) et \(\hist\) l'historique des matchs terminés. Pour un jour \(J\), l'historique
+disponible est
+\[
+  \hist_{<J} = \{\, m \in \hist : j_m < J \,\}.
+\]
+Toute variable \(z\) d'une ligne \((m, e)\) jouée le jour \(J = j_m\) est une fonction de cet
+historique seulement : \(z_{m,e} = f(\hist_{<J}, e)\). Deux conséquences, vérifiées par des tests :
+\begin{enumerate}
+  \item modifier le résultat du match \(m\) ne change pas la ligne de \(m\) ; deux matchs du même
+        jour ne s'influencent pas ;
+  \item \emph{invariance à la date de coupe} : pour toute date \(d\) et tout \(J < d\),
+        \(\big(\hist_{<d}\big)_{<J} = \hist_{<J}\), donc les lignes calculées sur l'historique
+        tronqué à \(d\) sont identiques à celles calculées sur l'historique complet. Sur les
+        données réelles, l'égalité est exacte, au bit près, aux dates de coupe du 1\textsuperscript{er}
+        janvier 2019 et du 1\textsuperscript{er} mars 2023.
+\end{enumerate}
+
+% ---------------------------------------------------------------------------------------------
+\section{Elo (groupe G1)}
+\label{sec:elo}
+
+Chaque pays forme une \emph{échelle} : sa première et sa deuxième division, liées par la montée et
+la descente. Il n'y a aucune échelle commune entre pays (ADR-0031).
+
+\paragraph{Espérance.} Pour un match entre une équipe à domicile de note \(R_d\) et une équipe à
+l'extérieur de note \(R_x\), l'espérance de résultat de l'équipe à domicile est
+\[
+  E = \frac{1}{1 + 10^{-(R_d + H - R_x)/400}},
+\]
+où \(H\) est l'avantage du terrain, en points. C'est la probabilité de victoire plus la moitié de
+celle du nul.
+
+\paragraph{Mise à jour.} Avec le résultat \(S \in \{1, \tfrac12, 0\}\) et l'écart de buts
+\(N = |b_d - b_x|\),
+\[
+  \Delta R_d = K \, G(N) \, (S - E), \qquad \Delta R_x = -\Delta R_d,
+  \qquad
+  G(N) =
+  \begin{cases}
+    1 & \text{si } N \le 1,\\
+    3/2 & \text{si } N = 2,\\
+    (11 + N)/8 & \text{si } N \ge 3.
+  \end{cases}
+\]
+La somme des notes d'une échelle est donc conservée par chaque match. Les variations d'un même
+jour sont calculées avec les notes du début du jour et appliquées ensemble à la fin du jour : la
+note d'avant-match ne dépend que de \(\hist_{<J}\).
+
+\paragraph{Intersaison.} Au premier match d'une nouvelle saison, une équipe présente dans l'échelle
+la saison précédente revient vers \(m_\ell\), la note moyenne de fin de saison précédente des
+équipes de sa division \(\ell\) de la nouvelle saison :
+\[
+  R \leftarrow m_\ell + (1 - r)\,(R - m_\ell).
+\]
+Le niveau d'une équipe dans une saison se lit sur la saison régulière (un barrage ne compte pas).
+Une équipe sans match dans l'échelle la saison précédente reçoit la moyenne des trois plus basses
+notes de fin de saison de sa division ; la première saison (2000-01), 1500 en première division et
+\(1500 - \Delta\) en deuxième.
+
+\paragraph{Réglage.} Les paramètres \((K, H, r, G, \Delta)\) sont choisis sur une grille fixée à
+l'avance (576 combinaisons), évaluée sur les saisons 2005-06 à 2014-15 seulement, avant le début
+de l'apprentissage. Pour chaque combinaison, on ajuste une logistique ordonnée sur
+\(x = (R_d + H - R_x)/400\) :
+\[
+  P(\text{extérieur}) = \sigma(c_1 - \beta x),\quad
+  P(\text{nul}) = \sigma(c_2 - \beta x) - \sigma(c_1 - \beta x),\quad
+  P(\text{domicile}) = 1 - \sigma(c_2 - \beta x),
+\]
+avec \(\sigma(u) = 1/(1+e^{-u})\), et l'on retient la plus petite log-loss moyenne. Retenu :
+\(K = 15\), \(H = 40\), \(r = 0\), multiplicateur \(G\), \(\Delta = 100\) ; log-loss
+\(0{,}9936\) sur \(18\,259\) matchs, contre \(1{,}0622\) pour les seules fréquences de 1, N et 2.
+
+% ---------------------------------------------------------------------------------------------
+\section{Moyennes glissantes (groupe G2)}
+\label{sec:glissants}
+
+\paragraph{Définition.} Soit \(x_i\) une quantité mesurée dans un match de championnat \(i\) de
+l'équipe (buts marqués, buts encaissés, \(\mathrm{xg}\) estimé pour ou contre), joué le jour
+\(j_i\). Pour le match du jour \(J\), avec une demi-vie \(h\) (en jours) et une ancienneté maximale
+\(A = 730\) jours, les poids sont
+\[
+  w_i(J) = 2^{-(J - j_i)/h} \quad \text{si } 1 \le J - j_i \le A, \qquad w_i(J) = 0 \text{ sinon},
+\]
+et, avec \(W = \sum_i w_i\) et un poids a priori \(k = 3\),
+\[
+  \hat{x} = \frac{\sum_i w_i\, x_i + k\, \mu}{W + k},
+\]
+où \(\mu\) est la moyenne par équipe et par match de la même quantité dans le championnat du
+match, sur les \(A\) jours avant \(J\). Si \(W = 0\) (aucun historique), \(\hat{x}\) reste
+\emph{vide} : on ne remplace jamais un manque par 0 ni par \(\mu\). La somme \(W\) est elle-même
+une variable : elle mesure la quantité d'information. Trois demi-vies candidates sont calculées
+(\(h \in \{60, 120, 240\}\)) ; le choix se fait en partie 4, par validation interne.
+
+\paragraph{Propriété.} Posons \(\lambda = W/(W + k) \in [0, 1)\) et
+\(\bar{x}_w = \sum_i w_i x_i / W\). Alors
+\[
+  \hat{x} = \lambda\, \bar{x}_w + (1 - \lambda)\, \mu,
+\]
+une combinaison convexe entre la moyenne pondérée de l'équipe et celle du championnat. Quand
+\(W \to \infty\), \(\hat{x} \to \bar{x}_w\) ; quand \(W \to 0^{+}\), \(\hat{x} \to \mu\). Pour une
+équipe qui joue une fois par semaine depuis longtemps, sans ancienneté maximale,
+\(W \approx 1/(1 - 2^{-7/h})\), soit environ 12,9 matchs pour \(h = 60\) et 25,2 pour \(h = 120\) :
+\(k = 3\) pèse alors peu.
+
+\paragraph{Pourquoi en jours.} Une décroissance par nombre de matchs donnerait le même poids au
+dernier match de mai et au match de la semaine précédente, quelle que soit la pause d'été. En
+jours, l'été compte : un match de mai pèse moins en août. Il n'y a pas de remise à zéro à chaque
+saison (rapport de cadrage, H.4).
+
+\paragraph{Calcul exact.} Le poids se sépare : \(2^{-(J - j)/h} = 2^{-J/h} \cdot 2^{j/h}\). Si
+\(C(n) = \sum_{i \le n} 2^{j_i/h} x_i\) est la somme cumulée dans l'ordre chronologique, la somme
+sur la fenêtre vaut \(2^{-J/h}\,\big(C(\text{fin}) - C(\text{début})\big)\). Un historique tronqué
+à une date en est exactement le préfixe : c'est ce qui rend l'invariance à la date de coupe exacte.
+
+% ---------------------------------------------------------------------------------------------
+\section{xG estimé à partir des tirs}
+\label{sec:xgproxy}
+
+L'xG d'API-FOOTBALL n'existe pas avant 2022-23 (ADR-0023). Le MVP le remplace par une combinaison
+linéaire fixe des tirs cadrés \(s_c\) et non cadrés \(s_n\) (tirs contrés compris) de l'équipe :
+\[
+  \mathrm{xg\_proxy} = a\, s_c + b\, s_n,
+  \qquad
+  (a, b) = \operatorname*{arg\,min}_{a \ge 0,\ b \ge 0}\ \sum_{(m,e)} \big(y_{m,e} - a\, s_{c} - b\, s_{n}\big)^2,
+\]
+sur les \(40\,394\) lignes des saisons 2015-16 à 2020-21, avant tous les plis de validation. Pas de
+constante (zéro tir donne zéro) et des coefficients positifs ou nuls (un tir ne retire pas de but
+attendu), comme pour un vrai xG, somme de probabilités de but par tir.
+
+Sans la contrainte, on trouve \(b = -0{,}0126\). La contrainte \(b \ge 0\) est donc active, et les
+conditions d'optimalité donnent \(b = 0\) et \(a = \sum y\, s_c / \sum s_c^2\) :
+\[
+  \mathrm{xg\_proxy} = 0{,}3033\, s_c.
+\]
+Contrôle sur 2022-23 à 2024-25, contre l'xG d'API-FOOTBALL, par équipe et par match : corrélation
+\(0{,}685\), écart moyen absolu \(0{,}495\). Limite : les tirs de football-data changent de
+définition pour la Serie A de 2018-19 à 2020-21, ce qui y surestime l'\(\mathrm{xg\_proxy}\)
+d'environ \(0{,}27\) par équipe et par match (ADR-0029, ADR-0032).
+
+% ---------------------------------------------------------------------------------------------
+\section{Calendrier et contexte (groupes G3 et G0)}
+\label{sec:calendrier}
+
+Sur les matchs terminés avant \(J\), toutes compétitions présentes dans \code{staging} :
+\begin{itemize}
+  \item jours de repos \(J - j_{\text{précédent}}\) ;
+  \item nombre de matchs du jour \(J - 14\) au jour \(J - 1\) ;
+  \item présence d'un match de coupe d'Europe du jour \(J - 4\) au jour \(J - 1\).
+\end{itemize}
+Ces variables sont rétrospectives : la date du prochain match n'est jamais utilisée. Un indicateur
+dit si toutes les coupes du pays sont connues cette saison (depuis 2015-16, 2016-17 pour l'Italie,
+2018-19 pour l'Espagne). Le contexte (G0) comprend le lieu (domicile ou extérieur), le championnat,
+la saison et un indicateur de huis clos, établi par périodes sourcées ; une période incertaine vaut 0
+(ADR-0033).
+
+% ---------------------------------------------------------------------------------------------
+\section{Le scellé}
+\label{sec:scelle}
+
+La période de développement est \(\mathcal{D} = \{\, m : j_m < \text{1\textsuperscript{er} juillet 2025} \,\}\)
+(ADR-0012). Les matchs hors de \(\mathcal{D}\) forment la saison de test, utilisée une seule fois
+par version du modèle. Techniquement (ADR-0028) :
+\begin{itemize}
+  \item une seule date dans le code, et une seule porte de lecture des matchs, qui filtre dans la
+        requête SQL (\(j_m < \) 1\textsuperscript{er} juillet 2025), puis vérifie le résultat ;
+  \item lire un match scellé exige une option explicite, et chaque usage ajoute une ligne à un
+        journal versionné ;
+  \item un test d'architecture interdit tout autre accès aux matchs dans les variables et les
+        notebooks.
+\end{itemize}
+Le jeu de données du 29 septembre 2026 ne contient aucun match scellé, et le journal des tests
+scellés est vide.

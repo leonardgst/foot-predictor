@@ -34,3 +34,6 @@ models/
 
 # Rapports qualité : listes détaillées (noms et identifiants de joueurs), jamais versionnées
 /reports/data_quality/details/
+
+# Réglages locaux de Claude Code (permissions propres à la machine)
+.claude/settings.local.json

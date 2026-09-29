@@ -145,6 +145,11 @@ class WorkQueue:
         ).fetchall()
         return [self._to_task(row) for row in rows if row["id"] not in excluded]
 
+    def params_of_type(self, task_type: str) -> list[dict]:
+        """Paramètres de toutes les tâches d'un type, quel que soit leur statut."""
+        rows = self._conn.execute("SELECT params FROM tasks WHERE task_type = ?", (task_type,)).fetchall()
+        return [json.loads(row["params"]) for row in rows]
+
     def get(self, task_id: int) -> QueuedTask:
         row = self._conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
         return self._to_task(row)

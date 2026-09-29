@@ -5,6 +5,7 @@
     run               exécute la file                                   (--max-requests, --dry-run)
     refresh --season S remet en file les listes d'une saison en cours   (0 requête ; coût affiché)
     plan-profiles     titulaires sans date de naissance -> file         (0 requête ; 1 par joueur au run)
+    plan-sidelined    lots de 20 titulaires du top 5 -> /sidelined (P4) (0 requête ; 1 par lot au run)
     t60 --date J      compositions annoncées avant le coup d'envoi      (--max-requests ; ~30 par jour)
     t60-report        bilan : titulaires annoncés = titulaires du détail (0 requête, lecture seule)
     lock-status       le dossier brut est-il libre ? (avant un git pull) (0 requête)
@@ -43,7 +44,7 @@ from foot_predictor.collect.api_football.profiles import (
     plan_lines as profile_plan_lines,
     profile_blocks,
 )
-from foot_predictor.collect.api_football.queue import WorkQueue
+from foot_predictor.collect.api_football.queue import QUEUE_RELATIVE_PATH, WorkQueue
 from foot_predictor.collect.api_football.refresh import apply_refresh, build_refresh_plan, plan_lines
 from foot_predictor.collect.api_football.runner import (
     STATUS_REL_DIR,
@@ -52,6 +53,8 @@ from foot_predictor.collect.api_football.runner import (
     manifest_extra,
     store_response,
 )
+from foot_predictor.collect.api_football.sidelined import build_sidelined_plan
+from foot_predictor.collect.api_football.sidelined import plan_lines as sidelined_plan_lines
 from foot_predictor.collect.api_football.t60 import (
     DEFAULT_INTERVAL,
     DEFAULT_LEAD,
@@ -114,6 +117,8 @@ def build_parser() -> argparse.ArgumentParser:
     refresh.add_argument("--season", type=int, required=True, help="année de début de saison (2026 = 2026-27)")
     refresh.add_argument("--palier", action="append", dest="tiers",
                          help="palier concerné, répétable ; défaut : tous les paliers déjà planifiés")
+    refresh.add_argument("--league", type=int, action="append", dest="leagues",
+                         help="compétition concernée, répétable ; défaut : toutes celles des paliers")
     refresh.add_argument("--dry-run", action="store_true", help="affiche les tâches et le coût, sans rien modifier")
     refresh.add_argument("--yes", action="store_true", help="ne pas demander de confirmation")
 
@@ -123,6 +128,11 @@ def build_parser() -> argparse.ArgumentParser:
                           help="palier concerné, répétable ; défaut : tous ceux qui collectent des profils")
     profiles.add_argument("--limit", type=int, default=None, help="nombre maximal de tâches ajoutées")
     profiles.add_argument("--dry-run", action="store_true", help="affiche le décompte, sans modifier la file")
+
+    sidelined = sub.add_parser(
+        "plan-sidelined", help="met en file /sidelined pour les titulaires du top 5, par lots de 20 (aucune requête)")
+    sidelined.add_argument("--limit", type=int, default=None, help="nombre maximal de lots ajoutés")
+    sidelined.add_argument("--dry-run", action="store_true", help="affiche le décompte, sans modifier la file")
 
     t60 = sub.add_parser("t60", help="journal T-60 : compositions annoncées avant le coup d'envoi")
     t60.add_argument("--date", type=dt.date.fromisoformat, required=True, help="jour des matchs (AAAA-MM-JJ, UTC)")
@@ -274,7 +284,7 @@ def cmd_refresh(args, config: CollectConfig, client_factory: ClientFactory) -> i
         not_planned = [tier for tier in tiers if tier not in planned]
         if not_planned:
             raise ConfigError(f"Palier(s) jamais planifié(s) : {', '.join(not_planned)}. Lancer d'abord plan.")
-        plan = build_refresh_plan(config, args.raw_dir, queue, args.season, tiers)
+        plan = build_refresh_plan(config, args.raw_dir, queue, args.season, tiers, leagues=args.leagues)
         print("\n".join(plan_lines(plan)))
         print()
         if not plan.to_queue:
@@ -308,6 +318,24 @@ def cmd_plan_profiles(args, config: CollectConfig, client_factory: ClientFactory
         added = apply_profile_plan(queue, plan, args.limit)
     print("\n".join(profile_plan_lines(plan, queued=added, limit=args.limit)))
     print("Elles partiront au prochain run, après les autres tâches du même palier.")
+    return 0
+
+
+def cmd_plan_sidelined(args, config: CollectConfig, client_factory: ClientFactory) -> int:
+    if args.dry_run:
+        # Simulation : la file n'est ouverte que si elle existe (l'ouvrir la créerait).
+        if (args.raw_dir / QUEUE_RELATIVE_PATH).exists():
+            with WorkQueue.in_raw_dir(args.raw_dir) as queue:
+                plan = build_sidelined_plan(config, args.raw_dir, queue)
+        else:
+            plan = build_sidelined_plan(config, args.raw_dir, None)
+        print("\n".join(sidelined_plan_lines(plan, args.limit)))
+        print("Simulation : file inchangée.")
+        return 0
+    with WorkQueue.in_raw_dir(args.raw_dir) as queue:
+        plan = build_sidelined_plan(config, args.raw_dir, queue)
+        added = queue.add(plan.tasks(args.limit))
+    print("\n".join(sidelined_plan_lines(plan, args.limit, queued=added)))
     return 0
 
 
@@ -418,7 +446,7 @@ def cmd_rebuild_manifest(args, config: CollectConfig, client_factory: ClientFact
 
 # Commandes qui écrivent dans le dossier brut (fichiers, journal ou file) : verrou.
 LOCKED_COMMANDS = frozenset({
-    "coverage", "plan", "run", "refresh", "plan-profiles", "requeue", "rebuild-manifest", "t60",
+    "coverage", "plan", "run", "refresh", "plan-profiles", "plan-sidelined", "requeue", "rebuild-manifest", "t60",
     "freeze",  # n'écrit pas dans le brut, mais aucune collecte ne doit tourner pendant la copie
 })
 
@@ -428,6 +456,7 @@ COMMANDS = {
     "run": cmd_run,
     "refresh": cmd_refresh,
     "plan-profiles": cmd_plan_profiles,
+    "plan-sidelined": cmd_plan_sidelined,
     "t60": cmd_t60,
     "t60-report": cmd_t60_report,
     "lock-status": cmd_lock_status,

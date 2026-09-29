@@ -142,6 +142,8 @@ class Rows:
 
     def __init__(self, directory: Path | None = None) -> None:
         self.directory = directory
+        if directory is not None:
+            directory.mkdir(parents=True, exist_ok=True)
         self.tables: dict[str, list[tuple]] = defaultdict(list)
         self.counts: Counter = Counter()
         self._files: dict[str, object] = {}

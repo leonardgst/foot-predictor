@@ -30,6 +30,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0022](ADR-0022-workflow-git.md) | Workflow Git : `main` et branches courtes, PR pour tout, merge commit, tags, hooks | acceptée | 2026-09-29 | M15 |
 | [0023](ADR-0023-sources-externes-understat.md) | Sources externes : football-data retenu, Understat écarté (`robots.txt`), xG d'API-FOOTBALL seulement | acceptée | 2026-09-29 | M17 |
 | [0024](ADR-0024-bruts-externes.md) | Bruts externes : dossier racine séparé jusqu'au gel, CSV octet pour octet, même journal que l'API | acceptée | 2026-09-29 | M3 (ADR-0003) |
+| [0025](ADR-0025-bases-de-donnees.md) | Bases : base de travail reconstructible, base de test éphémère, ancienne base dev intacte, rôle dédié au worktree | acceptée | 2026-09-29 | M14 |
 
 **Décisions encore ouvertes** :
 

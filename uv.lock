@@ -277,7 +277,6 @@ dependencies = [
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sqlalchemy" },
     { name = "statsmodels" },
-    { name = "understatapi" },
 ]
 
 [package.dev-dependencies]
@@ -302,7 +301,6 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "sqlalchemy", specifier = ">=2.0.51" },
     { name = "statsmodels", specifier = ">=0.15.0" },
-    { name = "understatapi", specifier = ">=0.7.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -1600,19 +1598,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/92/ff/5a28bdfd8c3ebec42
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e5/6d/b53b99a9f2766d095985947a5782f1702cabb129a34f7a802d7197af832f/tzdata-2026.3-py2.py3-none-any.whl", hash = "sha256:dc096730c87af6cab1b171c9d532be840741ff5d459015e7f6947bd7d7e54931", size = 348168, upload-time = "2026-07-10T08:50:36.46Z" },
 ]
-
-[[package]]
-name = "understatapi"
-version = "0.7.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "certifi" },
-    { name = "charset-normalizer" },
-    { name = "idna" },
-    { name = "requests" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/1b/b8/f50714a91df9c2b30566d20df0bc11a1cd13117679759e792aba937ad19f/understatapi-0.7.1.tar.gz", hash = "sha256:7e50751ad1189e82acc6afea596733d00d7a0d74cbd492238b092d137c1ed334", size = 537687, upload-time = "2026-02-21T16:50:36.822Z" }
 
 [[package]]
 name = "urllib3"

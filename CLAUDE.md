@@ -27,7 +27,8 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Modifier ou supprimer quoi que ce soit dans `data/raw/`.
 - Lancer `docker compose down -v` ou supprimer une base.
 - Committer des données (`data/`, `models/`) : licences et volume.
-- Exécuter `ingestion/api_football.py` (raw → staging) : il identifie les joueurs par leur nom et sera remplacé par le nouveau chargeur (ADR-0008).
+- Lancer `load` sur une autre base que la base de travail reconstructible : il vide `staging` (et `features`). L'ancienne base `foot_predictor_dev` (brut JSONB, 19 fusions manuelles) reste intacte ; le garde-fou la refuse, ne jamais le contourner (ADR-0025).
+- Corriger le référentiel en base : toute correction est un YAML de `ingestion/mappings/`, rejoué par `load` (ADR-0008, règle 4).
 
 ## Collecte : verrou et tâches planifiées (ADR-0018)
 
@@ -38,7 +39,8 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 
 ## Architecture (résumé)
 
-- Couches : brut en fichiers `data/raw/**.json.gz` + journal de requêtes (ADR-0003) → Postgres `staging` (référentiel) → `features` → modèles → prédictions.
+- Couches : brut en fichiers `data/raw/**.json.gz` + journal de requêtes (ADR-0003) → Postgres `staging` (référentiel, reconstruit par `load`, identifiants API ; ADR-0008) → `features` → modèles → prédictions.
+- Bruts externes (CSV football-data) : dossier racine séparé jusqu'à leur recopie après le gel (ADR-0024). Understat écarté (ADR-0023).
 - Code : `src/foot_predictor/` (`config.py`, `db/`, `ingestion/`, `features/`, `modeling/`, `market_value/` gelé), tests dans `tests/` (même organisation), migrations dans `migrations/versions/`.
 - Règle temporelle : toute variable d'un match est calculée à partir de données **strictement antérieures** au match et disponibles à l'horizon de prédiction.
 
@@ -51,6 +53,8 @@ APP_ENV=dev uv run alembic upgrade head   # migrations
 uv run pytest -m "not db" -q              # tests sans base (CI)
 uv run pytest -q                          # tous les tests (base de test démarrée)
 uv run ruff check . && uv run ruff format .   # contrôle et formatage (chemins gelés exclus)
+uv run python -m foot_predictor.ingestion load --raw-dir <brut API> --external-raw-dir <bruts externes> --confirm-db <base>
+uv run python -m foot_predictor.ingestion check-referentiel   # rapport chiffré du référentiel (J3)
 pre-commit run --all-files                # hooks : secrets, ruff, caractères de contrôle
 ```
 

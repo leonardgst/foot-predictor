@@ -1,8 +1,9 @@
 """
 src/foot_predictor/config.py
 
-Charge la configuration depuis .env.{APP_ENV} (dev / test / prod)
-et expose l'URL de connexion PostgreSQL correspondante.
+Charge la configuration depuis .env.{APP_ENV} (dev ou test ; ADR-0025)
+et expose l'URL de connexion PostgreSQL correspondante. Les variables
+d'environnement l'emportent sur le fichier (la CI n'a pas de .env).
 """
 
 import os
@@ -18,7 +19,8 @@ class Settings(BaseSettings):
     postgres_db: str
     postgres_host: str = "localhost"
     postgres_port: int = 5440
-    # "disable" en local (Docker), "require" pour Neon en prod
+    # Bases locales (Docker) et service de CI : pas de TLS. L'ancienne base
+    # distante (Neon, APP_ENV=prod) n'est plus utilisée (ADR-0025).
     postgres_sslmode: str = "disable"
     # Facultative : seul le collecteur API-FOOTBALL en a besoin. SecretStr
     # l'affiche « ********** » dans les repr et les messages d'erreur ; la

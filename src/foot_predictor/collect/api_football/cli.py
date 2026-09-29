@@ -5,12 +5,20 @@
     run               exécute la file                                   (--max-requests, --dry-run)
     refresh --season S remet en file les listes d'une saison en cours   (0 requête ; coût affiché)
     plan-profiles     titulaires sans date de naissance -> file         (0 requête ; 1 par joueur au run)
+    t60 --date J      compositions annoncées avant le coup d'envoi      (--max-requests ; ~30 par jour)
+    t60-report        bilan : titulaires annoncés = titulaires du détail (0 requête, lecture seule)
+    lock-status       le dossier brut est-il libre ? (avant un git pull) (0 requête)
     status            quota du jour, files, échecs, progression         (0 requête)
     requeue           remet des tâches failed ou suspect en file        (0 requête)
     backup --dest D   copie data/raw/ et vérifie les sha256             (0 requête)
     rebuild-manifest  reconstruit le journal depuis les fichiers        (0 requête)
 
 Les commandes sans requête n'ont pas besoin de la clé API.
+
+Verrou : les commandes qui écrivent dans le dossier brut (tout sauf status,
+backup, t60-report, lock-status et les --dry-run) prennent le verrou
+`<raw_dir>/_lock/collecte.lock` ; une seconde commande échoue aussitôt, ou
+attend `--wait-lock` minutes (tâches planifiées). Voir `rawstore/lock.py`.
 """
 from __future__ import annotations
 
@@ -41,9 +49,21 @@ from foot_predictor.collect.api_football.runner import (
     manifest_extra,
     store_response,
 )
-from foot_predictor.collect.api_football.tasks import PRIORITY, leagues_task
+from foot_predictor.collect.api_football.t60 import (
+    DEFAULT_INTERVAL,
+    DEFAULT_LEAD,
+    T60Collector,
+    compare_lineups,
+    comparison_lines,
+    day_matches,
+    expected_requests,
+    report_lines,
+)
+from foot_predictor.collect.api_football.tasks import PRIORITY, fixtures_list_task, leagues_task
 from foot_predictor.rawstore import backup as backup_mod
+from foot_predictor.rawstore.lock import CollectLock, LockHeldError, is_stale, read_lock
 from foot_predictor.rawstore.manifest import read_entries, rebuild
+from foot_predictor.rawstore.store import latest_version, read_envelope
 
 DEFAULT_RAW_DIR = Path("data") / "raw"
 DEFAULT_COVERAGE_OUTPUT = Path("docs") / "realisation" / "03_collecte" / "couverture.md"
@@ -71,6 +91,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--raw-dir", type=Path, default=DEFAULT_RAW_DIR, help="dossier brut (défaut : data/raw)")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="fichier des paliers")
+    parser.add_argument("--wait-lock", type=float, default=0, metavar="MINUTES",
+                        help="si le dossier brut est occupé, attendre au plus ce nombre de minutes (défaut : 0)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     coverage = sub.add_parser("coverage", help="inventaire /status et /leagues (2 requêtes)")
@@ -98,6 +120,18 @@ def build_parser() -> argparse.ArgumentParser:
     profiles.add_argument("--limit", type=int, default=None, help="nombre maximal de tâches ajoutées")
     profiles.add_argument("--dry-run", action="store_true", help="affiche le décompte, sans modifier la file")
 
+    t60 = sub.add_parser("t60", help="journal T-60 : compositions annoncées avant le coup d'envoi")
+    t60.add_argument("--date", type=dt.date.fromisoformat, required=True, help="jour des matchs (AAAA-MM-JJ, UTC)")
+    t60.add_argument("--max-requests", type=int, required=True, help="plafond d'appels HTTP de l'exécution")
+    t60.add_argument("--league", type=int, action="append", dest="leagues",
+                     help="compétition suivie, répétable ; défaut : bloc top5 du palier P1")
+    t60.add_argument("--lead-minutes", type=float, default=DEFAULT_LEAD.total_seconds() / 60)
+    t60.add_argument("--interval-minutes", type=float, default=DEFAULT_INTERVAL.total_seconds() / 60)
+    t60.add_argument("--dry-run", action="store_true",
+                     help="matchs prévus ce jour d'après les listes du brut (heures peut-être périmées), sans requête")
+
+    sub.add_parser("t60-report", help="bilan du journal T-60 (lecture seule, aucune requête)")
+    sub.add_parser("lock-status", help="état du verrou du dossier brut (0 : libre, 1 : occupé)")
     sub.add_parser("status", help="quota, files, échecs, progression (aucune requête)")
 
     requeue = sub.add_parser("requeue", help="remet des tâches failed ou suspect en pending")
@@ -121,7 +155,14 @@ def main(argv: list[str] | None = None, client_factory: ClientFactory = default_
     try:
         config = load_config(args.config)
         handler = COMMANDS[args.command]
+        if args.command in LOCKED_COMMANDS and not getattr(args, "dry_run", False):
+            label = " ".join(argv if argv is not None else sys.argv[1:])
+            with CollectLock(args.raw_dir, label, wait=dt.timedelta(minutes=args.wait_lock)):
+                return handler(args, config, client_factory)
         return handler(args, config, client_factory)
+    except LockHeldError as exc:
+        print(f"Erreur : {exc}", file=sys.stderr)
+        return 3
     except (ConfigError, MissingKeyError, FileExistsError, FileNotFoundError, ValueError) as exc:
         print(f"Erreur : {exc}", file=sys.stderr)
         return 2
@@ -256,6 +297,56 @@ def cmd_plan_profiles(args, config: CollectConfig, client_factory: ClientFactory
     return 0
 
 
+def top5_leagues(config: CollectConfig) -> list[int]:
+    for block in config.tiers.get("P1", []):
+        if block.name == "top5":
+            return list(block.leagues)
+    raise ConfigError("Bloc top5 absent du palier P1 : préciser --league.")
+
+
+def cmd_t60(args, config: CollectConfig, client_factory: ClientFactory) -> int:
+    leagues = args.leagues or top5_leagues(config)
+    lead, interval = dt.timedelta(minutes=args.lead_minutes), dt.timedelta(minutes=args.interval_minutes)
+    if args.dry_run:
+        # Saison qui contient ce jour : 2026 pour 2026-27 (année de début de saison).
+        season = args.date.year if args.date.month >= 7 else args.date.year - 1
+        matches = []
+        for league in leagues:
+            task = fixtures_list_task("P1", league, season)
+            path = latest_version(args.raw_dir, task.rel_dir, task.stem)
+            if path is not None:
+                body = read_envelope(path)["body"]
+                matches += [m for m in day_matches(body, leagues) if m.kickoff.date() == args.date]
+        print(f"Simulation d'après les listes du brut (heures peut-être périmées) : {len(matches)} match(s) le {args.date}.")
+        for kickoff, count in sorted(Counter(m.kickoff for m in matches).items()):
+            print(f"  {kickoff:%H:%M} UTC : {count} match(s)")
+        print(f"Requêtes au plus : {expected_requests(matches, lead, interval)} (plafond demandé : {args.max_requests}).")
+        return 0
+    client = client_factory(config, args.max_requests)
+    report = T60Collector(client, args.raw_dir, args.date, leagues, lead=lead, interval=interval).run()
+    print("\n".join(report_lines(report)))
+    return 0
+
+
+def cmd_t60_report(args, config: CollectConfig, client_factory: ClientFactory) -> int:
+    comparisons, without_detail = compare_lineups(args.raw_dir)
+    print("\n".join(comparison_lines(comparisons, without_detail)))
+    return 0
+
+
+def cmd_lock_status(args, config: CollectConfig, client_factory: ClientFactory) -> int:
+    info = read_lock(args.raw_dir)
+    if info is None:
+        print("Verrou libre : aucune commande n'écrit dans le dossier brut. git pull possible.")
+        return 0
+    if is_stale(info, dt.datetime.now(dt.timezone.utc)):
+        print(f"Verrou périmé (processus terminé ou trop ancien) : {info.describe()}.")
+        print("Il sera remplacé par la prochaine commande. git pull possible.")
+        return 0
+    print(f"Verrou TENU : {info.describe()}. Ne pas faire de git pull maintenant.")
+    return 1
+
+
 def cmd_status(args, config: CollectConfig, client_factory: ClientFactory) -> int:
     print("\n".join(status_lines(args.raw_dir)))
     return 0
@@ -288,12 +379,20 @@ def cmd_rebuild_manifest(args, config: CollectConfig, client_factory: ClientFact
     return 0
 
 
+# Commandes qui écrivent dans le dossier brut (fichiers, journal ou file) : verrou.
+LOCKED_COMMANDS = frozenset({
+    "coverage", "plan", "run", "refresh", "plan-profiles", "requeue", "rebuild-manifest", "t60",
+})
+
 COMMANDS = {
     "coverage": cmd_coverage,
     "plan": cmd_plan,
     "run": cmd_run,
     "refresh": cmd_refresh,
     "plan-profiles": cmd_plan_profiles,
+    "t60": cmd_t60,
+    "t60-report": cmd_t60_report,
+    "lock-status": cmd_lock_status,
     "status": cmd_status,
     "requeue": cmd_requeue,
     "backup": cmd_backup,

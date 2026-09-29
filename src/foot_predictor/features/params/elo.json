@@ -1,0 +1,50 @@
+{
+  "params": {
+    "k": 15.0,
+    "home_advantage": 40.0,
+    "season_regression": 0.0,
+    "goal_multiplier": true,
+    "initial_gap": 100.0,
+    "base": 1500.0,
+    "scale": 400.0,
+    "entry_bottom_n": 3
+  },
+  "tuning": {
+    "date": "2026-09-29",
+    "window": "2005-06 à 2014-15, top 5, saison régulière",
+    "matches": 18259,
+    "log_loss_1n2": 0.993636,
+    "baseline_log_loss": 1.062223,
+    "grid": {
+      "k": [
+        10,
+        15,
+        20,
+        25,
+        30,
+        40
+      ],
+      "home_advantage": [
+        40,
+        60,
+        80,
+        100
+      ],
+      "season_regression": [
+        0.0,
+        0.1,
+        0.2,
+        0.33
+      ],
+      "goal_multiplier": [
+        false,
+        true
+      ],
+      "initial_gap": [
+        0,
+        100,
+        200
+      ]
+    }
+  }
+}

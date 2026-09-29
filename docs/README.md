@@ -26,12 +26,18 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Constats du palier P3 | [`realisation/05_controle_qualite/constats_P3.md`](realisation/05_controle_qualite/constats_P3.md) |
 | Collisions d'identifiants de joueurs (P1 à P3) | [`realisation/05_controle_qualite/constats_collisions.md`](realisation/05_controle_qualite/constats_collisions.md) |
 | Rapports de contrôle datés (versionnés) | [`../reports/data_quality/`](../reports/data_quality/README.md) |
-| Retours de session (bilan, écarts, reste à faire) | [`retours/`](retours/) : [`partie-1_2026-09-29.md`](retours/partie-1_2026-09-29.md), [`partie-2a_2026-09-29.md`](retours/partie-2a_2026-09-29.md) |
+| Retours de session (bilan, écarts, reste à faire) | [`retours/`](retours/) : [`partie-1_2026-09-29.md`](retours/partie-1_2026-09-29.md), [`partie-2a_2026-09-29.md`](retours/partie-2a_2026-09-29.md), [`partie-3a_2026-09-29.md`](retours/partie-3a_2026-09-29.md) |
 | Équations des modèles A (Poisson) et B (Dixon-Coles) | [`MODELE_MATHEMATIQUE.md`](MODELE_MATHEMATIQUE.md) |
 | Résultats historiques A contre B, recalibration | [`RESULTATS_MODELE.md`](RESULTATS_MODELE.md) et [`model_results.json`](model_results.json) |
 | Environnement : ruff, pre-commit, CI, bases, workflow Git (ADR-0022) | [`realisation/02_environnement/README.md`](realisation/02_environnement/README.md) |
 | Référentiel : `load`, `check-referentiel`, YAML de rapprochement, bruts externes, commandes de la phase B | [`realisation/04_referentiel/README.md`](realisation/04_referentiel/README.md) |
 | Contrôle du référentiel (chiffres) | [`../reports/data_quality/referentiel_2026-09-29.md`](../reports/data_quality/referentiel_2026-09-29.md) |
+| Variables du MVP : `build`, `check`, registre, versions du jeu de données, scellé | [`realisation/06_variables/README.md`](realisation/06_variables/README.md) |
+| Fiche de chaque variable (généré depuis le registre) | [`realisation/06_variables/catalogue.md`](realisation/06_variables/catalogue.md) |
+| Exploration statistique : notebooks et conclusions | [`realisation/07_exploration/README.md`](realisation/07_exploration/README.md) |
+| Rapports des variables (réglage de l'Elo, `xg_proxy`, contrôle du jeu) | [`../reports/variables/`](../reports/variables/) |
+| Journal des tests scellés (vide pendant le développement) | [`../reports/sealed_tests.md`](../reports/sealed_tests.md) |
+| Chapitres mathématiques LaTeX (compilation sur Overleaf) | [`latex/mathematiques/`](latex/mathematiques/) |
 | Anciens récaps, RECAP_PROJET, guide d'abonnement | [`archives/`](archives/) (non maintenus) |
 
 ## Règles de la documentation
@@ -42,7 +48,7 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 - **Étapes** : le mode d'emploi d'une étape va dans `realisation/<NN_etape>/README.md`.
 - **Dossiers** : aucun dossier vide. Les dossiers prévus par le rapport (K.1) sont créés avec leur premier contenu ([ADR-0014](decisions/ADR-0014-tri-documentation.md)).
 - **Archives** : un document dépassé part dans `archives/` par `git mv`, avec un bandeau d'archive ; rien n'est supprimé.
-- **Fichiers générés** : `realisation/03_collecte/couverture.md`, `model_results.json` et `reports/data_quality/*` sont produits par le code. On ne les modifie pas à la main.
+- **Fichiers générés** : `realisation/03_collecte/couverture.md`, `realisation/06_variables/catalogue.md`, `model_results.json`, `reports/data_quality/*` et `reports/variables/*` sont produits par le code. On ne les modifie pas à la main.
 
 ## Anciens chemins
 

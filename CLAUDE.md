@@ -37,6 +37,7 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Toute commande qui écrit dans `data/raw/` prend le verrou `data/raw/_lock/collecte.lock` ; une nouvelle commande de ce type doit le prendre aussi. Ne jamais supprimer ce fichier à la main : un verrou périmé est remplacé automatiquement.
 - Des tâches planifiées Windows `FootPredictor_*` lancent `refresh`, `run` et `t60` (liste dans `docs/realisation/03_collecte/README.md`). Ne pas les modifier ni les supprimer hors de la session prévue ; voir leurs journaux dans `data/logs/`.
 - Toute commande qui consomme du quota porte `--max-requests`.
+- **Jamais de `load` pendant une tâche planifiée** (lundis de `refresh`, de 07:45 à 11:00) ni quand `lock-status` répond « occupé » : il lit tout le brut pendant 6 à 10 minutes.
 
 ## Architecture (résumé)
 
@@ -44,6 +45,8 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Bruts externes (CSV football-data) : dossier racine séparé jusqu'à leur recopie après le gel (ADR-0024). Understat écarté (ADR-0023).
 - Code : `src/foot_predictor/` (`config.py`, `db/`, `ingestion/`, `features/`, `modeling/`, `market_value/` gelé), tests dans `tests/` (même organisation), migrations dans `migrations/versions/`.
 - Règle temporelle : toute variable d'un match est calculée à partir de données **strictement antérieures** au match et disponibles à l'horizon de prédiction.
+- **Porte unique des données** (ADR-0028) : toute lecture des matchs pour les variables, les notebooks et les modèles passe par `features/sources.py` (`load_matches`, `load_dataset`), qui filtre le scellé en SQL. Aucun autre module de `features/` ne lit `staging.match` (test d'architecture).
+- **Variables** : fonctions pures (historique → valeurs, sans base), une fiche par colonne dans `features/registry.yaml` (horizon obligatoire), catalogue régénéré par `features catalogue`. Jeu de données : instantané Parquet versionné dans `data/datasets/` + `features.dataset_version` (ADR-0030). Aucun remplissage silencieux : une valeur incalculable reste vide.
 
 ## Commandes principales
 
@@ -56,6 +59,8 @@ uv run pytest -q                          # tous les tests (base de test démarr
 uv run ruff check . && uv run ruff format .   # contrôle et formatage (chemins gelés exclus)
 uv run python -m foot_predictor.ingestion load --raw-dir <brut API> --external-raw-dir <bruts externes> --confirm-db <base>
 uv run python -m foot_predictor.ingestion check-referentiel   # rapport chiffré du référentiel (J3)
+uv run python -m foot_predictor.features build                 # jeu de données versionné (J4)
+uv run python -m foot_predictor.features check --invariance    # contrôle du jeu, anti-fuite sur données réelles
 pre-commit run --all-files                # hooks : secrets, ruff, caractères de contrôle
 ```
 

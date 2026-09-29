@@ -29,6 +29,13 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Committer des données (`data/`, `models/`) : licences et volume.
 - Exécuter `ingestion/api_football.py` (raw → staging) : il identifie les joueurs par leur nom et sera remplacé par le nouveau chargeur (ADR-0008).
 
+## Collecte : verrou et tâches planifiées (ADR-0018)
+
+- **Avant tout `git pull` dans `C:/foot-predictor`** : `uv run python -m foot_predictor.collect.api_football lock-status` doit répondre « libre » (code 0). Sinon, une commande écrit dans le brut : attendre.
+- Toute commande qui écrit dans `data/raw/` prend le verrou `data/raw/_lock/collecte.lock` ; une nouvelle commande de ce type doit le prendre aussi. Ne jamais supprimer ce fichier à la main : un verrou périmé est remplacé automatiquement.
+- Des tâches planifiées Windows `FootPredictor_*` lancent `refresh`, `run` et `t60` (liste dans `docs/realisation/03_collecte/README.md`). Ne pas les modifier ni les supprimer hors de la session prévue ; voir leurs journaux dans `data/logs/`.
+- Toute commande qui consomme du quota porte `--max-requests`.
+
 ## Architecture (résumé)
 
 - Couches : brut en fichiers `data/raw/**.json.gz` + journal de requêtes (ADR-0003) → Postgres `staging` (référentiel) → `features` → modèles → prédictions.

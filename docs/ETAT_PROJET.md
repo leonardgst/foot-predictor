@@ -1,96 +1,77 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-09-29
-**Jalon courant** : J1 — Collecte (rapport de cadrage, partie L) : P1, P2 et P3 terminés et contrôlés ; reste les `refresh` et les actions de l'ADR-0008 avant le gel.
-**Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel des données le **19 octobre** (ADR-0005)
+**Dernière mise à jour** : 2026-09-29 (fin de la session « partie 1 »)
+**Partie courante** : 1/6, terminer et geler la collecte. La collecte tourne seule par tâches planifiées jusqu'au 18 octobre ; il reste la session de gel du **19 octobre**.
+**Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19 octobre, marge les 20 et 21 (ADR-0005)
 
 ## Terminé
 
-- Cadrage intégré (PR #5) : rapport `docs/cadrage/rapport_cadrage_2026-09-24.md`, ADR-0001 à 0006, `CLAUDE.md`, cet état, `docs/JOURNAL_ERREURS.md`.
-- Collecteur v2 (PR #6, ADR-0007), inventaire de couverture (PR #7), contrôle qualité du brut (PR #8), commande `refresh` de la saison en cours (PR #9).
-- **Palier P1** collecté (2026-09-27 et 28) et contrôlé : 50 105 matchs détaillés (100 %), aucun échec, 7 entraîneurs vides côté API (acceptés).
-- **Palier P2** collecté et contrôlé (2026-09-28) : 38 championnat-saisons avant 2015, 14 468 matchs détaillés (100 %). Compositions seules : pas de postes ni de statistiques joueurs.
-- **Palier P3** collecté (runs des 28 et 29 septembre) et contrôlé (2026-09-29) : 11 championnats, 2015-2026, avec profils joueurs ; 37 516 matchs détaillés (100 %), 6 605 tâches done, aucun échec. Verdict « À REGARDER », rien de bloquant.
-- **Total P1 à P3 : 102 089 matchs détaillés**, 15 494 fichiers bruts aux sha256 conformes.
-- Constats détaillés et conséquences : `docs/realisation/05_controle_qualite/constats_P1_P2.md` et `constats_P3.md`.
-- **Copie intermédiaire de `data/raw`** (2026-09-29) sur le disque externe, dans `D:/foot-predictor/copie-2026-06-29/raw` (le nom du dossier porte « 06 » au lieu de « 09 ») : 15 494 fichiers aux sha256 vérifiés. Complément ponctuel à l'ADR-0006 : la sauvegarde du 19 octobre et son test de restauration restent prévus.
-- **Décisions M7 à M12 tranchées** (2026-09-28, PR #11) :
-  - ADR-0008 : API-FOOTBALL fait foi pour les identifiants ;
-  - ADR-0009 : cible et métrique. Le critère E.1(4) du rapport est remplacé ;
-  - ADR-0010 : deux horizons de prédiction ;
-  - ADR-0011 : rejeu et live après l'abonnement ;
-  - ADR-0012 : validation glissante et scellés ;
-  - ADR-0013 : masse salariale et MVS.
-- **Tri de `docs/`, première passe** (PR #12, ADR-0014, décision M19) : documents dépassés archivés dans `docs/archives/`, index `docs/README.md`, README racine en vitrine, journal complété (E-006 à E-020), documents vivants alignés sur les ADR.
+- Cadrage, collecteur v2 et contrôle du brut (PR #5 à #9). P1, P2 et P3 collectés et contrôlés : 102 089 matchs détaillés.
+- Décisions M7 à M12 (ADR-0008 à 0013) et tri de `docs/` (ADR-0014).
+- **Partie 1** (2026-09-29, PR #15 à #21), retour dans `docs/retours/partie-1_2026-09-29.md` :
+  - **test de collision** dans `raw_check` (P1 à P3 ensemble) : 81 identifiants en collision réelle, après écartement de 3 faux positifs (identifiant 0, statistiques inversées, entrées répétées). Le seuil de l'ADR-0008 est dépassé : l'**ADR-0015 est proposée** ;
+  - **profils ciblés** (ADR-0016) : 927 requêtes, 496 dates de naissance obtenues ; 429 titulaires restent sans date (61 top 5, 157 D2, 211 P3) ;
+  - **verrou de collecte**, `lock-status`, **journal T-60** et son bilan (ADR-0017) ;
+  - **9 tâches planifiées** `FootPredictor_*` créées (ADR-0018) ;
+  - **commande `freeze`** et procédure `docs/realisation/03_collecte/gel.md` ; répétition à blanc réussie (9 min 18 s) ;
+  - **MLS 2017** : liste redemandée, identique, donc trou de la source ; **P4** : 146 classements et 396 lots `sidelined` (ADR-0019).
+- Quota consommé le 29/09 (journal) : 2 786 requêtes, dont 1 473 pour la partie 1 (budget accordé : 3 000).
 
 ## En cours
 
-- Rien : la collecte est à l'arrêt jusqu'au `refresh` du 5 octobre.
+- Collecte automatique par tâches planifiées (voir « Prochaines actions »). Aucune commande à lancer à la main avant le 19 octobre.
 
 ## Bloqué
 
 - Rien. Points de vigilance :
-  - ne pas exécuter `ingestion/api_football.py` (raw vers staging) : il sera remplacé par le nouveau chargeur (ADR-0008) ;
-  - ne jamais lancer `docker compose down -v` ni supprimer `data/raw/` avant le gel ;
-  - pas de `git pull` dans `C:/foot-predictor` pendant qu'un `run` tourne ; le code se travaille dans `C:/fp-travail` (worktree) ;
-  - **scellé (ADR-0012)** : aucune analyse des résultats (scores, buts, performances) des matchs joués à partir du 1er juillet 2025. Les contrôles de complétude du brut restent permis.
+  - **avant tout `git pull` dans `C:/foot-predictor`** : `lock-status` doit répondre « libre » (`CLAUDE.md`) ;
+  - le portable doit être **allumé, branché, capot ouvert, session ouverte** aux dates des tâches ; ne pas fermer leur fenêtre noire ;
+  - ne pas exécuter `ingestion/api_football.py` ; ne jamais lancer `docker compose down -v` ni supprimer `data/raw/` ;
+  - **scellé (ADR-0012)** : aucune analyse des résultats des matchs joués à partir du 1er juillet 2025.
 
 ## Décisions ouvertes
 
-- Renouvellement automatique de l'abonnement : à vérifier dans le tableau de bord.
-- Nouvelle demande de la liste **MLS 2017** (1 requête, plus 1 pour le détail si le match manquant apparaît) : seul trou possible parmi les 33 écarts de P3 (`constats_P3.md`, catégorie c).
-- Rapport, décisions 13 à 22, non bloquantes. À trancher en priorité : **M17** (Understat, qui conditionne l'xG en live, ADR-0011) et **M16** (variante de stabilité).
+- **ADR-0015 (proposée)** : traitement des 81 collisions (exclusion automatique au chargement). À trancher avant J3.
+- Renouvellement automatique de l'abonnement : à vérifier dans le tableau de bord, à couper au gel.
+- Rapport, décisions 13 à 22 (M13 à M15 et M17 en partie 2).
 
 ## Prochaines actions
 
-**Court terme**
+**Automatiques (tâches planifiées, journaux dans `C:/foot-predictor/data/logs/`)**
 
-- [ ] Dans `C:/foot-predictor` : retirer la copie non suivie de `reports/data_quality/raw_check_P3_2026-09-29.md` si elle est encore là (Git refuserait la mise à jour), puis `git pull` après la fusion de la PR qui reporte le tri de `docs/` dans `main` (E-021).
-- [ ] **Test de collision des identifiants de joueurs** (priorité de la semaine) dans `quality/raw_check.py`, sans quota (ADR-0008). Détecte un même identifiant chez deux équipes le même jour, deux fois dans un match, ou avec deux dates de naissance. Branche courte, puis lancement sur P1 à P3 **ensemble** (collisions et doublons entre paliers).
-- [ ] Puis **décision sur les requêtes ciblées** (profils), selon le résultat du test. Priorité proposée : P1 top 5 (167 titulaires sans profil), P1 D2 (168), puis P3 (1 503) s'il reste du quota. Doublons (33 en P1, 61 en P3) : YAML d'alias, sans requête.
-- [ ] Nouvelles demandes de listes éventuelles (catégorie c : MLS 2017), sur décision.
-- [ ] `refresh --season 2026 --palier P1` le **lundi 5 octobre** (d'abord `--dry-run`), puis `run`.
+- [ ] **Lun. 5 oct., 08:00** : `refresh` de la saison 2026 (P1 et P3), puis `run` plafonné à 250.
+- [ ] **Ven. 9, sam. 10, dim. 11, lun. 12 oct.** : journal T-60 (16:00 le vendredi et le lundi, 09:30 le week-end ; 80 requêtes au plus par jour).
+- [ ] **Lun. 12 oct., 08:00** : `refresh`, puis `run` (250 au plus).
+- [ ] **Ven. 16, sam. 17, dim. 18 oct.** : journal T-60.
+- Le lendemain de chaque tâche, en 2 minutes si possible : `grep ERREUR data/logs/*.log` et `status`.
 
-**Moyen terme (d'ici le 19 octobre)**
+**Session de gel, lundi 19 octobre** (détail : `docs/realisation/03_collecte/gel.md`)
 
-- [ ] Si elles sont décidées : **requêtes ciblées** **avant le 16 octobre**. Point d'accès et coût à vérifier ; accord explicite requis ; réserve de quota seulement (ADR-0008).
-- [ ] `refresh` le **lundi 12 octobre**.
-- [ ] Facultatif, après les `refresh` et les actions de l'ADR-0008 :
-  - **journal T-60** : compositions annoncées avant le coup d'envoi, sur quelques journées du top 5, pour vérifier que le onze annoncé est celui du détail du match (ADR-0010) ;
-  - P4 (sidelined, standings).
-- [ ] 17-18 oct. : rattrapages uniquement (`status`, `requeue`, `run`).
-- [ ] **19 oct.** : `refresh` le matin, `run`, `raw_check` sur tous les paliers, `DATA_FREEZE.md`, export sur disque externe, test de restauration, commit des résumés de contrôle, tag `data-freeze-2026-10`.
+- [ ] Relire les journaux des tâches ; dernier `refresh` puis `run` ; `status` avec 0 failed.
+- [ ] `t60-report`, puis `freeze` vers `D:/foot-predictor/data-freeze-2026-10/raw`, avec test de restauration.
+- [ ] Relire et committer `docs/DATA_FREEZE.md` ; tag `data-freeze-2026-10` ; supprimer les tâches ; couper le renouvellement.
 
-**Long terme**
+**Long terme : découpage du reste du projet en 6 parties**
 
-- **PR de nettoyage** : anciens collecteurs (ADR-0004, 0007), retrait de `hdbscan`, `market_value/` marqué gelé (ADR-0013), instrumentation de diagnostic de `understat.py`, commentaires de code qui citent des documents archivés et constante inutilisée `RESULTS_MD_PATH` (liste dans la PR du tri de `docs/`).
-- **J3 Référentiel** : `staging` reconstruit depuis le brut, identifiants API, YAML de rapprochement et d'alias (ADR-0008).
-- **J4 Variables v2** : registre des variables avec horizon (ADR-0010).
-- **J5 Protocole et références** : métriques du total (ADR-0009), plis glissants et scellé technique (ADR-0012).
-- **J6 Modèle MVP** : test scellé n° 1 (ADR-0012).
-- **J7 et J8** : API, interface, collecteur football-data pour le live (ADR-0011), `v1.0.0`.
-- **J9 Version intermédiaire** : groupe « qualité du XI » (ADR-0013), stabilité, test scellé n° 2.
-- Détail des jalons : rapport, partie L.
+1. **Terminer et geler la collecte** : cette partie, puis la session de gel du 19 octobre.
+2. **Socle propre et référentiel** (J3) : nettoyage, décisions M13 à M15 et M17, brut en fichiers pour football-data et Understat, migration 0004, chargeurs brut → `staging` par identifiants API, YAML de rapprochement, `load` reproductible.
+3. **Variables et exploration** (J4) : registre des variables avec horizon, Elo maison, fenêtres sans remise à zéro, calendrier, instantanés Parquet, scellé technique, exploration.
+4. **Protocole, références et modèle MVP** (J5, J6) : plis glissants, métriques du total, références, progression des modèles, ablations, test scellé n° 1.
+5. **Inférence, API et interface : MVP `v1.0.0`** (J7, J8).
+6. **Version intermédiaire** (J9) : horizon H2 (qualité du XI, stabilité, entraîneur), modèles plus riches, test scellé n° 2.
 
-## Début de la prochaine session
-
-Test de collision, dans le worktree `C:/fp-travail` (aucune requête) :
+## Commandes de la session de gel (19 octobre)
 
 ```bash
-cd /c/fp-travail
-git fetch origin
-git switch --no-track -c feat/05-test-collision origin/main
-uv run pytest tests/quality -q
-```
-
-Lancement sur P1 à P3 ensemble (lecture seule du brut) :
-
-```bash
-uv run python -m foot_predictor.quality.raw_check --palier P1 --palier P2 --palier P3 --raw-dir /c/foot-predictor/data/raw
-```
-
-Suivi de la collecte, dans `C:/foot-predictor` (aucune requête) :
-
-```bash
+cd /c/foot-predictor
+schtasks //Query //FO TABLE | grep FootPredictor
+grep -l ERREUR data/logs/*.log
+uv run python -m foot_predictor.collect.api_football lock-status && git pull --ff-only
+uv run python -m foot_predictor.collect.api_football refresh --season 2026 --yes
+uv run python -m foot_predictor.collect.api_football run --max-requests 300
 uv run python -m foot_predictor.collect.api_football status
+uv run python -m foot_predictor.collect.api_football t60-report
+cd /c/fp-travail && git fetch origin && git switch --no-track -c data/03-gel-2026-10 origin/main
+uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw freeze \
+    --dest D:/foot-predictor/data-freeze-2026-10/raw --restore-to C:/fp_restauration/raw
 ```

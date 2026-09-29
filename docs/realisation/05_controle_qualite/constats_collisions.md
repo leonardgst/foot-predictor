@@ -61,6 +61,8 @@ Identifiants distincts ; un identifiant peut compter dans plusieurs colonnes. «
 
 94 groupes de doublons probables (même nom, même date de naissance, deux identifiants) sur 46 811 profils, soit la somme exacte des contrôles par palier (33 en P1, 61 en P3). 7 groupes ont des profils dans les deux paliers, mais chacun a au moins deux identifiants dans un même palier : **aucun doublon n'apparaît seulement grâce au contrôle commun**. Le YAML d'alias (ADR-0008) portera donc sur 94 groupes.
 
+**Mise à jour après les profils ciblés (même jour, ADR-0016)** : 97 groupes de doublons sur 47 377 profils, dont toujours aucun seulement inter-paliers. Les collisions sont inchangées (81 identifiants).
+
 ## Comparaison au critère de révision de l'ADR-0008
 
 L'ADR-0008 prévoit de revoir la règle 3 au-delà de « quelques dizaines de collisions réelles (seuil indicatif : 50) ». **Avec 81 identifiants, le seuil est dépassé.** En proportion, l'identifiant API reste très fiable : 81 identifiants sur 70 569 joueurs vus (0,11 %).

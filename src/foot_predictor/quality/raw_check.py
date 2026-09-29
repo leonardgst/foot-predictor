@@ -556,6 +556,10 @@ class CheckResult:
     appearances: int = 0  # présences (joueur, match) examinées pour les collisions
     false_positives: list[Collision] = field(default_factory=list)  # « même match » écartés (subtype = cause)
     unknown_id_entries: int = 0  # entrées à l'identifiant 0, écartées des collisions
+    # Titulaires sans date de naissance dans aucun profil lu (pages et profils
+    # ciblés), par palier : identifiants triés. Vide si aucun profil n'est prévu.
+    starters_without_birth: dict[str, list[int]] = field(default_factory=dict)
+    targeted_profiles: int = 0
 
     # Calculés une fois, à la première lecture (résumé et rapport s'en servent).
 
@@ -617,6 +621,9 @@ class RawChecker:
         self.same_match: list[Collision] = []
         self.false_positives: list[Collision] = []  # « même match » écartés, avec leur cause
         self.unknown_id_entries = 0  # entrées à l'identifiant 0 (joueur inconnu de l'API)
+        # Titulaires des championnat-saisons qui collectent les profils -> premier palier vu.
+        self.profile_starters: dict[int, str] = {}
+        self.targeted_profiles = 0  # profils ciblés (/players/profiles) lus
         self._tier_index = {tier: index for index, tier in enumerate(tiers)}
         self.births: dict[int, dict[str, set[tuple[int, str]]]] = defaultdict(lambda: defaultdict(set))
         self.profile_tiers: dict[int, set[str]] = defaultdict(set)
@@ -628,6 +635,7 @@ class RawChecker:
             notes.insert(0, "Couverture inconnue (aucune réponse /leagues) : toutes les saisons "
                             "configurées sont attendues et tous les détails sont contrôlés.")
         seasons = [self._check_league_season(ls) for ls in scope]
+        self._read_targeted_profiles()
         collisions, corrections = self._collisions()
         leagues_file = latest_leagues_file(self.raw_dir)
         return CheckResult(
@@ -642,6 +650,8 @@ class RawChecker:
             profiles=self.profiles,
             profiles_expected=any("players" in ls.block.endpoints for ls in scope),
             profiles_checked=self.profiles_checked,
+            starters_without_birth=self._starters_without_birth(),
+            targeted_profiles=self.targeted_profiles,
             unreadable=self.reader.unreadable,
             journal=check_journal(self.raw_dir, self.tiers),
             league_names={league: cov.name for league, cov in (self.coverage or {}).items()},
@@ -956,6 +966,9 @@ class RawChecker:
     # --- profils joueurs --------------------------------------------------------------------
 
     def _check_profiles(self, ls: LeagueSeason, result: SeasonResult, starters: dict[int, tuple[int, str]]) -> None:
+        for player_id in starters:
+            if player_id != UNKNOWN_PLAYER_ID:
+                self.profile_starters.setdefault(player_id, ls.tier)
         """Lit les pages `/players` du championnat-saison. Si elles sont toutes
         là, vérifie que chaque titulaire a un profil."""
         directory = self.raw_dir / SOURCE / "players" / f"league={ls.league}" / f"season={ls.season}"
@@ -1002,6 +1015,42 @@ class RawChecker:
         for player_id, (fid, name) in sorted(starters.items()):
             if player_id not in ids:
                 self._issue("not_in_profiles", ls, fid, f"titulaire {name} ({player_id}) sans profil")
+
+
+    def _read_targeted_profiles(self) -> None:
+        """Profils ciblés (`/players/profiles?player=`, ADR-0008), dernière version
+        de chaque fichier. Seuls les titulaires du périmètre contrôlé comptent.
+
+        Leur date de naissance s'ajoute à celles des pages `/players`, avec
+        l'année de collecte pour saison : c'est la valeur actuelle de l'API.
+        """
+        directory = self.raw_dir / SOURCE / "player_profiles"
+        if not directory.is_dir():
+            return
+        for path in latest_versions(directory):
+            body = self.reader.body(path)
+            for entry in (body or {}).get("response") or []:
+                player = (entry or {}).get("player") or {}
+                if player.get("id") is None or int(player["id"]) not in self.profile_starters:
+                    continue
+                player_id = int(player["id"])
+                tier = self.profile_starters[player_id]
+                self.targeted_profiles += 1
+                birth = (player.get("birth") or {}).get("date")
+                self.profiles.setdefault(player_id, Profile(
+                    name=player.get("name"), firstname=player.get("firstname"),
+                    lastname=player.get("lastname"), birth=birth,
+                ))
+                self.profile_tiers[player_id].add(tier)
+                if birth:
+                    self.births[player_id][birth].add((int(version_stamp(path)[:4]), tier))
+
+    def _starters_without_birth(self) -> dict[str, list[int]]:
+        missing: dict[str, list[int]] = defaultdict(list)
+        for player_id, tier in sorted(self.profile_starters.items()):
+            if player_id not in self.births:
+                missing[tier].append(player_id)
+        return {tier: missing[tier] for tier in sorted(missing)}
 
 
 # --- journal et file de travail ----------------------------------------------------------------
@@ -1154,6 +1203,14 @@ def summary_lines(result: CheckResult) -> list[CheckLine]:
         detail = (f"{len(issues['not_in_profiles'])} titulaire(s) sans profil, "
                   f"sur {result.profiles_checked} championnat-saison(s) aux profils complets")
     lines.append(CheckLine("Identifiants", "Titulaires présents dans les profils", status, detail))
+    if result.profiles_expected:
+        without = result.starters_without_birth
+        total = sum(len(ids) for ids in without.values())
+        per_tier = ", ".join(f"{tier} {len(ids)}" for tier, ids in without.items())
+        lines.append(CheckLine(
+            "Identifiants", "Titulaires sans date de naissance (tous profils confondus)", WATCH if total else OK,
+            f"{total} titulaire(s)" + (f" ({per_tier})" if per_tier else "")
+            + f" ; profils ciblés lus : {result.targeted_profiles}"))
     conflicts = result.name_conflicts
     variants = sum(1 for names in result.names.values() if len(names) > 1)
     lines.append(CheckLine("Identifiants", "Un identifiant, un seul joueur", WATCH if conflicts else OK,
@@ -1458,6 +1515,10 @@ def render_details(result: CheckResult, command: str | None = None) -> str:
         "", *issue_block("goals"),
         "## 4. Identifiants", "", *issue_block("missing_ids"), *issue_block("not_in_profiles"),
     ]
+    without = result.starters_without_birth
+    lines += [f"Titulaires sans date de naissance dans aucun profil ({sum(len(v) for v in without.values())}) :", ""]
+    lines += [f"- {tier} ({len(ids)}) : " + ", ".join(str(i) for i in ids) for tier, ids in without.items()] or ["Aucun."]
+    lines.append("")
     conflicts = result.name_conflicts
     lines += [f"Identifiants associés à plusieurs noms incompatibles ({len(conflicts)}) :" if conflicts
               else "Identifiants associés à plusieurs noms incompatibles : aucun.", ""]

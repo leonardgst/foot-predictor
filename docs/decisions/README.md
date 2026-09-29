@@ -31,6 +31,8 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0023](ADR-0023-sources-externes-understat.md) | Sources externes : football-data retenu, Understat écarté (`robots.txt`), xG d'API-FOOTBALL seulement | acceptée | 2026-09-29 | M17 |
 | [0024](ADR-0024-bruts-externes.md) | Bruts externes : dossier racine séparé jusqu'au gel, CSV octet pour octet, même journal que l'API | acceptée | 2026-09-29 | M3 (ADR-0003) |
 | [0025](ADR-0025-bases-de-donnees.md) | Bases : base de travail reconstructible, base de test éphémère, ancienne base dev intacte, rôle dédié au worktree | acceptée | 2026-09-29 | M14 |
+| [0026](ADR-0026-environnement-windows.md) | Environnement : Windows natif et Git Bash ; WSL2 étudié après le gel | acceptée | 2026-09-29 | M13 |
+| [0027](ADR-0027-perimetre-chargeurs.md) | Périmètre des chargeurs du référentiel : MVP et H2 ; transferts, classements, indisponibilités, cotes reportés | acceptée | 2026-09-29 | M7 (ADR-0008) |
 
 **Décisions encore ouvertes** :
 
@@ -38,8 +40,9 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 
 Rapport, partie M :
 
-- 13 à 22 : importantes, non bloquantes. Les plus liées aux ADR ci-dessus :
-  - 17 : tranchée par l'ADR-0023 (Understat écarté) ;
-  - 16 : variante de stabilité ;
-  - 19 : restructuration de la documentation, première passe faite (ADR-0014).
+- 13 à 15 et 17 : tranchées en partie 2 (ADR-0026, ADR-0025, ADR-0022, ADR-0023).
+- 16, 18 et 20 à 22 : importantes, non bloquantes, encore ouvertes. Les plus liées aux ADR ci-dessus :
+  - 16 : variante de stabilité (partie 3) ;
+  - 22 : orchestration et planification (après le gel ; WSL2 étudié, ADR-0026).
+- 19 : restructuration de la documentation, première passe faite (ADR-0014).
 - 23 à 28 et 30 : reportables. La décision 29 (données dérivées de Transfermarkt) est confirmée par l'ADR-0013.

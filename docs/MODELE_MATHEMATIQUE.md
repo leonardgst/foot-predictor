@@ -351,6 +351,8 @@ extérieur (par exemple une copule gaussienne ajustée sur les résidus, ou une 
 
 ## 6. Suite
 
+Le chapitre LaTeX « Données et variables » (`docs/latex/mathematiques/`, partie 3) formalise les variables du MVP qui remplacent le vecteur `z` de la section 2.2 : Elo (G1), moyennes glissantes à décroissance en jours et `xg_proxy` (G2), calendrier et contexte (G3, G0), règle temporelle et scellé.
+
 Le choix entre A, B et C ne se fait plus ici. La cible, la sortie et les métriques sont fixées par
 l'ADR-0009, le protocole de comparaison (plis glissants, saison sous scellés) par l'ADR-0012, et la
 progression des modèles par le rapport de cadrage, partie I. La comparaison A contre B sur 2024-25

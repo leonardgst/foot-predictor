@@ -95,3 +95,23 @@ def test_missing_values_stay_empty(db_session, league):
     frame = load_matches(db_session, competition_ids=[league.id])
     assert frame["home_shots_api"].isna().all()  # aucune statistique : vide, jamais 0
     assert frame["home_xg_api"].isna().all()
+
+
+def test_football_data_shots_are_exposed(db_session, league):
+    """Tirs de football-data (migration 0005) : par côté, vides si absents."""
+    from sqlalchemy import select
+
+    from foot_predictor.db.models import TeamMatchStatsExternal
+
+    first = db_session.scalars(
+        select(Match).where(Match.competition_id == league.id).order_by(Match.match_date).limit(1)
+    ).one()
+    home_tm = db_session.scalars(select(TeamMatch).where(TeamMatch.match_id == first.id, TeamMatch.is_home)).one()
+    db_session.add(
+        TeamMatchStatsExternal(source="football_data", team_match_id=home_tm.id, shots=13, shots_on_target=4)
+    )
+    db_session.flush()
+    frame = load_matches(db_session, competition_ids=[league.id])
+    assert (frame.loc[0, "home_shots_fd"], frame.loc[0, "home_sot_fd"]) == (13, 4)
+    assert frame["away_shots_fd"].isna().all()
+    assert frame.loc[1, ["home_shots_fd", "home_sot_fd"]].isna().all()

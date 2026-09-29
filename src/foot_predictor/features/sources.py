@@ -27,7 +27,8 @@ from sqlalchemy.orm import Session
 from foot_predictor.seal import SEAL_TIMESTAMP, check_seal
 
 # Une ligne par match ; les colonnes « home_* » et « away_* » viennent des deux lignes de
-# staging.team_match et de leurs statistiques API (staging.team_match_stats).
+# staging.team_match, de leurs statistiques API (staging.team_match_stats) et de leurs tirs
+# football-data (staging.team_match_stats_external, migration 0005).
 _MATCH_SQL = """
 select
     m.id                     as match_id,
@@ -54,7 +55,11 @@ select
     hs.expected_goals        as home_xg_api,
     aws.shots_total          as away_shots_api,
     aws.shots_on_goal        as away_sot_api,
-    aws.expected_goals       as away_xg_api
+    aws.expected_goals       as away_xg_api,
+    hfd.shots                as home_shots_fd,
+    hfd.shots_on_target      as home_sot_fd,
+    afd.shots                as away_shots_fd,
+    afd.shots_on_target      as away_sot_fd
 from staging.match m
 join staging.competition c on c.id = m.competition_id
 join staging.season s on s.id = m.season_id
@@ -62,6 +67,8 @@ left join staging.team_match htm on htm.match_id = m.id and htm.is_home
 left join staging.team_match_stats hs on hs.team_match_id = htm.id
 left join staging.team_match atm on atm.match_id = m.id and not atm.is_home
 left join staging.team_match_stats aws on aws.team_match_id = atm.id
+left join staging.team_match_stats_external hfd on hfd.team_match_id = htm.id and hfd.source = 'football_data'
+left join staging.team_match_stats_external afd on afd.team_match_id = atm.id and afd.source = 'football_data'
 where m.match_date < :upper
 {extra}
 order by m.match_date, m.id
@@ -82,6 +89,10 @@ _INT_COLUMNS = [
     "home_sot_api",
     "away_shots_api",
     "away_sot_api",
+    "home_shots_fd",
+    "home_sot_fd",
+    "away_shots_fd",
+    "away_sot_fd",
 ]
 _FLOAT_COLUMNS = ["home_xg_api", "away_xg_api"]
 
@@ -117,7 +128,8 @@ def load_matches(
     Colonnes : identifiants (match, fixture API, compétition, saison, équipes), `match_date`
     (UTC), `match_day` (date UTC), `country`, `competition_kind`, `season_year`, `round`,
     `is_regular_season`, buts au temps réglementaire, `status`, `excluded`,
-    `exclusion_reason`, `origin`, tirs, tirs cadrés et xG d'API-FOOTBALL par équipe.
+    `exclusion_reason`, `origin`, tirs, tirs cadrés et xG d'API-FOOTBALL par équipe
+    (`*_api`), tirs et tirs cadrés de football-data par équipe (`*_fd`, ADR-0029).
     Aucune valeur n'est remplie : une donnée absente reste vide (`<NA>`).
     """
     if connectable is None:

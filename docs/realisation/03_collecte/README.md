@@ -223,6 +223,53 @@ uv run python -m foot_predictor.collect.api_football --wait-lock 120 t60 --date 
 uv run python -m foot_predictor.collect.api_football t60-report
 ```
 
+## Tâches planifiées (du 5 au 18 octobre 2026)
+
+Les `refresh` et le journal T-60 tournent seuls, par des tâches planifiées Windows. Elles lancent des scripts versionnés, avec leurs plafonds de requêtes.
+
+| Tâche | Quand (heure de Paris) | Script | Plafond |
+|---|---|---|---|
+| `FootPredictor_refresh_2026-10-05` | lundi 5 oct., 08:00 | `refresh_run.cmd 2026-10-05` | 250 |
+| `FootPredictor_t60_2026-10-09` | vendredi 9 oct., 16:00 | `t60.cmd 2026-10-09` | 80 |
+| `FootPredictor_t60_2026-10-10` | samedi 10 oct., 09:30 | `t60.cmd 2026-10-10` | 80 |
+| `FootPredictor_t60_2026-10-11` | dimanche 11 oct., 09:30 | `t60.cmd 2026-10-11` | 80 |
+| `FootPredictor_refresh_2026-10-12` | lundi 12 oct., 08:00 | `refresh_run.cmd 2026-10-12` | 250 |
+| `FootPredictor_t60_2026-10-12` | lundi 12 oct., 16:00 | `t60.cmd 2026-10-12` | 80 |
+| `FootPredictor_t60_2026-10-16` | vendredi 16 oct., 16:00 | `t60.cmd 2026-10-16` | 80 |
+| `FootPredictor_t60_2026-10-17` | samedi 17 oct., 09:30 | `t60.cmd 2026-10-17` | 80 |
+| `FootPredictor_t60_2026-10-18` | dimanche 18 oct., 09:30 | `t60.cmd 2026-10-18` | 80 |
+
+**Scripts** (`scripts/taches_planifiees/`) :
+
+- `refresh_run.cmd` : `refresh --season 2026 --yes` (paliers P1 et P3, déjà planifiés), puis `run --max-requests 250`, puis `status` ;
+- `t60.cmd` : `t60 --date <jour> --max-requests 80`. La commande tourne jusqu'au dernier coup d'envoi du jour et empêche la mise en veille automatique.
+
+Les deux scripts passent par le verrou avec `--wait-lock`. Leur journal d'exécution va dans `data/logs/refresh_<jour>.log` ou `data/logs/t60_<jour>.log`, un dossier ignoré par Git. Un second argument `--dry-run` fait une simulation sans requête.
+
+**Conditions** : le portable doit être **allumé, branché, capot ouvert, session ouverte** (verrouillée, cela suffit). Aucun mot de passe n'est stocké. Une tâche manquée (portable éteint) démarre dès que possible le jour même, jamais le lendemain. Une fenêtre noire s'ouvre pendant la tâche : **ne pas la fermer**, cela arrêterait la collecte.
+
+**Pourquoi le 5 octobre** : aucun match du top 5 n'a lieu entre le 21 septembre et le 8 octobre (trêve internationale). Ce `refresh` récupère quand même les matchs de Segunda, de FA Cup et de Copa del Rey joués depuis le 25 septembre, ainsi que ceux de P3 (Brésil, Argentine, MLS...). Le 12 octobre suit la journée des 10 et 11 octobre. Les matchs du lundi 12 au soir et les coupes d'Europe des 13 à 15 octobre seront pris par le `refresh` du 19.
+
+Commandes utiles, dans Git Bash : les options commencent par `//`, sinon Git Bash les convertit en chemins.
+
+```bash
+# Voir les tâches
+schtasks //Query //FO TABLE | grep FootPredictor
+schtasks //Query //TN FootPredictor_t60_2026-10-10 //V //FO LIST
+# Lancer une tâche tout de suite (consomme du quota !)
+schtasks //Run //TN FootPredictor_refresh_2026-10-05
+# Tester un script à blanc, sans requête (journal dans data/logs/)
+cmd //c "scripts	aches_planifiees	60.cmd 2026-10-10 --dry-run"
+# Créer (ou recréer) toutes les tâches, puis les supprimer toutes
+uv run python scripts/taches_planifiees/creer_taches.py            # simulation
+uv run python scripts/taches_planifiees/creer_taches.py --apply
+uv run python scripts/taches_planifiees/creer_taches.py --delete
+# Supprimer une seule tâche
+schtasks //Delete //TN FootPredictor_t60_2026-10-09 //F
+```
+
+Les tâches, déjà passées le 19 octobre, sont supprimées pendant la session de gel (`creer_taches.py --delete`).
+
 ## Profils ciblés : `plan-profiles` (ADR-0008)
 
 Les pages `/players?league&season` ne contiennent pas tous les joueurs : des titulaires n'y ont pas de profil, et donc pas de date de naissance. Tant que l'abonnement est actif, on demande leur profil un par un.

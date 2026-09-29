@@ -1,4 +1,6 @@
-"""Calcul du classement (staging.team_match/match -> features.team_match_features).
+"""> **Remplacé (partie 3, ADR-0030) — retrait prévu en partie 4.** Ancien module, par ligne, sur l'ancien schéma (`features.team_match_features`) ; les variables du MVP sont dans `features/elo.py`, `rolling.py`, `rest.py` et `dataset.py`.
+
+Calcul du classement (staging.team_match/match -> features.team_match_features).
 
 Classement calculé automatiquement à partir de staging.team_match, snapshot
 strictement avant la date du match concerné (pas de data leakage) -- cf.

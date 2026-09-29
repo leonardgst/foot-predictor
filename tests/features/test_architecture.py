@@ -2,7 +2,7 @@
 
 Dans `features/`, seul `sources.py` peut importer le modèle `Match` ou écrire du SQL sur
 `staging.match`. Les notebooks n'importent du projet que `foot_predictor.features.sources`.
-Les anciens modules (remplacés, retrait en partie 4) sont hors de cette règle.
+Les anciens modules (`features/legacy/`, remplacés, retrait en partie 4) sont hors de cette règle.
 """
 
 from __future__ import annotations
@@ -17,15 +17,13 @@ FEATURES = REPO / "src" / "foot_predictor" / "features"
 NOTEBOOKS = REPO / "notebooks"
 
 GATE = FEATURES / "sources.py"
-# Anciens modules, par ligne, sur l'ancien schéma : déplacés dans features/legacy/ en 3.3.
-LEGACY = {"build_team_match_features.py", "rolling_form.py", "rolling_xg.py", "standing.py"}
 STAGING_MATCH = re.compile(r"staging\.match\b")
 
 
 def _feature_modules() -> list[Path]:
     modules = []
     for path in sorted(FEATURES.rglob("*.py")):
-        if path == GATE or path.name in LEGACY or "legacy" in path.relative_to(FEATURES).parts:
+        if path == GATE or "legacy" in path.relative_to(FEATURES).parts:
             continue
         modules.append(path)
     return modules

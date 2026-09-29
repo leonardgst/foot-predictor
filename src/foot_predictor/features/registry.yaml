@@ -1,0 +1,378 @@
+# Registre des variables du jeu de données (partie 3 ; ADR-0010, rapport F.2 et I.3).
+#
+# Chaque colonne du jeu de données figure ici, et inversement (test tests/features/test_registry.py).
+# Le catalogue lisible docs/realisation/06_variables/catalogue.md est généré depuis ce fichier
+# (python -m foot_predictor.features catalogue).
+#
+# Champs :
+#   nom                : identifiant de la colonne ; « {h} » est remplacé par chaque demi-vie de parametres.demi_vie_jours
+#   portee             : [equipe] ou [equipe, adversaire] ; la colonne de l'adversaire porte le préfixe « opp_ »
+#   groupe             : G0 à G3 (variables), ID (identifiants et découpage), CIBLE
+#   definition         : la formule en une phrase
+#   source             : table de staging, fichier ou module
+#   horizon            : H1 (avant composition, ADR-0010) ; « sans objet » pour ID et CIBLE
+#   disponible_en_live : oui, non, ou « oui : raison » (ADR-0011)
+#   parametres         : paramètres figés ou candidats
+#   historique_minimal : ce qu'il faut pour que la valeur existe
+#   manquant           : traitement d'une valeur impossible à calculer (jamais 0 par défaut, rapport I.8)
+#   risque_fuite       : faible, moyen, élevé, nul, avec sa parade
+#
+# Règle de date (ADR-0028) : la date d'un match est la date UTC de son coup d'envoi ; pour un match
+# « hors API », la date de football-data. Règle temporelle (ADR-0010) : une variable du jour J n'utilise
+# que des matchs terminés avant le jour J.
+
+variables:
+  # ------------------------------------------------------------------ identifiants et découpage
+  - nom: match_id
+    portee: [equipe]
+    groupe: ID
+    definition: identifiant interne du match (staging.match.id)
+    source: staging.match
+    horizon: sans objet
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: identifiant, jamais utilisé comme variable
+  - nom: team_id
+    portee: [equipe, adversaire]
+    groupe: ID
+    definition: équipe de la ligne (et son adversaire, opp_team_id)
+    source: staging.team_match
+    horizon: sans objet
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: identifiant, jamais utilisé comme variable
+  - nom: match_date
+    portee: [equipe]
+    groupe: ID
+    definition: coup d'envoi UTC (minuit UTC pour un match hors API)
+    source: staging.match.match_date
+    horizon: sans objet
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: sert au découpage temporel et au scellé
+  - nom: match_day
+    portee: [equipe]
+    groupe: ID
+    definition: date UTC du match, le « jour J » de la règle temporelle
+    source: staging.match.match_date
+    horizon: sans objet
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: toutes les variables n'utilisent que des matchs de jours antérieurs
+  - nom: competition_id
+    portee: [equipe]
+    groupe: ID
+    definition: identifiant interne du championnat
+    source: staging.match
+    horizon: sans objet
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: identifiant ; le championnat comme variable est api_league_id (G0)
+  - nom: country
+    portee: [equipe]
+    groupe: ID
+    definition: pays du championnat (échelle de l'Elo)
+    source: staging.competition
+    horizon: sans objet
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: identifiant de regroupement
+  - nom: division_level
+    portee: [equipe]
+    groupe: ID
+    definition: 1 pour une D1, 2 pour une D2
+    source: features/leagues.py
+    horizon: sans objet
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: identifiant de regroupement
+  - nom: phase
+    portee: [equipe]
+    groupe: ID
+    definition: « rodage » avant 2015-16, « apprentissage » de 2015-16 à 2020-21, « validation » de 2021-22 à 2024-25 (ADR-0012)
+    source: season_year
+    horizon: sans objet
+    disponible_en_live: oui
+    parametres: {apprentissage_depuis: 2015, validation_depuis: 2021}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: découpage fixé par l'ADR-0012, pas par les données
+  - nom: eval_population
+    portee: [equipe]
+    groupe: ID
+    definition: vrai pour un match de championnat du top 5 (population d'évaluation, ADR-0012)
+    source: features/leagues.py
+    horizon: sans objet
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: définie par l'ADR-0012
+  # ------------------------------------------------------------------ cible
+  - nom: goals_for
+    portee: [equipe]
+    groupe: CIBLE
+    definition: buts marqués par l'équipe au temps réglementaire (ADR-0009)
+    source: staging.match.home_goals_90 / away_goals_90
+    horizon: sans objet
+    disponible_en_live: "non : c'est le résultat à prédire"
+    parametres: {}
+    historique_minimal: aucun
+    manquant: ligne absente du jeu (match sans score)
+    risque_fuite: élevé
+    parade: jamais une variable ; les tests vérifient qu'aucune variable ne change si on la modifie
+  - nom: goals_against
+    portee: [equipe]
+    groupe: CIBLE
+    definition: buts encaissés au temps réglementaire (la cible de la ligne de l'adversaire)
+    source: staging.match.home_goals_90 / away_goals_90
+    horizon: sans objet
+    disponible_en_live: "non : c'est le résultat à prédire"
+    parametres: {}
+    historique_minimal: aucun
+    manquant: ligne absente du jeu (match sans score)
+    risque_fuite: élevé
+    parade: jamais une variable ; sert à l'évaluation au niveau du match
+  # ------------------------------------------------------------------ G0 contexte
+  - nom: is_home
+    portee: [equipe]
+    groupe: G0
+    definition: vrai si l'équipe joue à domicile
+    source: staging.team_match.is_home
+    horizon: H1
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: connu à l'avance (calendrier)
+  - nom: api_league_id
+    portee: [equipe]
+    groupe: G0
+    definition: championnat (identifiant de ligue API-FOOTBALL), pour des effets fixes
+    source: staging.competition.api_league_id
+    horizon: H1
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: connu à l'avance
+  - nom: season_year
+    portee: [equipe]
+    groupe: G0
+    definition: année de début de la saison (2024 pour 2024-25)
+    source: staging.season.year
+    horizon: H1
+    disponible_en_live: oui
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: connu à l'avance ; une tendance ajustée dans le pli seulement (partie 4)
+  - nom: behind_closed_doors
+    portee: [equipe]
+    groupe: G0
+    definition: 1 si le match est dans une période sûre de huis clos de son championnat, 0 sinon (périodes incertaines comprises)
+    source: features/huis_clos.yaml
+    horizon: H1
+    disponible_en_live: "oui : 0 hors période documentée"
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide (0 hors période sûre ; les périodes incertaines sont listées dans le YAML)
+    risque_fuite: nul
+    parade: décision publique connue avant le match
+  # ------------------------------------------------------------------ G1 Elo
+  - nom: elo_pre
+    portee: [equipe, adversaire]
+    groupe: G1
+    definition: note Elo de l'équipe avant le match, échelle nationale, mise à jour par jour (features/elo.py)
+    source: staging.match (championnats des échelles), features/params/elo.json
+    horizon: H1
+    disponible_en_live: "oui : résultats de football-data"
+    parametres: {fichier: features/params/elo.json}
+    historique_minimal: aucun (note d'entrée à la première apparition)
+    manquant: jamais vide ; elo_matches dit combien de matchs la fondent
+    risque_fuite: faible
+    parade: note d'avant-match, variations d'un jour appliquées à la fin du jour (test du même jour)
+  - nom: elo_diff
+    portee: [equipe]
+    groupe: G1
+    definition: elo_pre − opp_elo_pre, sans l'avantage du terrain (porté par is_home)
+    source: features/elo.py
+    horizon: H1
+    disponible_en_live: "oui : résultats de football-data"
+    parametres: {fichier: features/params/elo.json}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: faible
+    parade: comme elo_pre
+  - nom: elo_matches
+    portee: [equipe, adversaire]
+    groupe: G1
+    definition: nombre de matchs d'échelle joués par l'équipe avant le match, depuis 2000-01
+    source: features/elo.py
+    horizon: H1
+    disponible_en_live: "oui : résultats de football-data"
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide (0 pour une première apparition)
+    risque_fuite: nul
+    parade: compte des matchs antérieurs seulement
+  # ------------------------------------------------------------------ G2 glissants
+  - nom: goals_for_ewm_h{h}
+    portee: [equipe, adversaire]
+    groupe: G2
+    definition: moyenne des buts marqués en championnat, poids 0,5^(jours/h), au plus 730 jours, retirée vers la moyenne du championnat avec un poids a priori de 3 matchs
+    source: staging.match (championnats des échelles), features/rolling.py
+    horizon: H1
+    disponible_en_live: "oui : résultats de football-data"
+    parametres: {demi_vie_jours: [60, 120, 240], anciennete_max_jours: 730, poids_a_priori: 3}
+    historique_minimal: un match de championnat dans les 730 jours
+    manquant: vide si aucun match ; goals_weight_h{h} = 0 le dit
+    risque_fuite: faible
+    parade: matchs des jours antérieurs seulement (test « modifier le match m ne change pas sa ligne »)
+  - nom: goals_against_ewm_h{h}
+    portee: [equipe, adversaire]
+    groupe: G2
+    definition: comme goals_for_ewm_h{h}, pour les buts encaissés
+    source: staging.match, features/rolling.py
+    horizon: H1
+    disponible_en_live: "oui : résultats de football-data"
+    parametres: {demi_vie_jours: [60, 120, 240], anciennete_max_jours: 730, poids_a_priori: 3}
+    historique_minimal: un match de championnat dans les 730 jours
+    manquant: vide si aucun match ; goals_weight_h{h} = 0 le dit
+    risque_fuite: faible
+    parade: comme goals_for_ewm_h{h}
+  - nom: xgp_for_ewm_h{h}
+    portee: [equipe, adversaire]
+    groupe: G2
+    definition: comme goals_for_ewm_h{h}, pour l'xg_proxy de l'équipe (a · tirs cadrés + b · tirs non cadrés)
+    source: staging.team_match_stats_external (football-data), features/params/xg_proxy.json
+    horizon: H1
+    disponible_en_live: "oui : tirs de football-data"
+    parametres: {demi_vie_jours: [60, 120, 240], anciennete_max_jours: 730, poids_a_priori: 3, fichier: features/params/xg_proxy.json}
+    historique_minimal: un match de championnat avec les tirs des deux équipes dans les 730 jours
+    manquant: vide si aucun match avec tirs (4 D2 avant 2017-18) ; xgp_weight_h{h} = 0 le dit
+    risque_fuite: faible
+    parade: coefficients estimés sur 2015-16 à 2020-21 seulement, avant tous les plis de validation
+  - nom: xgp_against_ewm_h{h}
+    portee: [equipe, adversaire]
+    groupe: G2
+    definition: comme xgp_for_ewm_h{h}, pour l'xg_proxy concédé (tirs de l'adversaire)
+    source: staging.team_match_stats_external (football-data), features/params/xg_proxy.json
+    horizon: H1
+    disponible_en_live: "oui : tirs de football-data"
+    parametres: {demi_vie_jours: [60, 120, 240], anciennete_max_jours: 730, poids_a_priori: 3, fichier: features/params/xg_proxy.json}
+    historique_minimal: un match de championnat avec les tirs des deux équipes dans les 730 jours
+    manquant: vide si aucun match avec tirs ; xgp_weight_h{h} = 0 le dit
+    risque_fuite: faible
+    parade: comme xgp_for_ewm_h{h}
+  - nom: goals_weight_h{h}
+    portee: [equipe, adversaire]
+    groupe: G2
+    definition: somme des poids 0,5^(jours/h) des matchs de championnat retenus (quantité d'information des moyennes de buts)
+    source: features/rolling.py
+    horizon: H1
+    disponible_en_live: "oui : résultats de football-data"
+    parametres: {demi_vie_jours: [60, 120, 240], anciennete_max_jours: 730}
+    historique_minimal: aucun
+    manquant: jamais vide (0 sans historique)
+    risque_fuite: faible
+    parade: comme goals_for_ewm_h{h}
+  - nom: xgp_weight_h{h}
+    portee: [equipe, adversaire]
+    groupe: G2
+    definition: somme des poids des matchs de championnat retenus dont les tirs des deux équipes sont connus
+    source: features/rolling.py
+    horizon: H1
+    disponible_en_live: "oui : tirs de football-data"
+    parametres: {demi_vie_jours: [60, 120, 240], anciennete_max_jours: 730}
+    historique_minimal: aucun
+    manquant: jamais vide (0 sans historique)
+    risque_fuite: faible
+    parade: comme xgp_for_ewm_h{h}
+  - nom: days_since_last_league_match
+    portee: [equipe, adversaire]
+    groupe: G2
+    definition: jours depuis le dernier match de championnat retenu (au plus 730)
+    source: features/rolling.py
+    horizon: H1
+    disponible_en_live: "oui : résultats de football-data"
+    parametres: {anciennete_max_jours: 730}
+    historique_minimal: un match de championnat dans les 730 jours
+    manquant: vide au-delà de 730 jours ou sans historique
+    risque_fuite: nul
+    parade: matchs des jours antérieurs seulement
+  # ------------------------------------------------------------------ G3 calendrier (rejeu seulement)
+  - nom: rest_days
+    portee: [equipe, adversaire]
+    groupe: G3
+    definition: jours depuis le dernier match terminé de l'équipe, toutes compétitions présentes dans staging
+    source: staging.match (championnats et coupes), features/rest.py
+    horizon: H1
+    disponible_en_live: "non : aucune source gratuite ne couvre les coupes après l'abonnement (ADR-0011)"
+    parametres: {}
+    historique_minimal: un match antérieur
+    manquant: vide sans match antérieur ; rest_reliable dit si les coupes sont couvertes
+    risque_fuite: nul
+    parade: rétrospectif seulement, jamais la date du prochain match
+  - nom: matches_last_14d
+    portee: [equipe, adversaire]
+    groupe: G3
+    definition: nombre de matchs terminés de l'équipe du jour J − 14 au jour J − 1, toutes compétitions
+    source: features/rest.py
+    horizon: H1
+    disponible_en_live: "non : coupes non couvertes après l'abonnement"
+    parametres: {fenetre_jours: 14}
+    historique_minimal: aucun
+    manquant: jamais vide (compte ; rest_reliable dit si les coupes sont couvertes)
+    risque_fuite: nul
+    parade: rétrospectif seulement
+  - nom: european_match_last_4d
+    portee: [equipe, adversaire]
+    groupe: G3
+    definition: vrai si l'équipe a joué un match de coupe d'Europe du jour J − 4 au jour J − 1
+    source: features/rest.py
+    horizon: H1
+    disponible_en_live: "non : coupes non couvertes après l'abonnement"
+    parametres: {fenetre_jours: 4}
+    historique_minimal: aucun
+    manquant: jamais vide (faux ; rest_reliable dit si les coupes sont couvertes)
+    risque_fuite: nul
+    parade: rétrospectif seulement
+  - nom: rest_reliable
+    portee: [equipe]
+    groupe: G3
+    definition: vrai si toutes les coupes du pays sont dans staging cette saison (Angleterre, Allemagne, France depuis 2015-16 ; Italie depuis 2016-17 ; Espagne depuis 2018-19)
+    source: features/leagues.py (mesure 4 de la partie 3)
+    horizon: H1
+    disponible_en_live: "non : coupes non couvertes après l'abonnement"
+    parametres: {}
+    historique_minimal: aucun
+    manquant: jamais vide
+    risque_fuite: nul
+    parade: fixé par la couverture des données, pas par les résultats

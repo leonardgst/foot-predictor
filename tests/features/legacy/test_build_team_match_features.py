@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import select
 
 from foot_predictor.db.models import TeamMatchFeatures
-from foot_predictor.features.build_team_match_features import build_all_team_match_features
+from foot_predictor.features.legacy.build_team_match_features import build_all_team_match_features
 
 pytestmark = pytest.mark.db
 

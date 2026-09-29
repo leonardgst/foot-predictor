@@ -1,4 +1,6 @@
-"""Orchestration : assemble standing + rolling_form + rolling_xg pour chaque
+"""> **Remplacé (partie 3, ADR-0030) — retrait prévu en partie 4.** Ancien module, par ligne, sur l'ancien schéma (`features.team_match_features`) ; les variables du MVP sont dans `features/elo.py`, `rolling.py`, `rest.py` et `dataset.py`.
+
+Orchestration : assemble standing + rolling_form + rolling_xg pour chaque
 staging.team_match joué, et upsert le résultat dans features.team_match_features.
 
 Chaque ligne est calculée en se plaçant strictement AVANT la date du match
@@ -11,9 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from foot_predictor.db.models import Match, TeamMatch, TeamMatchFeatures
-from foot_predictor.features.rolling_form import compute_rolling_form
-from foot_predictor.features.rolling_xg import compute_rolling_xg
-from foot_predictor.features.standing import compute_standings_before_date
+from foot_predictor.features.legacy.rolling_form import compute_rolling_form
+from foot_predictor.features.legacy.rolling_xg import compute_rolling_xg
+from foot_predictor.features.legacy.standing import compute_standings_before_date
 
 
 def build_all_team_match_features(session: Session) -> tuple[int, int]:

@@ -9,7 +9,7 @@ import datetime as dt
 
 import pytest
 
-from foot_predictor.features.rolling_xg import XG_WINDOW, compute_rolling_xg
+from foot_predictor.features.legacy.rolling_xg import XG_WINDOW, compute_rolling_xg
 
 pytestmark = pytest.mark.db
 

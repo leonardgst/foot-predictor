@@ -45,7 +45,7 @@ TRUNCATED = [
     *(f"staging.{table}" for table in TABLES),
 ]  # fmt: skip
 FINGERPRINT_EXCLUDED = {"created_at"}
-ALEMBIC_HEAD = "0005_tirs_football_data"
+ALEMBIC_HEAD = "0006_dataset_version"
 
 
 class LoadRefused(RuntimeError):

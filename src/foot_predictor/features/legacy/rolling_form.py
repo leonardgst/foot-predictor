@@ -1,4 +1,6 @@
-"""Calcul de la forme récente et des buts (staging.team_match/match ->
+"""> **Remplacé (partie 3, ADR-0030) — retrait prévu en partie 4.** Ancien module, par ligne, sur l'ancien schéma (`features.team_match_features`) ; les variables du MVP sont dans `features/elo.py`, `rolling.py`, `rest.py` et `dataset.py`.
+
+Calcul de la forme récente et des buts (staging.team_match/match ->
 features.team_match_features).
 
 Fenêtre glissante des 10 derniers matchs, filtrés sur le même contexte

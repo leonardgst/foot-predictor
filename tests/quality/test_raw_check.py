@@ -447,6 +447,33 @@ def test_manifest_with_a_truncated_last_line_is_read(tmp_path):
     assert bad == ["api_football.jsonl, ligne 3"]
 
 
+def test_targeted_profiles_fill_missing_birth_dates(tmp_path, config, real):
+    raw = tmp_path / "raw"
+    builder = RawBuilder(raw)
+    builder.leagues({39: FLAGS, 45: FLAGS})
+    builder.fixtures_list(39, listing_of(real))
+    builder.details(39, real)
+    starter = real[0]["lineups"][0]["startXI"][3]["player"]["id"]
+    builder.profiles(39, [p for p in profiles_of(real) if p["player"]["id"] != starter])
+    builder.fixtures_list(45, [])
+
+    before = run_check(raw, config)
+    # Profil ciblé du titulaire manquant, et d'un joueur hors périmètre (ignoré).
+    for pid in (starter, 5555555):
+        task = tasks.player_profile_task("P1", pid)
+        builder.write(task.rel_dir, task.stem, body([{"player": {"id": pid, "name": "X", "birth": {"date": "1991-01-01"}}}]),
+                      endpoint="/players/profiles", params=task.params)
+    builder.queue.close()
+    after = run_check(raw, config)
+
+    assert starter in before.starters_without_birth["P1"]
+    assert status_of(before, "Titulaires sans date") == WATCH
+    assert after.targeted_profiles == 1
+    assert starter not in after.starters_without_birth.get("P1", [])
+    assert 5555555 not in after.profiles
+    assert f"({starter})" not in raw_check.render_summary(after) and str(starter) in raw_check.render_details(before)
+
+
 # --- collisions d'identifiants (ADR-0008, règle 3) -------------------------------------------------
 
 # P1 (championnat 39) et P3 (championnat 88), contrôlables ensemble.

@@ -34,6 +34,7 @@ Toutes s'écrivent `uv run python -m foot_predictor.collect.api_football <comman
 | `backup --dest <dossier>` | copie `data/raw/` vers un dossier vide et vérifie chaque sha256 | 0 |
 | `rebuild-manifest` | reconstruit le journal depuis les fichiers, dans un **nouveau** fichier | 0 |
 | `refresh --season S [--palier P] [--dry-run] [--yes]` | remet en file les listes de matchs, équipes et blessures d'une saison en cours ; affiche le coût du prochain `run` et demande confirmation | 0 (le `run` suivant : quelques dizaines) |
+| `plan-profiles [--palier P] [--limit N] [--dry-run]` | met en file le profil (`/players/profiles`) des titulaires sans date de naissance dans le brut (ADR-0008) | 0 (le `run` suivant : 1 par joueur) |
 
 Option commune : `--raw-dir <dossier>` pour travailler sur un autre dossier que `data/raw` (test de restauration, par exemple).
 
@@ -51,6 +52,7 @@ data/raw/
     players/league=39/season=2023/page=01__<horodatage>.json.gz
     coachs/team=33__<horodatage>.json.gz
     transfers/team=33__<horodatage>.json.gz
+    player_profiles/player=276__<horodatage>.json.gz               (commande plan-profiles, puis run)
   _manifest/api_football.jsonl     une ligne par réponse stockée
   _queue/api_football.sqlite       file de travail
 ```
@@ -174,6 +176,38 @@ uv run python -m foot_predictor.collect.api_football run
 - une dernière fois après le dernier week-end avant le gel (17-18 octobre), c'est-à-dire le **19 octobre au matin**, avant `backup`.
 
 Une liste demandée le 17 octobre ne contiendrait pas les matchs de ce week-end. Au coût d'une soixantaine de requêtes, un rafraîchissement supplémentaire ne pose aucun problème de quota.
+
+## Profils ciblés : `plan-profiles` (ADR-0008)
+
+Les pages `/players?league&season` ne contiennent pas tous les joueurs : des titulaires n'y ont pas de profil, et donc pas de date de naissance. Tant que l'abonnement est actif, on demande leur profil un par un.
+
+**Point d'accès, vérifié le 2026-09-29** dans la documentation v3 (<https://www.api-football.com/documentation-v3>, section *Players > Profiles*). Ce site refuse les lecteurs automatiques (HTTP 403) : le texte a été lu dans la copie de la spécification OpenAPI officielle publiée par la bibliothèque `fabricatorsltd/api-sports` (`api-specs/football/openapi.yaml`).
+
+- `GET /players/profiles` : « Returns the list of all available players. » Paramètres : `player` (« The id of the player »), `search` (nom, 3 caractères au moins) et `page`.
+- « Pagination : 250 results per page. » Avec `player`, la réponse tient en une page : **1 requête par joueur**. Le point d'accès n'accepte pas plusieurs identifiants.
+- Réponse : `player.birth.date`, et aussi le nom, la nationalité, la taille et le poste. Mise à jour « several times a week ».
+- Alternative écartée : `/players?id=&season=` demande la saison du joueur, ce qui coûterait une requête par saison.
+
+**Règle de sélection** :
+
+- les titulaires (`startXI`) des blocs de championnat qui collectent les profils, dans l'ordre du YAML : P1 top 5, P1 D2, puis P3 ;
+- dans les saisons de chaque bloc ; le dossier d'un championnat du top 5 contient aussi les saisons de P2, sans profils ;
+- seulement ceux sans date de naissance dans **aucun** profil du brut, tous paliers et toutes saisons confondus ;
+- identifiants nuls ou égaux à `0` (joueur inconnu de l'API) écartés.
+
+Un joueur est rattaché au premier bloc où il est titulaire, et la tâche porte ce palier.
+
+```powershell
+uv run python -m foot_predictor.collect.api_football plan-profiles --dry-run   # décompte par bloc, file inchangée
+uv run python -m foot_predictor.collect.api_football plan-profiles             # ajoute les tâches (déjà présentes : ignorées)
+uv run python -m foot_predictor.collect.api_football run --dry-run
+uv run python -m foot_predictor.collect.api_football run --max-requests 5      # essai, puis lire une réponse
+uv run python -m foot_predictor.collect.api_football run --max-requests <budget>
+```
+
+- Une réponse vide (`results = 0`, identifiant inconnu de ce point d'accès) met la tâche en `suspect`.
+- Les tâches `player_profile` passent après tous les autres types du même palier.
+- `raw_check` lit ces profils et compte les « titulaires sans date de naissance, tous profils confondus ».
 
 ## Sauvegarde et test de restauration, le jour du gel (ADR-0006)
 

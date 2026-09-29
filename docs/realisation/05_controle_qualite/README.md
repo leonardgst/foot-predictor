@@ -43,6 +43,7 @@ Le périmètre attendu, c'est-à-dire les championnat-saisons de chaque palier, 
 | Cohérence | Buts comptés dans `events` = `goals` | À REGARDER |
 | Identifiants | `player.id` présent (compositions, statistiques, événements, profils) | À REGARDER |
 | Identifiants | Chaque titulaire a un profil `/players` du même championnat-saison (si toutes les pages sont là) | À REGARDER |
+| Identifiants | Titulaires sans date de naissance dans **aucun** profil lu (pages `/players` de tous les paliers contrôlés et profils ciblés `/players/profiles`) | À REGARDER |
 | Identifiants | Un identifiant n'a pas de noms incompatibles | À REGARDER |
 | Identifiants | Doublons probables : même nom, même date de naissance, identifiants différents ; « inter-paliers » si seul le contrôle commun les trouve | À REGARDER |
 | Identifiants | **Collisions** (ADR-0008, règle 3) : même identifiant chez deux équipes le même jour ; deux fois dans un match ; deux dates de naissance | À REGARDER |

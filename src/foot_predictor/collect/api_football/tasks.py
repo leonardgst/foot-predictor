@@ -11,6 +11,7 @@ Arborescence (rapport G.7, versions horodatées ajoutées par `rawstore`) :
     api_football/fixtures_detail/league=39/season=2023/<hash12>__<ts>.json.gz
     api_football/players/league=39/season=2023/page=01__<ts>.json.gz
     api_football/coachs/team=33__<ts>.json.gz
+    api_football/player_profiles/player=276__<ts>.json.gz
 """
 from __future__ import annotations
 
@@ -32,6 +33,7 @@ ENDPOINTS = {
     "transfers": "/transfers",
     "standings": "/standings",
     "sidelined": "/sidelined",
+    "player_profile": "/players/profiles",
 }
 
 # Ordre de traitement dans un palier : les listes d'abord (les autres tâches
@@ -49,6 +51,9 @@ PRIORITY = {
     "standings": 7,
     "players": 8,
     "sidelined": 9,
+    # Profils ciblés (ADR-0008) : titulaires sans date de naissance dans le
+    # brut. Planifiés à part (`plan-profiles`), après tout le reste.
+    "player_profile": 10,
 }
 
 # results = 0 est anormal pour ces types. Un club peut n'avoir aucun
@@ -64,6 +69,7 @@ EXPECTS_RESULTS = {
     "standings": True,
     "players": True,
     "sidelined": False,
+    "player_profile": True,  # 0 résultat : identifiant inconnu de /players/profiles, à examiner
 }
 
 DETAIL_BATCH_MAX = 20  # limite de l'API pour /fixtures?ids=
@@ -151,6 +157,13 @@ def team_task(tier: str, task_type: str, team: int) -> Task:
 
 def sidelined_task(tier: str, player: int) -> Task:
     return Task(tier, "sidelined", {"player": player}, _dir("sidelined"), f"player={player}")
+
+
+def player_profile_task(tier: str, player: int) -> Task:
+    """`/players/profiles?player=` : le profil d'un joueur (date de naissance
+    comprise), toutes saisons confondues. Une requête par joueur : ce point
+    d'accès n'accepte pas plusieurs identifiants."""
+    return Task(tier, "player_profile", {"player": player}, _dir("player_profiles"), f"player={player}")
 
 
 def parse_ids(ids: str) -> list[int]:

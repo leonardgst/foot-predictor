@@ -15,6 +15,46 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-033 — Appariement par calendrier en échec sur des saisons entières (Championship, Ligue 2) (2026-09-29)
+
+- **Contexte** : brouillon du YAML des équipes football-data (partie 2, sous-étape 2.5).
+- **Message d'erreur** : aucun ; 542 équipes-saisons non appariées, dont toutes les équipes de 11 saisons de Championship et de 14 saisons de Ligue 2.
+- **Cause** : dans un championnat où presque toutes les équipes jouent le même samedi, le premier passage de votes est trop partagé (une mauvaise équipe recueille environ la moitié des voix de la bonne), et aucune équipe ne s'ancre. Pour la saison en cours, la liste API contenait aussi les matchs à venir, absents du CSV.
+- **Solution** : amorce par l'empreinte de calendrier (ensemble des dates et côtés domicile ou extérieur, comparé par Jaccard), puis votes et propagation ; matchs API limités à la période couverte par le fichier. Résultat : 3 129 équipes-saisons sur 3 129.
+- **Fichiers concernés** : `src/foot_predictor/mapping_builder/schedule_match.py`.
+- **Prévention** : tester un algorithme d'appariement sur un cas défavorable (toutes les équipes le même jour) avant le vrai brut.
+- **Test de non-régression** : `tests/mapping_builder/test_schedule_match.py::test_all_teams_matched_when_every_match_is_on_the_same_day` et `test_future_api_fixtures_are_ignored`.
+
+## E-032 — `COPY` refusé : « 9.0 » dans une colonne entière ; tables de correspondance sans colonnes (2026-09-29)
+
+- **Contexte** : premier chargement réel de `staging` (partie 2, sous-étapes 2.6 et 2.7).
+- **Message d'erreur** : `psycopg.errors.InvalidTextRepresentation: invalid input syntax for type smallint: "6.0"` (`COPY team_match_stats`), puis `KeyError: 'match_source_mapping'`.
+- **Cause** : les statistiques d'équipe passaient toutes par une conversion en nombre décimal ; les colonnes des tables `*_source_mapping` n'étaient pas déclarées dans `COLUMNS`.
+- **Solution** : entiers et décimaux distingués (`TEAM_STATS_DECIMAL`) ; colonnes des trois tables déclarées. Le premier chargement réel (7 minutes de préparation) avait échoué à l'écriture, sans rien écrire : tout se fait dans une transaction.
+- **Fichiers concernés** : `src/foot_predictor/ingestion/load_api.py`.
+- **Prévention** : un test `db` qui écrit vraiment en base les lignes du brut synthétique, statistiques d'équipe comprises, avant le premier chargement réel.
+- **Test de non-régression** : `tests/ingestion/test_load_api.py::test_write_is_deterministic_and_guarded`, `tests/ingestion/test_pipeline.py::test_load_then_check`.
+
+## E-031 — Copie des `.env` et écriture sur `D:` refusées par les permissions de la session (2026-09-29)
+
+- **Contexte** : étape 0 de la partie 2 ; accès aux bases depuis le worktree (décision d.3) et sauvegarde sur le disque externe.
+- **Message d'erreur** : « Permission to use Bash with command cp /c/foot-predictor/.env.dev … has been denied », de même pour `mkdir -p /d/fp-partie2/dumps`.
+- **Cause** : les règles `deny` de `.claude/settings.local.json` l'emportent sur les règles `allow`. `Read(//c/foot-predictor/.env*)` couvre aussi la lecture qu'implique un `cp`, et `Write(//d/**)` couvre aussi le nouveau dossier autorisé sur `D:`.
+- **Solution** : sans lire aucun `.env` existant, un rôle Postgres dédié (`fp_travail`) avec mot de passe aléatoire écrit par script dans les `.env` du worktree, sans clé API, propriétaire de deux bases neuves (ADR-0025). La sauvegarde de la base dev reste sur `C:/fp_dumps/` ; la copie sur `D:` n'est pas faite.
+- **Fichiers concernés** : `.claude/settings.local.json` (non versionné).
+- **Prévention** : une règle `deny` ne peut pas avoir d'exception. Pour autoriser un dossier précis sous un chemin interdit, ne pas interdire le parent : interdire les dossiers existants un par un, ou faire l'opération soi-même.
+- **Test de non-régression** : sans objet.
+
+## E-030 — Migrations 0002 et 0003 reformatées par ruff (2026-09-29)
+
+- **Contexte** : PR #23 (ruff), puis migration 0004 (partie 2, sous-étape 2.4).
+- **Message d'erreur** : aucun ; `git diff b1aee22 -- migrations/versions/` montrait 0002 et 0003 modifiées (622 lignes pour 0003), alors qu'une migration appliquée ne doit pas changer. Au premier essai de correction, le hook pre-commit a reformaté les deux fichiers une seconde fois.
+- **Cause** : `migrations/versions/` n'était pas exclu de ruff. Ensuite, la nouvelle exclusion était dans `pyproject.toml` mais pas encore indexée : pre-commit met de côté les modifications non indexées et lance ruff avec l'ancienne configuration.
+- **Solution** : 0002 et 0003 rétablies octet pour octet depuis `b1aee22`, exclues de ruff ; commit de la configuration **avec** les fichiers qu'elle protège.
+- **Fichiers concernés** : `pyproject.toml`, `migrations/versions/0002_create_tables.py`, `0003_market_value_score.py`.
+- **Prévention** : exclure les migrations appliquées avant tout formatage de masse ; relire `git diff --stat` d'un commit de formatage.
+- **Test de non-régression** : `tests/db/test_migration_0004.py::test_models_match_migrations` et `ruff format --check` en CI (les fichiers exclus ne peuvent plus être reformatés).
+
 ## E-029 — Tabulations dans une commande documentée, à la place de `\t` (2026-09-29)
 
 - **Contexte** : relecture du README de l'étape 03 (partie 2), commande d'essai à blanc du script T-60.

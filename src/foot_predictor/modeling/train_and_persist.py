@@ -7,6 +7,7 @@ chaque appel.
 
 Lancement : APP_ENV=<env> uv run python -m foot_predictor.modeling.train_and_persist
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -32,7 +33,7 @@ def main() -> None:
         persisted = PersistedPoissonModel(
             model=model,
             z_feature_columns=list(DEFAULT_FEATURE_COLUMNS),
-            trained_at=dt.datetime.now(dt.timezone.utc),
+            trained_at=dt.datetime.now(dt.UTC),
             n_rows_train=len(dataset.X),
         )
         path = save_model(persisted, DEFAULT_MODEL_PATH)

@@ -24,6 +24,7 @@ rigoureuse (Dirichlet calibration serait plus correcte, hors scope ici).
 
 Lancement : APP_ENV=dev uv run python -m foot_predictor.modeling.run_calibration_analysis
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -54,7 +55,7 @@ from foot_predictor.modeling.evaluation import (
 from foot_predictor.modeling.poisson_model import fit_poisson_model
 from foot_predictor.modeling.split import chronological_split
 
-CUTOFF_DATE = dt.datetime(2024, 8, 1, tzinfo=dt.timezone.utc)
+CUTOFF_DATE = dt.datetime(2024, 8, 1, tzinfo=dt.UTC)
 
 RESULTS_JSON_PATH = Path("docs/model_results.json")
 
@@ -148,7 +149,7 @@ def main() -> None:
         print(calib_table_before)
 
         results: dict = {
-            "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "generated_at": dt.datetime.now(dt.UTC).isoformat(),
             "cutoff_date": CUTOFF_DATE.isoformat(),
             "val_cutoff": val_cutoff.isoformat(),
             "n_calibration_fit_rows": int(fit_mask.sum()),
@@ -186,7 +187,9 @@ def main() -> None:
         existing["calibration_experiment"] = results
         RESULTS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
         RESULTS_JSON_PATH.write_text(json.dumps(existing, indent=2, default=str), encoding="utf-8")
-        print(f"\nRésultats de l'expérience de calibration écrits dans {RESULTS_JSON_PATH} (clé 'calibration_experiment')")
+        print(
+            f"\nRésultats de l'expérience de calibration écrits dans {RESULTS_JSON_PATH} (clé 'calibration_experiment')"
+        )
 
 
 if __name__ == "__main__":

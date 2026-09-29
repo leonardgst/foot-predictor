@@ -8,6 +8,7 @@ stricte du projet -> on n'utilise jamais un match dont match_date >= as_of_date)
 LIMIT 50 global sur la requête -> on utilise une window function SQL
 (ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY match_date DESC)).
 """
+
 from __future__ import annotations
 
 import datetime as dt

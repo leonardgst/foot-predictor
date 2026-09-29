@@ -2,6 +2,7 @@
 (`market_value/clustering/assign_cluster.py`) : chemin `predict` natif (GMM)
 et chemin `hdbscan.approximate_predict` (HDBSCAN, qui n'a pas de `.predict`),
 y compris le label de bruit -1."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -32,9 +33,7 @@ def test_assign_cluster_uses_native_predict_when_available_gmm():
     gmm = GaussianMixture(n_components=2, random_state=42).fit(scaler.transform(train[FEATURE_COLUMNS]))
 
     saved = {"scaler": scaler, "cluster_model": gmm, "feature_columns": FEATURE_COLUMNS}
-    new_vectors = pd.DataFrame(
-        {"f1": [0.0, 10.0], "f2": [0.0, 10.0]}, index=pd.Index([101, 102], name="player_id")
-    )
+    new_vectors = pd.DataFrame({"f1": [0.0, 10.0], "f2": [0.0, 10.0]}, index=pd.Index([101, 102], name="player_id"))
 
     labels = assign_cluster_from_saved_model(new_vectors, saved)
 

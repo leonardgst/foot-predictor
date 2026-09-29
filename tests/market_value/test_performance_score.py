@@ -2,6 +2,7 @@
 (`market_value/performance/performance_score.py`) : calcul numérique sur un
 exemple calculable à la main, et les deux cas `None` explicites du code
 (aucune statistique disponible / somme des poids nulle)."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -13,9 +14,7 @@ from foot_predictor.market_value.performance.performance_score import compute_pe
 
 
 def test_weighted_sum_matches_hand_computed_example(monkeypatch):
-    monkeypatch.setitem(
-        weights_module.CLUSTER_WEIGHTS, "cluster_x", {"a_pctl": 0.7, "b_pctl": 0.3}
-    )
+    monkeypatch.setitem(weights_module.CLUSTER_WEIGHTS, "cluster_x", {"a_pctl": 0.7, "b_pctl": 0.3})
     percentiles = pd.DataFrame({"a_pctl": [80.0], "b_pctl": [60.0]}, index=pd.Index([1], name="player_id"))
     cluster_labels = pd.Series({1: "cluster_x"})
 
@@ -42,9 +41,7 @@ def test_unknown_cluster_uses_uniform_weights_and_renormalizes_over_available_st
 
 
 def test_returns_none_when_no_stats_available_for_player():
-    percentiles = pd.DataFrame(
-        {"a_pctl": [np.nan], "b_pctl": [np.nan]}, index=pd.Index([1], name="player_id")
-    )
+    percentiles = pd.DataFrame({"a_pctl": [np.nan], "b_pctl": [np.nan]}, index=pd.Index([1], name="player_id"))
     cluster_labels = pd.Series({1: "cluster_x"})
 
     scores = compute_performance_score(percentiles, cluster_labels)
@@ -57,9 +54,7 @@ def test_returns_none_when_total_weight_is_zero(monkeypatch):
     disponibles somment à 0 (ex. cluster défini mais toutes ses stats
     disponibles à poids nul), le score est None plutôt qu'une division par
     zéro silencieuse."""
-    monkeypatch.setitem(
-        weights_module.CLUSTER_WEIGHTS, "cluster_poids_nuls", {"a_pctl": 0.0, "b_pctl": 0.0}
-    )
+    monkeypatch.setitem(weights_module.CLUSTER_WEIGHTS, "cluster_poids_nuls", {"a_pctl": 0.0, "b_pctl": 0.0})
     percentiles = pd.DataFrame({"a_pctl": [80.0], "b_pctl": [60.0]}, index=pd.Index([1], name="player_id"))
     cluster_labels = pd.Series({1: "cluster_poids_nuls"})
 

@@ -3,6 +3,7 @@ Normalisation StandardScaler indépendante par groupe de poste. Ne jamais fit
 un scaler sur des joueurs de groupes de poste différents mélangés (cf. recap
 clustering, section 6 étape 2).
 """
+
 from __future__ import annotations
 
 import pandas as pd

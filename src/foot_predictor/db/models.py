@@ -4,6 +4,7 @@ Reflète le schéma conçu dans recap_etape2_schema_tables.md (raw / staging / f
 
 À placer dans : src/foot_predictor/db/models.py
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -16,7 +17,6 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     SmallInteger,
-    String,
     Text,
     UniqueConstraint,
     func,
@@ -257,6 +257,7 @@ class PlayerInjury(Base):
     injury_type: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+
 # ---------------------------------------------------------------------------
 # raw
 # ---------------------------------------------------------------------------
@@ -283,7 +284,6 @@ class FootballDataMatch(Base):
     ingested_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-
 class UnderstatMatchStats(Base):
     __tablename__ = "understat_match_stats"
     __table_args__ = {"schema": "raw"}
@@ -292,6 +292,7 @@ class UnderstatMatchStats(Base):
     ingestion_id: Mapped[int] = mapped_column(ForeignKey("raw.source_ingestion_log.id"), nullable=False)
     raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
     ingested_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
 
 class ApiFootballFixtureDetail(Base):
     __tablename__ = "api_football_fixture_detail"
@@ -315,6 +316,7 @@ class UnderstatPlayerMatch(Base):
 
 class ApiFootballInjuries(Base):
     """Capturée mais pas encore consommée en staging (cf. recap_etape3, section 7)."""
+
     __tablename__ = "api_football_injuries"
     __table_args__ = {"schema": "raw"}
 
@@ -377,7 +379,7 @@ class PlayerStyleProfile(Base):
     as_of_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
     position_bucket: Mapped[str] = mapped_column(position_bucket_enum, nullable=False)
     cluster_id: Mapped[int | None] = mapped_column(SmallInteger)  # NULL possible : bruit HDBSCAN
-    cluster_label: Mapped[str | None] = mapped_column(Text)       # assigné manuellement après coup
+    cluster_label: Mapped[str | None] = mapped_column(Text)  # assigné manuellement après coup
     matches_in_window: Mapped[int] = mapped_column(SmallInteger, nullable=False)  # <= 50
     computed_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

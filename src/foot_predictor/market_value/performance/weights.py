@@ -7,6 +7,7 @@ Vide pour l'instant : le fallback (pondération uniforme) permet de calculer
 un score dès maintenant sans bloquer le pipeline, mais ce score n'a de sens
 métier qu'une fois les vrais poids renseignés ici.
 """
+
 from __future__ import annotations
 
 CLUSTER_WEIGHTS: dict[str, dict[str, float]] = {

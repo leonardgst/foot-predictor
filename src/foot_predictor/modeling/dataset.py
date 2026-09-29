@@ -14,6 +14,7 @@ match du même adversaire (par ex. sa ligne la plus récente, plutôt que sa lig
 pour CE match précis) -- d'où la jointure explicite sur `match_id` des deux
 côtés dans `_index_by_match`, et le test dédié dans tests/modeling/test_dataset.py.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -133,9 +134,7 @@ def build_dataset(
     )
     frame = pd.DataFrame.from_records(records, columns=columns)
 
-    feature_cols = [f"{OWN_PREFIX}{c}" for c in feature_columns] + [
-        f"{OPP_PREFIX}{c}" for c in feature_columns
-    ]
+    feature_cols = [f"{OWN_PREFIX}{c}" for c in feature_columns] + [f"{OPP_PREFIX}{c}" for c in feature_columns]
 
     # Modalités de championnat et référence déterminées AVANT le dropna, pour
     # que les colonnes one-hot restent stables même si toutes les lignes d'une

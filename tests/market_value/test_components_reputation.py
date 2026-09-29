@@ -2,6 +2,7 @@
 (`market_value/components/reputation.py`) : mapping position -> score,
 validation des entrées, monotonie (cf. test_components_potential.py pour
 la même logique de tests de monotonie plutôt que de valeurs figées)."""
+
 from __future__ import annotations
 
 import pytest

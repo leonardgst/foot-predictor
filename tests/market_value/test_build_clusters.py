@@ -1,6 +1,7 @@
 """Tests du clustering par groupe de poste (`market_value/clustering/build_clusters.py`) :
 garde-fou d'échantillon minimum, forme du résultat sur un petit échantillon
 synthétique bien séparé en deux groupes."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -39,9 +40,7 @@ def test_fit_clusters_accepts_exactly_the_minimum_sample_size():
     doit pas lever d'erreur."""
     rng = np.random.default_rng(1)
     values = rng.normal(size=(MIN_SAMPLES_FOR_CLUSTERING, 2))
-    X = pd.DataFrame(
-        values, index=pd.Index(range(MIN_SAMPLES_FOR_CLUSTERING), name="player_id"), columns=["f1", "f2"]
-    )
+    X = pd.DataFrame(values, index=pd.Index(range(MIN_SAMPLES_FOR_CLUSTERING), name="player_id"), columns=["f1", "f2"])
 
     labels, meta, model = fit_clusters(X)
 

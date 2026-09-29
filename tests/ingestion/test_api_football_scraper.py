@@ -3,15 +3,15 @@ en-têtes d'authentification, appels HTTP mockés (jamais de vraie requête vers
 api-sports.io), filtrage des fixtures non terminées, et logique de skip
 `_fixture_already_ingested` -- le coeur du mécanisme de reprise sur
 plusieurs jours (`db`, cf. docstring du module)."""
+
 from __future__ import annotations
 
-import requests
 import pytest
+import requests
 from sqlalchemy import select
 
 from foot_predictor.db.models import ApiFootballFixtureDetail, SourceIngestionLog
 from foot_predictor.ingestion import api_football_scraper as scraper
-
 
 # ---------------------------------------------------------------------------
 # _headers
@@ -131,9 +131,7 @@ def test_ingest_skips_fixtures_already_in_raw_without_calling_fetch_detail(db_se
     existing_log = SourceIngestionLog(source_name="api-football", status="success")
     db_session.add(existing_log)
     db_session.flush()
-    db_session.add(
-        ApiFootballFixtureDetail(ingestion_id=existing_log.id, raw_payload=_fixture_stub(7))
-    )
+    db_session.add(ApiFootballFixtureDetail(ingestion_id=existing_log.id, raw_payload=_fixture_stub(7)))
     db_session.flush()
 
     mocker.patch.object(scraper, "fetch_fixtures", return_value=[_fixture_stub(7, "FT")])

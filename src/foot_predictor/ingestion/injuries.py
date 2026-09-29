@@ -6,6 +6,7 @@ où un joueur était absent pour blessure/suspension, mais il n'existe aucun
 événement "retour de blessure" -- impossible de dériver une end_date fiable
 à partir de cette seule source, donc end_date reste toujours NULL ici.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -32,9 +33,7 @@ def _upsert_player_injury(session: Session, *, player_id: int, start_date: dt.da
     )
     if existing is not None:
         return "unchanged"
-    session.add(
-        PlayerInjury(player_id=player_id, start_date=start_date, end_date=None, injury_type=injury_type)
-    )
+    session.add(PlayerInjury(player_id=player_id, start_date=start_date, end_date=None, injury_type=injury_type))
     session.flush()
     return "created"
 

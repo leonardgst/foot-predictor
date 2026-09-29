@@ -2,6 +2,7 @@
 fallback uniforme explicite pour un cluster inconnu/pas encore nommé (cf.
 docstring du module : `CLUSTER_WEIGHTS` est vide tant que les clusters réels
 n'ont pas été observés), et lookup direct pour un cluster connu."""
+
 from __future__ import annotations
 
 import pytest

@@ -18,6 +18,7 @@ away_team) plutôt qu'un simple append, pour éviter une croissance illimitée
 de la table à chaque exécution (le fichier redonne l'intégralité de la saison
 à chaque téléchargement, y compris les matchs déjà connus).
 """
+
 from __future__ import annotations
 
 import csv

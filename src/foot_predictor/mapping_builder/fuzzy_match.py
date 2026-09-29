@@ -11,6 +11,7 @@ Deux niveaux de confiance :
   pour relecture manuelle (score insuffisant pour être auto-acceptée).
 - En dessous : aucune correspondance proposée, marqué à compléter à la main.
 """
+
 from __future__ import annotations
 
 import difflib
@@ -58,8 +59,23 @@ KNOWN_ALIASES: dict[str, str] = {
 # Suffixes/préfixes fréquents dans les noms de clubs, à ignorer pour le score
 # de similarité (mais PAS retirés du nom final écrit dans le YAML).
 _NOISE_TOKENS = {
-    "fc", "cf", "ac", "as", "ss", "us", "sv", "sc", "cd", "ud", "rc", "afc",
-    "calcio", "club", "de", "do", "the",
+    "fc",
+    "cf",
+    "ac",
+    "as",
+    "ss",
+    "us",
+    "sv",
+    "sc",
+    "cd",
+    "ud",
+    "rc",
+    "afc",
+    "calcio",
+    "club",
+    "de",
+    "do",
+    "the",
 }
 
 
@@ -90,9 +106,7 @@ def best_match(name: str, canonical_names: list[str]) -> tuple[str | None, float
     return scored[0]
 
 
-def build_draft_mapping(
-    foreign_names: set[str], canonical_names: set[str]
-) -> tuple[dict[str, str], list[dict]]:
+def build_draft_mapping(foreign_names: set[str], canonical_names: set[str]) -> tuple[dict[str, str], list[dict]]:
     """Construit un mapping brouillon {nom_source: nom_canonique_proposé}.
 
     Renvoie (mapping, rapport) où rapport liste, pour les correspondances
@@ -129,9 +143,7 @@ def build_draft_mapping(
             mapping[name] = candidate
         elif candidate is not None and score >= REVIEW_THRESHOLD:
             mapping[name] = f"{REVIEW_MARKER}{candidate}"
-            review_report.append(
-                {"source_name": name, "best_candidate": candidate, "score": round(score, 2)}
-            )
+            review_report.append({"source_name": name, "best_candidate": candidate, "score": round(score, 2)})
         else:
             mapping[name] = f"{REVIEW_MARKER}UNKNOWN"
             # Top 3 candidats même faibles, pour aider la relecture manuelle

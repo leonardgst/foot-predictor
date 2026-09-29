@@ -4,6 +4,7 @@ autre par construction, le GLM Poisson doit retrouver des coefficients du bon
 signe et significatifs. Sert de garde-fou : si quelqu'un inverse une colonne
 own/opp par erreur dans dataset.py, ce test le détecterait indirectement en
 cassant les signes attendus sur de vraies données."""
+
 from __future__ import annotations
 
 import numpy as np

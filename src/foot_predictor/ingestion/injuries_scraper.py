@@ -14,6 +14,7 @@ injuries.py pour la conséquence sur le mapping staging (end_date toujours NULL)
 
 Header x-apisports-key. Clé API via la variable d'environnement API_FOOTBALL_KEY.
 """
+
 from __future__ import annotations
 
 import os

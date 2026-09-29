@@ -50,6 +50,8 @@ docker compose up -d                      # bases Postgres dev (5440) et test (5
 APP_ENV=dev uv run alembic upgrade head   # migrations
 uv run pytest -m "not db" -q              # tests sans base (CI)
 uv run pytest -q                          # tous les tests (base de test démarrée)
+uv run ruff check . && uv run ruff format .   # contrôle et formatage (chemins gelés exclus)
+pre-commit run --all-files                # hooks : secrets, ruff, caractères de contrôle
 ```
 
 ## Conventions

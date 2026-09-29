@@ -18,6 +18,7 @@ Idempotent : peut être relancé plusieurs fois sans créer de doublons
 (les entités sont retrouvées via les tables *_source_mapping, la clé
 naturelle du match étant (div, date, home_team, away_team)).
 """
+
 from __future__ import annotations
 
 import datetime as dt

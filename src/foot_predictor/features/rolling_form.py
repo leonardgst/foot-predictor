@@ -5,6 +5,7 @@ Fenêtre glissante des 10 derniers matchs, filtrés sur le même contexte
 domicile/extérieur que le match à prédire, toutes compétitions confondues --
 cf. recap_etape2_schema_tables.md section 4 (règles de calcul actées).
 """
+
 from __future__ import annotations
 
 import datetime as dt

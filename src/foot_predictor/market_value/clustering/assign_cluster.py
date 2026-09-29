@@ -12,6 +12,7 @@ Persistance minimale par fichier joblib versionné par date d'entraînement.
 À remplacer par un stockage en base si besoin d'historiser plus proprement
 plus tard (ex. table `market_value_clustering_model`).
 """
+
 from __future__ import annotations
 
 import datetime as dt

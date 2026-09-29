@@ -1,7 +1,7 @@
 [project]
 name = "foot-predictor"
 version = "0.1.0"
-description = "Add your description here"
+description = "Prédire la distribution du nombre de buts d'un match de football (top 5 européen), avec une application locale qui explique chaque prédiction."
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.18.5",
@@ -32,6 +32,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-mock>=3.15.1",
+    "ruff>=0.16.9",
 ]
 
 [tool.pytest.ini_options]
@@ -40,3 +41,30 @@ pythonpath = ["src"]
 markers = [
     "db: test nécessitant une vraie base Postgres (APP_ENV=test, docker-compose port 5433). Exclure avec -m \"not db\" si aucune base n'est disponible.",
 ]
+
+# ruff : contrôle et formatage (rapport de cadrage B.7 et J.2).
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+# Chemins gelés jusqu'à la session de gel du 19 octobre (partie 2, règles du gel) :
+# le code du collecteur, du brut et des tâches planifiées ne change pas avant.
+# force-exclude : l'exclusion vaut aussi quand pre-commit passe les fichiers un à un.
+force-exclude = true
+extend-exclude = [
+    "src/foot_predictor/collect",
+    "src/foot_predictor/rawstore",
+    "src/foot_predictor/quality/raw_check.py",
+    "scripts/taches_planifiees",
+    "tests/collect",
+    "tests/rawstore",
+    "tests/quality",
+    "tests/test_taches_planifiees.py",
+]
+
+[tool.ruff.lint]
+# E, W : style (pycodestyle) ; F : erreurs (pyflakes) ; I : ordre des imports ;
+# UP : syntaxe Python 3.11 ; B : pièges courants (bugbear).
+select = ["E", "W", "F", "I", "UP", "B"]
+# E501 : longueurs gérées par le formateur ; les longues chaînes restent lisibles.
+# B905 : `zip(strict=...)` explicite partout, du bruit sans gain ici.
+ignore = ["E501", "B905"]

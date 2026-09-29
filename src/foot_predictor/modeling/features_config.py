@@ -8,6 +8,7 @@ docs/RECAP_PROJET.md section 11. Passer explicitement une liste enrichie à
 `build_dataset()` (dataset.py) une fois ces colonnes disponibles, sans modifier
 le pipeline d'entraînement lui-même.
 """
+
 from __future__ import annotations
 
 # z1 .. z8 : réellement calculables aujourd'hui (voir RECAP_PROJET.md section 6.3/8).

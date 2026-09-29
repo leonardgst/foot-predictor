@@ -2,15 +2,15 @@
 parsing du CSV brut (fonctions pures), appel HTTP mocké (jamais de vraie
 requête vers football-data.co.uk), et idempotence de l'upsert en base
 (`db`)."""
+
 from __future__ import annotations
 
-import requests
 import pytest
+import requests
 from sqlalchemy import select
 
 from foot_predictor.db.models import FootballDataMatch, SourceIngestionLog
 from foot_predictor.ingestion import football_data_scraper as scraper
-
 
 # ---------------------------------------------------------------------------
 # Fonctions pures : season_code, parse_csv_content
@@ -116,11 +116,7 @@ def test_fetch_division_raises_on_http_error(mocker):
 # ingest_football_data_source : upsert idempotent + gestion d'erreur (db)
 # ---------------------------------------------------------------------------
 
-_TWO_MATCH_CSV = (
-    _CSV_HEADER
-    + "E0,16/08/2024,Man United,Fulham,1,0,H\n"
-    + "E0,17/08/2024,Arsenal,Wolves,2,1,H\n"
-)
+_TWO_MATCH_CSV = _CSV_HEADER + "E0,16/08/2024,Man United,Fulham,1,0,H\n" + "E0,17/08/2024,Arsenal,Wolves,2,1,H\n"
 
 
 @pytest.mark.db
@@ -157,9 +153,7 @@ def test_ingest_football_data_source_updates_row_when_score_changes(db_session, 
 @pytest.mark.db
 def test_ingest_football_data_source_marks_division_failed_on_http_error(db_session, mocker):
     mocker.patch.object(scraper, "DIVISIONS", ["E0"])
-    mocker.patch.object(
-        scraper, "fetch_division", side_effect=requests.RequestException("timeout")
-    )
+    mocker.patch.object(scraper, "fetch_division", side_effect=requests.RequestException("timeout"))
 
     summary = scraper.ingest_football_data_source(db_session, "2024-2025")
 

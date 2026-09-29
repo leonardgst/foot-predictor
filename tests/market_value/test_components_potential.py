@@ -3,6 +3,7 @@
 limites, propriétés de monotonie (la courbe exacte est un choix "à dire
 d'expert" amené à être retouché -- les tests de monotonie survivent à un
 retuning des constantes, contrairement à des valeurs figées)."""
+
 from __future__ import annotations
 
 import datetime as dt

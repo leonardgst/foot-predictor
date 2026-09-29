@@ -14,6 +14,7 @@ Prérequis : le match ET les lignes staging.team_match (home/away) doivent déj�
 exister (créés par football-data). Understat ne fait que compléter le xG sur
 des team_match existants, il n'en crée jamais.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -49,24 +50,33 @@ def ingest_understat_match_stats(session: Session) -> tuple[int, int]:
 
         match_source_ref = f"{payload['match_date']}|{home_team_name}|{away_team_name}"
         match = resolve_match_cross_source(
-            session, SOURCE_NAME, match_source_ref,
-            home_team_id=home_team.id, away_team_id=away_team.id, match_date=match_date,
+            session,
+            SOURCE_NAME,
+            match_source_ref,
+            home_team_id=home_team.id,
+            away_team_id=away_team.id,
+            match_date=match_date,
         )
         if match is None:
             # Diagnostic : un match existe-t-il pour CES équipes, à une autre date ?
             from foot_predictor.db.models import Match
+
             nearby = session.scalars(
                 select(Match).where(
                     Match.home_team_id == home_team.id,
                     Match.away_team_id == away_team.id,
                 )
             ).all()
-            skipped_details.append({
-                "date_understat": payload["match_date"],
-                "home": home_team_name, "away": away_team_name,
-                "home_team_id": home_team.id, "away_team_id": away_team.id,
-                "dates_staging_pour_ces_equipes": [str(m.match_date) for m in nearby],
-            })
+            skipped_details.append(
+                {
+                    "date_understat": payload["match_date"],
+                    "home": home_team_name,
+                    "away": away_team_name,
+                    "home_team_id": home_team.id,
+                    "away_team_id": away_team.id,
+                    "dates_staging_pour_ces_equipes": [str(m.match_date) for m in nearby],
+                }
+            )
             skipped += 1
             continue
 
@@ -74,12 +84,18 @@ def ingest_understat_match_stats(session: Session) -> tuple[int, int]:
         # (importée mais oubliée) -> le xG résolu n'était jamais écrit en staging,
         # malgré un compteur "processed" qui laissait croire le contraire.
         upsert_team_match_xg(
-            session, match_id=match.id, team_id=home_team.id,
-            xg_for=payload["home_xg"], xg_against=payload["away_xg"],
+            session,
+            match_id=match.id,
+            team_id=home_team.id,
+            xg_for=payload["home_xg"],
+            xg_against=payload["away_xg"],
         )
         upsert_team_match_xg(
-            session, match_id=match.id, team_id=away_team.id,
-            xg_for=payload["away_xg"], xg_against=payload["home_xg"],
+            session,
+            match_id=match.id,
+            team_id=away_team.id,
+            xg_for=payload["away_xg"],
+            xg_against=payload["home_xg"],
         )
 
         processed += 1

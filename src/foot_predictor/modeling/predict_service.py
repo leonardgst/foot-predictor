@@ -15,6 +15,7 @@ l'entraînement est correctement traitée comme "toutes les dummies à 0" sans
 qu'on ait besoin de connaître explicitement quelle modalité était la
 référence.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -123,12 +124,18 @@ def predict_match(
         )
 
     home_row = _build_observation_row(
-        own=own_home, opp=own_away, is_home=True,
-        competition_name=competition.name, feature_columns=feature_columns,
+        own=own_home,
+        opp=own_away,
+        is_home=True,
+        competition_name=competition.name,
+        feature_columns=feature_columns,
     )
     away_row = _build_observation_row(
-        own=own_away, opp=own_home, is_home=False,
-        competition_name=competition.name, feature_columns=feature_columns,
+        own=own_away,
+        opp=own_home,
+        is_home=False,
+        competition_name=competition.name,
+        feature_columns=feature_columns,
     )
 
     X = pd.DataFrame([home_row, away_row])
@@ -167,8 +174,7 @@ def predict_scheduled_match(
         raise ValueError(f"Match introuvable : match_id={match_id}")
     if match.status != "scheduled":
         raise ValueError(
-            f"predict_scheduled_match attend un match 'scheduled', "
-            f"match_id={match_id} a le statut '{match.status}'"
+            f"predict_scheduled_match attend un match 'scheduled', match_id={match_id} a le statut '{match.status}'"
         )
 
     return predict_match(

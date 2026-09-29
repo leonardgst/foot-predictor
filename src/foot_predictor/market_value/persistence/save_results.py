@@ -10,6 +10,7 @@ performance_score). Le schéma est décrit comme "déjà en place et testé" mai
 je n'ai pas les noms de classes exacts -> à adapter si les noms réels
 diffèrent (renommer l'import ci-dessous suffit si les colonnes correspondent).
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -75,11 +76,7 @@ def save_performance_scores(session: Session, as_of_date: dt.date, scores: pd.Se
         if existing is not None:
             existing.performance_score = score
         else:
-            session.add(
-                PlayerMarketValueScore(
-                    player_id=player_id, as_of_date=as_of_date, performance_score=score
-                )
-            )
+            session.add(PlayerMarketValueScore(player_id=player_id, as_of_date=as_of_date, performance_score=score))
         processed += 1
 
     session.flush()

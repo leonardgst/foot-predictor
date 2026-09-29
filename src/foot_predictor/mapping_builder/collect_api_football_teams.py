@@ -4,6 +4,7 @@ via l'endpoint léger /teams (1 requête par championnat/saison -- PAS
 /fixtures?id=, donc pas besoin d'attendre le plan payant : 5 championnats x
 10 saisons = 50 requêtes, largement dans le quota gratuit de 100/jour).
 """
+
 from __future__ import annotations
 
 import time
@@ -39,9 +40,7 @@ def fetch_teams(league_id: int, season: int) -> list[dict]:
     return []  # inatteignable (raise_for_status lève avant), pour satisfaire les type checkers
 
 
-def collect_api_football_team_names(
-    start_years: range, league_ids_by_code: dict[str, int]
-) -> dict[str, set[str]]:
+def collect_api_football_team_names(start_years: range, league_ids_by_code: dict[str, int]) -> dict[str, set[str]]:
     """Renvoie {league_code: {noms d'équipe distincts}} sur toutes les saisons.
 
     league_ids_by_code : ex. {"E0": 39, "SP1": 140, ...} (cf. leagues_correspondence.yaml).
@@ -64,12 +63,11 @@ def collect_api_football_team_names(
 
 
 if __name__ == "__main__":
-    import yaml
     from pathlib import Path
 
-    correspondence = yaml.safe_load(
-        (Path(__file__).parent / "leagues_correspondence.yaml").read_text(encoding="utf-8")
-    )
+    import yaml
+
+    correspondence = yaml.safe_load((Path(__file__).parent / "leagues_correspondence.yaml").read_text(encoding="utf-8"))
     league_ids_by_code = {code: info["api_football_league_id"] for code, info in correspondence.items()}
 
     result = collect_api_football_team_names(range(2015, 2025), league_ids_by_code)

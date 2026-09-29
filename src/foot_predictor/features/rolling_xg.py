@@ -8,6 +8,7 @@ recap_etape2_schema_tables.md section 4.
 Les matchs dont xg_for/xg_against sont encore NULL (Understat pas encore
 ingéré) sont exclus de la fenêtre plutôt que comptés comme 0.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -37,20 +38,24 @@ def compute_rolling_xg(
     """xG sur les XG_WINDOW derniers matchs avec xG renseigné, dans le même
     contexte domicile/extérieur, toutes compétitions confondues, strictement
     avant `before_date` (anti-leakage)."""
-    rows = session.execute(
-        select(TeamMatch)
-        .join(Match, Match.id == TeamMatch.match_id)
-        .where(
-            TeamMatch.team_id == team_id,
-            TeamMatch.is_home == is_home,
-            Match.match_date < before_date,
-            Match.status == "played",
-            TeamMatch.xg_for.isnot(None),
-            TeamMatch.xg_against.isnot(None),
+    rows = (
+        session.execute(
+            select(TeamMatch)
+            .join(Match, Match.id == TeamMatch.match_id)
+            .where(
+                TeamMatch.team_id == team_id,
+                TeamMatch.is_home == is_home,
+                Match.match_date < before_date,
+                Match.status == "played",
+                TeamMatch.xg_for.isnot(None),
+                TeamMatch.xg_against.isnot(None),
+            )
+            .order_by(Match.match_date.desc())
+            .limit(XG_WINDOW)
         )
-        .order_by(Match.match_date.desc())
-        .limit(XG_WINDOW)
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     n = len(rows)
     if n == 0:

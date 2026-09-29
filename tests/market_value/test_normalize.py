@@ -1,5 +1,6 @@
 """Tests de la normalisation StandardScaler par groupe de poste
 (`market_value/preprocessing/normalize.py`)."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -42,7 +43,8 @@ def test_normalize_only_uses_available_columns_subset():
     )
 
     _normalized, _scaler, columns = normalize_style_vectors(
-        vectors, feature_columns=["goals_per90", "xg_per90"]  # xg_per90 absent des colonnes
+        vectors,
+        feature_columns=["goals_per90", "xg_per90"],  # xg_per90 absent des colonnes
     )
 
     assert columns == ["goals_per90"]

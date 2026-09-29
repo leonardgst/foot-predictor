@@ -1,6 +1,7 @@
 """Tests d'orchestration (`features/build_team_match_features.py`) : création
 et mise à jour idempotente de `features.team_match_features`, en s'appuyant
 sur les briques déjà testées unitairement (standing, forme, xG)."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -22,19 +23,31 @@ def two_played_matches(make_competition, make_season, make_team, make_match, mak
     team_b = make_team("B")
 
     match1 = make_match(
-        competition_id=competition.id, season_id=season.id,
-        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.timezone.utc),
-        home_team_id=team_a.id, away_team_id=team_b.id, home_goals=2, away_goals=0, status="played",
+        competition_id=competition.id,
+        season_id=season.id,
+        match_date=dt.datetime(2024, 9, 1, tzinfo=dt.UTC),
+        home_team_id=team_a.id,
+        away_team_id=team_b.id,
+        home_goals=2,
+        away_goals=0,
+        status="played",
     )
-    make_team_match(match_id=match1.id, team_id=team_a.id, is_home=True, goals_for=2, goals_against=0,
-                     xg_for=1.8, xg_against=0.4)
-    make_team_match(match_id=match1.id, team_id=team_b.id, is_home=False, goals_for=0, goals_against=2,
-                     xg_for=0.4, xg_against=1.8)
+    make_team_match(
+        match_id=match1.id, team_id=team_a.id, is_home=True, goals_for=2, goals_against=0, xg_for=1.8, xg_against=0.4
+    )
+    make_team_match(
+        match_id=match1.id, team_id=team_b.id, is_home=False, goals_for=0, goals_against=2, xg_for=0.4, xg_against=1.8
+    )
 
     match2 = make_match(
-        competition_id=competition.id, season_id=season.id,
-        match_date=dt.datetime(2024, 9, 15, tzinfo=dt.timezone.utc),
-        home_team_id=team_b.id, away_team_id=team_a.id, home_goals=1, away_goals=1, status="played",
+        competition_id=competition.id,
+        season_id=season.id,
+        match_date=dt.datetime(2024, 9, 15, tzinfo=dt.UTC),
+        home_team_id=team_b.id,
+        away_team_id=team_a.id,
+        home_goals=1,
+        away_goals=1,
+        status="played",
     )
     make_team_match(match_id=match2.id, team_id=team_b.id, is_home=True, goals_for=1, goals_against=1)
     make_team_match(match_id=match2.id, team_id=team_a.id, is_home=False, goals_for=1, goals_against=1)

@@ -5,6 +5,7 @@ strictement avant la date du match concerné (pas de data leakage) -- cf.
 recap_decisions_projet.md section 6 et recap_etape2_schema_tables.md section 2
 (décision : standing retiré de staging, calculé en features).
 """
+
 from __future__ import annotations
 
 import datetime as dt

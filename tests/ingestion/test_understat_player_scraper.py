@@ -3,6 +3,7 @@ le client `UnderstatClient` est toujours mocké (jamais de vraie requête vers
 understat.com), construction du payload par match joueur (arrondis, valeurs
 manquantes défaut à 0), et idempotence/gestion d'erreur de l'ingestion en
 base (`db`)."""
+
 from __future__ import annotations
 
 import pytest
@@ -10,7 +11,6 @@ from sqlalchemy import select
 
 from foot_predictor.db.models import SourceIngestionLog, UnderstatPlayerMatch
 from foot_predictor.ingestion import understat_player_scraper as scraper
-
 
 # ---------------------------------------------------------------------------
 # fetch_league_players / fetch_player_matches : chaîne client mockée

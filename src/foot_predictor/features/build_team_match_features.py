@@ -4,6 +4,7 @@ staging.team_match joué, et upsert le résultat dans features.team_match_featur
 Chaque ligne est calculée en se plaçant strictement AVANT la date du match
 concerné (anti-leakage) -- cf. recap_decisions_projet.md section 6.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -18,9 +19,7 @@ from foot_predictor.features.standing import compute_standings_before_date
 def build_all_team_match_features(session: Session) -> tuple[int, int]:
     """Renvoie (nb_crees, nb_mis_a_jour)."""
     rows = session.execute(
-        select(TeamMatch, Match)
-        .join(Match, Match.id == TeamMatch.match_id)
-        .where(Match.status == "played")
+        select(TeamMatch, Match).join(Match, Match.id == TeamMatch.match_id).where(Match.status == "played")
     ).all()
 
     # Cache des classements par (competition_id, season_id) -- évite de
@@ -41,9 +40,7 @@ def build_all_team_match_features(session: Session) -> tuple[int, int]:
         form = compute_rolling_form(session, team_match.team_id, team_match.is_home, match.match_date)
         xg = compute_rolling_xg(session, team_match.team_id, team_match.is_home, match.match_date)
 
-        existing = session.scalar(
-            select(TeamMatchFeatures).where(TeamMatchFeatures.team_match_id == team_match.id)
-        )
+        existing = session.scalar(select(TeamMatchFeatures).where(TeamMatchFeatures.team_match_id == team_match.id))
         if existing is None:
             existing = TeamMatchFeatures(
                 team_match_id=team_match.id,

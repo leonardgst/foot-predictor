@@ -2,12 +2,40 @@ name: Tests
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
 
 jobs:
   pytest:
     runs-on: ubuntu-latest
+
+    # Base de test éphémère, recréée à chaque exécution (décision M14).
+    # Identifiants propres à la CI, sans valeur hors de ce conteneur.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fp_ci
+          POSTGRES_PASSWORD: fp_ci
+          POSTGRES_DB: foot_predictor_ci
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U fp_ci -d foot_predictor_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Lues par config.py (pydantic-settings) à défaut de fichier .env.test.
+    env:
+      APP_ENV: test
+      POSTGRES_USER: fp_ci
+      POSTGRES_PASSWORD: fp_ci
+      POSTGRES_DB: foot_predictor_ci
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5433"
+      FP_REQUIRE_DB: "1"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,5 +50,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups
 
-      - name: Run tests without database (pytest -m "not db")
-        run: uv run pytest -m "not db" --cov=src/foot_predictor --cov-report=term-missing
+      - name: Ruff (contrôle et formatage)
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Migrations (base de test du service)
+        run: uv run alembic upgrade head
+
+      - name: Tous les tests, base comprise
+        run: uv run pytest --cov=src/foot_predictor --cov-report=term-missing

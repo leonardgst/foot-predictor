@@ -32,6 +32,7 @@ problème par un fallback silencieux va à l'encontre du principe du projet
 de "fail loud" sur les problèmes de qualité de donnée (cf.
 `market_value/preprocessing/per90.py`, `modeling/predict_service
 .InsufficientFeatureHistoryError`)."""
+
 from __future__ import annotations
 
 
@@ -52,8 +53,7 @@ def compute_reputation_score(standing_position: int, n_teams_in_competition: int
         )
     if not (1 <= standing_position <= n_teams_in_competition):
         raise ValueError(
-            f"standing_position ({standing_position}) hors de l'intervalle valide "
-            f"[1, {n_teams_in_competition}]."
+            f"standing_position ({standing_position}) hors de l'intervalle valide [1, {n_teams_in_competition}]."
         )
 
     return 100.0 * (n_teams_in_competition - standing_position) / (n_teams_in_competition - 1)

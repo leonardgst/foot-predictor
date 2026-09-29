@@ -9,6 +9,7 @@ Les seuils ci-dessous sont des valeurs de départ, à ajuster une fois les
 diagnostics (data/diagnostics.py) lancés sur les vraies données (cf. recap
 clustering, section 9).
 """
+
 from __future__ import annotations
 
 import numpy as np

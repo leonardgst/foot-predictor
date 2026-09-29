@@ -4,14 +4,13 @@ poste ET du même cluster (cf. recap clustering, section 6 étape 5) -- jamais
 au sein du position_bucket entier, sinon on recompare un "ailier créateur" à
 un "ailier finisseur" sur les mêmes variables, ce qui n'a pas de sens.
 """
+
 from __future__ import annotations
 
 import pandas as pd
 
 
-def compute_percentiles(
-    vectors: pd.DataFrame, cluster_ids: pd.Series, feature_columns: list[str]
-) -> pd.DataFrame:
+def compute_percentiles(vectors: pd.DataFrame, cluster_ids: pd.Series, feature_columns: list[str]) -> pd.DataFrame:
     """vectors : indexé par player_id, colonnes *_per90/pct brutes (non
     normalisées -- les percentiles se calculent sur les valeurs réelles, pas
     sur le vecteur standardisé utilisé pour le clustering).

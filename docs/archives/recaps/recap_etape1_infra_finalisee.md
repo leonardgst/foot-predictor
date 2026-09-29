@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Récap — Étape 1 finalisée : infra Neon, VSCode, Alembic
 
 Ce document complète `recap_mise_en_place_git_docker.md` et clôture le point A/B/C du guide `ETAPE_1_infra.md`. Il documente l'état final ainsi que les incidents rencontrés et leurs résolutions, pour ne pas les reperdre.

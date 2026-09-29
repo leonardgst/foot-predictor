@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Récaps projet — foot-predictor
 
 Ce dossier centralise l'historique des décisions et de l'avancement du projet,

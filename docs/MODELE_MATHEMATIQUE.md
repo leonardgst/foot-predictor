@@ -1,12 +1,14 @@
 # Modélisation mathématique du score exact
 
+> **Contexte (2026-09-28).** Ce document décrit les modèles A et B implémentés dans `modeling/`. Depuis l'ADR-0009, la cible est le nombre de buts de chaque équipe et la sortie du produit est la loi du **total** de buts, déduite de la loi jointe ci-dessous ; le score exact et le 1N2 deviennent des diagnostics. Le protocole d'évaluation est celui de l'ADR-0012. Les mathématiques ci-dessous restent valables.
+
 Ce document construit, progressivement et en détail, la formulation mathématique du problème
 de prédiction : de la notation la plus générale (ŷ, y, X) jusqu'au contenu réel de la matrice
 de features telle qu'elle existe (ou existera) dans `features.team_match_features`, puis jusqu'à
 trois familles de modèles réalistes entre lesquelles choisir.
 
-Pour le cadrage produit et les sources de données, voir `OBJECTIFS.md` et `RECAP_PROJET.md`
-(sections 2, 3, 6.3, 8). Ce document ne les répète pas, il les traduit en équations.
+Pour le cadrage produit et les sources de données, voir, archivés, [`OBJECTIFS.md`](archives/OBJECTIFS.md)
+et [`RECAP_PROJET.md`](archives/RECAP_PROJET.md) (sections 2, 3, 6.3, 8). Ce document ne les répète pas, il les traduit en équations.
 
 ---
 
@@ -14,9 +16,10 @@ Pour le cadrage produit et les sources de données, voir `OBJECTIFS.md` et `RECA
 
 ### 1.1 Ce qu'on prédit
 
-Le produit veut, pour un match à venir, un **score exact** : (buts équipe A, buts équipe B).
-On en dérive ensuite le 1N2 et des probabilités précises par simple lecture de la loi jointe
-prédite — ce n'est **pas** une sortie séparée du modèle.
+Le modèle prédit, pour un match à venir, la loi jointe du score (buts équipe A, buts équipe B).
+La sortie du produit est la loi du **nombre total de buts** (ADR-0009) : elle se déduit de cette
+loi jointe, comme le score exact le plus probable et le 1N2 — ce ne sont **pas** des sorties
+séparées du modèle.
 
 Un score est un couple d'entiers naturels : `(g_H, g_A) ∈ ℕ²` (buts domicile, buts extérieur).
 Ceci a une conséquence immédiate sur le choix du modèle (section 3) : on ne prédit pas un réel
@@ -78,7 +81,7 @@ noté `opp(i)`.
 
 On définit d'abord `z_{t,m} ∈ ℝ^p`, le vecteur des variables propres à une équipe `t`, calculées
 **strictement avant** la date du match `m` (ancrage `as_of_date = match_date`, principe déjà en
-place dans le pipeline — voir `RECAP_PROJET.md` section 5 et 8). C'est exactement le contenu
+place dans le pipeline — voir [`RECAP_PROJET.md`](archives/RECAP_PROJET.md) sections 5 et 8, archivé). C'est exactement le contenu
 d'une ligne de `features.team_match_features`, moins les identifiants :
 
 | Composante de z | Colonne source | Signification |
@@ -93,10 +96,10 @@ d'une ligne de `features.team_match_features`, moins les identifiants :
 | `z_8` | `standing_goal_diff` | Différence de buts au classement, snapshot avant le match |
 | `z_9` | `squad_avg_age` | Âge moyen de l'effectif titulaire — **bloqué** (nécessite `lineup`, donc l'abonnement API-Football) |
 | `z_10` | `squad_stability_score_season` | Score de cohésion du onze — **bloqué**, même raison |
-| `z_11` (futur) | agrégat du MVS des titulaires | Remplace `squad_valuation_eur` — **non spécifié**, dépend de la section 10 du récap |
+| `z_11` | agrégat du MVS des titulaires | **Gelé (ADR-0013)** : ni dans le MVP ni dans la version intermédiaire |
 
-Soit `p = 11` (aujourd'hui, seuls `z_1…z_8` sont réellement calculables ; `z_9, z_10, z_11` sont
-en attente). Rien n'empêche d'utiliser un premier modèle avec `p = 8` et d'enrichir plus tard —
+Soit `p = 11` (aujourd'hui, seuls `z_1…z_8` sont réellement calculables ; `z_9, z_10` sont
+en attente et `z_11` est gelé). Rien n'empêche d'utiliser un premier modèle avec `p = 8` et d'enrichir plus tard —
 c'est même recommandé (voir section 4).
 
 Chaque `z_{t,m}` est un vecteur **daté** : ce n'est pas "les stats de l'équipe" dans l'absolu,
@@ -175,8 +178,8 @@ suivante :
    variance du nombre de buts croît avec le nombre de buts attendu (propriété des comptages).
 3. Il traite `y_m^H` et `y_m^A` comme deux régressions totalement indépendantes : aucune loi
    jointe, donc **aucune probabilité de score exact** ne peut en être dérivée directement
-   (seulement deux valeurs ponctuelles, pas une distribution). Or c'est justement la sortie
-   attendue par le produit (« probabilités précises »).
+   (seulement deux valeurs ponctuelles, pas une distribution). Or le produit attend justement
+   une distribution (loi du total, ADR-0009).
 
 Modèle 0 sert de vérification de plomberie (le pipeline features → modèle fonctionne, les
 signes des coefficients sont cohérents), pas de candidat final.
@@ -323,7 +326,7 @@ extérieur (par exemple une copule gaussienne ajustée sur les résidus, ou une 
 - **Avantages** : capture des interactions et non-linéarités entre features sans les spécifier
   à la main (ex. l'effet de la forme récente peut dépendre du niveau de classement, sans avoir
   à écrire ce terme d'interaction) ; s'accommode naturellement de features supplémentaires au
-  fil du temps (MVS, âge, stabilité) sans reformulation du modèle.
+  fil du temps (âge, stabilité, qualité du XI) sans reformulation du modèle.
 - **Limites** : perd l'interprétabilité fine des coefficients de forces d'équipe ; risque de
   sur-apprentissage plus élevé avec un historique encore modeste (quelques saisons × 5
   championnats) — nécessite une validation croisée temporelle soignée (jamais entraîner sur le
@@ -346,13 +349,9 @@ extérieur (par exemple une copule gaussienne ajustée sur les résidus, ou une 
 
 ---
 
-## 6. Prochaine étape
+## 6. Suite
 
-Ce document ne tranche rien : il pose les équations pour que le choix entre A, B et C se fasse
-en connaissance de cause. À discuter ensemble : le niveau d'effort qu'on veut mettre dès la V1,
-et si on part sur une option "simple d'abord, on complexifie ensuite" (A → B) ou si on vise
-directement B ou C.
-
-*Document à archiver dans `docs/` aux côtés de `RECAP_PROJET.md` une fois le choix acté, avec
-mise à jour de la section retenue et suppression des options écartées (ou conservation en
-annexe "alternatives envisagées").*
+Le choix entre A, B et C ne se fait plus ici. La cible, la sortie et les métriques sont fixées par
+l'ADR-0009, le protocole de comparaison (plis glissants, saison sous scellés) par l'ADR-0012, et la
+progression des modèles par le rapport de cadrage, partie I. La comparaison A contre B sur 2024-25
+(`RESULTATS_MODELE.md`) reste un repère historique, pas une référence de sélection.

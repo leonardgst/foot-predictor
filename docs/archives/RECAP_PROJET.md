@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Récap projet — foot-predictor
 
 Mémoire de référence unique du projet. Ce document consolide tous les récaps précédents (décisions de cadrage, mise en place Git/Docker, infra, schéma de tables, pipeline d'ingestion, abandon de Transfermarkt, conception du MVS, debug Understat, prochaine étape clustering). Il reflète l'**état actuel** : quand une décision initiale a été révisée, seule la version en vigueur est décrite, et l'historique des révisions est regroupé en section 1.

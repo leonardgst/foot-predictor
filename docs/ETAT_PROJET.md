@@ -14,13 +14,14 @@
 - **Total P1 à P3 : 102 089 matchs détaillés**, 15 494 fichiers bruts aux sha256 conformes.
 - Constats détaillés et conséquences : `docs/realisation/05_controle_qualite/constats_P1_P2.md` et `constats_P3.md`.
 - **Copie intermédiaire de `data/raw`** (2026-09-29) sur le disque externe, dans `D:/foot-predictor/copie-2026-06-29/raw` (le nom du dossier porte « 06 » au lieu de « 09 ») : 15 494 fichiers aux sha256 vérifiés. Complément ponctuel à l'ADR-0006 : la sauvegarde du 19 octobre et son test de restauration restent prévus.
-- **Décisions M7 à M12 tranchées** (2026-09-28) :
+- **Décisions M7 à M12 tranchées** (2026-09-28, PR #11) :
   - ADR-0008 : API-FOOTBALL fait foi pour les identifiants ;
   - ADR-0009 : cible et métrique. Le critère E.1(4) du rapport est remplacé ;
   - ADR-0010 : deux horizons de prédiction ;
   - ADR-0011 : rejeu et live après l'abonnement ;
   - ADR-0012 : validation glissante et scellés ;
   - ADR-0013 : masse salariale et MVS.
+- **Tri de `docs/`, première passe** (PR #12, ADR-0014, décision M19) : documents dépassés archivés dans `docs/archives/`, index `docs/README.md`, README racine en vitrine, journal complété (E-006 à E-020), documents vivants alignés sur les ADR.
 
 ## En cours
 
@@ -44,7 +45,7 @@
 
 **Court terme**
 
-- [ ] Avant le `git pull` dans `C:/foot-predictor` : retirer la copie non suivie de `reports/data_quality/raw_check_P3_2026-09-29.md` (identique à la version commitée), sinon Git refuse la mise à jour.
+- [ ] Dans `C:/foot-predictor` : retirer la copie non suivie de `reports/data_quality/raw_check_P3_2026-09-29.md` si elle est encore là (Git refuserait la mise à jour), puis `git pull` après la fusion de la PR qui reporte le tri de `docs/` dans `main` (E-021).
 - [ ] **Test de collision des identifiants de joueurs** (priorité de la semaine) dans `quality/raw_check.py`, sans quota (ADR-0008). Détecte un même identifiant chez deux équipes le même jour, deux fois dans un match, ou avec deux dates de naissance. Branche courte, puis lancement sur P1 à P3 **ensemble** (collisions et doublons entre paliers).
 - [ ] Puis **décision sur les requêtes ciblées** (profils), selon le résultat du test. Priorité proposée : P1 top 5 (167 titulaires sans profil), P1 D2 (168), puis P3 (1 503) s'il reste du quota. Doublons (33 en P1, 61 en P3) : YAML d'alias, sans requête.
 - [ ] Nouvelles demandes de listes éventuelles (catégorie c : MLS 2017), sur décision.
@@ -62,8 +63,7 @@
 
 **Long terme**
 
-- **PR de nettoyage** : anciens collecteurs (ADR-0004, 0007), retrait de `hdbscan`, `market_value/` marqué gelé (ADR-0013).
-- Restructuration de `docs/` (rapport K, décision M19).
+- **PR de nettoyage** : anciens collecteurs (ADR-0004, 0007), retrait de `hdbscan`, `market_value/` marqué gelé (ADR-0013), instrumentation de diagnostic de `understat.py`, commentaires de code qui citent des documents archivés et constante inutilisée `RESULTS_MD_PATH` (liste dans la PR du tri de `docs/`).
 - **J3 Référentiel** : `staging` reconstruit depuis le brut, identifiants API, YAML de rapprochement et d'alias (ADR-0008).
 - **J4 Variables v2** : registre des variables avec horizon (ADR-0010).
 - **J5 Protocole et références** : métriques du total (ADR-0009), plis glissants et scellé technique (ADR-0012).

@@ -1,3 +1,4 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
 
 # Récap — Étape 2 : conception du schéma de tables (raw / staging / features)
  

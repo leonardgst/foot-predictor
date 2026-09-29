@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Récap — Mise en place Git, GitHub, Docker et environnements
 
 Ce document complète `recap_decisions_projet.md` (section 7 — Stack technique). Il détaille concrètement ce qui a été mis en place pour démarrer le projet : dépôt Git, hébergement GitHub, et environnements PostgreSQL via Docker.

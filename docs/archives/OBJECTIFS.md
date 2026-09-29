@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Objectifs du projet — foot-predictor
 
 Ce document présente le cadrage initial du projet : ce qu'on cherche à construire (objectif fonctionnel) et, surtout, pourquoi on le construit (objectifs réels et pédagogiques).

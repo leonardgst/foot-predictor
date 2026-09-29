@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Récap : backfill 10 saisons et bug de persistance du xG (22/09/2026)
 
 Suite directe de `recap_mise_en_ordre_git_et_verifications.md`. Cette session exécute le prérequis B du guide `API_FOOTBALL_ABONNEMENT.md` (ingérer les saisons plus anciennes avant de payer l'abonnement API-Football), et découvre au passage un vrai bug de persistance du xG, présent depuis la mise en place initiale du pipeline.

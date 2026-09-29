@@ -19,11 +19,12 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0011](ADR-0011-apres-abonnement.md) | Après l'abonnement : rejeu en mode principal, live partiel avant composition | acceptée | 2026-09-28 | M10 |
 | [0012](ADR-0012-validation-scelles.md) | Validation glissante 2021-22 → 2024-25 ; matchs postérieurs au 30 juin 2025 sous scellés | acceptée | 2026-09-28 | M11 |
 | [0013](ADR-0013-masse-salariale-mvs.md) | Pas de masse salariale ; « qualité du XI » en version intermédiaire ; MVS gelé | acceptée | 2026-09-28 | M12, M29 |
+| [0014](ADR-0014-tri-documentation.md) | Restructuration de la documentation : première passe (archives, index, aucun dossier vide) | acceptée | 2026-09-28 | M19, K |
 
 **Décisions encore ouvertes** (rapport, partie M) :
 
 - 13 à 22 : importantes, non bloquantes. Les plus liées aux ADR ci-dessus :
   - 17 : Understat, qui conditionne l'xG en live (ADR-0011) ;
   - 16 : variante de stabilité ;
-  - 19 : restructuration de la documentation.
+  - 19 : restructuration de la documentation, première passe faite (ADR-0014).
 - 23 à 28 et 30 : reportables. La décision 29 (données dérivées de Transfermarkt) est confirmée par l'ADR-0013.

@@ -1,3 +1,5 @@
+> Archivé le 2026-09-28. Document historique, non maintenu ; en cas de désaccord, les ADR font foi.
+
 # Récap : mise en ordre du dépôt Git et vérifications (21/09/2026)
 
 Session de remise à plat du dépôt avant de continuer le projet : exploration, contrôle de sécurité, nettoyage, contrôle de cohérence, un commit, un push, puis un premier lancement de `check_raw.py`. Ce document explique ce qui a été fait, pourquoi, et ce qui reste à faire.

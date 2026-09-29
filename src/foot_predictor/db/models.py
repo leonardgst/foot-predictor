@@ -290,6 +290,27 @@ class TeamMatchStats(Base):
     created_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class TeamMatchStatsExternal(Base):
+    """Tirs d'une équipe dans un match, selon une source externe (football-data), migration 0005.
+
+    Une valeur absente ou illisible dans la source reste vide, jamais 0 (ADR-0029).
+    """
+
+    __tablename__ = "team_match_stats_external"
+    __table_args__ = (
+        UniqueConstraint("source", "team_match_id", name="uq_team_match_stats_external"),
+        CheckConstraint("source IN ('football_data')", name="ck_team_match_stats_external_source"),
+        {"schema": "staging"},
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    team_match_id: Mapped[int] = mapped_column(ForeignKey("staging.team_match.id"), nullable=False, index=True)
+    shots: Mapped[int | None] = mapped_column(SmallInteger)
+    shots_on_target: Mapped[int | None] = mapped_column(SmallInteger)
+    created_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Lineup(Base):
     __tablename__ = "lineup"
     __table_args__ = (

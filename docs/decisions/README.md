@@ -37,6 +37,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0029](ADR-0029-tirs-football-data.md) | Tirs et tirs cadrés chargés depuis football-data (révision partielle de l'ADR-0027) ; rupture de série de la Serie A 2018-19 à 2020-21 constatée | acceptée | 2026-09-29 | M7 (ADR-0027) |
 | [0030](ADR-0030-jeu-de-donnees.md) | Jeu de données : instantané Parquet versionné, traçabilité en base (`features.dataset_version`), une ligne par (match, équipe), registre des variables | acceptée | 2026-09-29 | F.2, I.3 |
 | [0031](ADR-0031-elo.md) | Elo maison (G1) : une échelle par pays, mise à jour par jour, paramètres réglés sur 2005-06 à 2014-15 puis figés | acceptée | 2026-09-29 | I.3, M17 (ADR-0012) |
+| [0032](ADR-0032-glissants-xg-proxy.md) | Glissants (G2) à décroissance en jours et retrait vers le championnat ; `xg_proxy` (tirs cadrés, coefficients positifs) à la place de l'xG avant 2022-23 | acceptée | 2026-09-29 | H.4, I.3 (ADR-0023) |
 
 **Décisions encore ouvertes** :
 

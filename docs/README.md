@@ -29,6 +29,7 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Retours de session (bilan, écarts, reste à faire) | [`retours/`](retours/) : [`partie-1_2026-09-29.md`](retours/partie-1_2026-09-29.md) |
 | Équations des modèles A (Poisson) et B (Dixon-Coles) | [`MODELE_MATHEMATIQUE.md`](MODELE_MATHEMATIQUE.md) |
 | Résultats historiques A contre B, recalibration | [`RESULTATS_MODELE.md`](RESULTATS_MODELE.md) et [`model_results.json`](model_results.json) |
+| Workflow Git (branches, PR, tags, hooks) | [ADR-0022](decisions/ADR-0022-workflow-git.md) |
 | Anciens récaps, RECAP_PROJET, guide d'abonnement | [`archives/`](archives/) (non maintenus) |
 
 ## Règles de la documentation
@@ -51,3 +52,4 @@ Le rapport de cadrage, certaines ADR et des commentaires de code citent ces chem
 | `docs/OBJECTIFS.md` | [`archives/OBJECTIFS.md`](archives/OBJECTIFS.md) |
 | `docs/API_FOOTBALL_ABONNEMENT.md` | [`archives/API_FOOTBALL_ABONNEMENT.md`](archives/API_FOOTBALL_ABONNEMENT.md) |
 | `docs/recaps/<nom>.md` | [`archives/recaps/<nom>.md`](archives/recaps/README.md) |
+| `scripts/one_off/` (partie 2) | [`../scripts/archives/`](../scripts/archives/) |

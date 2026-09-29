@@ -1,3 +1,6 @@
+# ARCHIVE (partie 2, ADR-0008) : les 19 fusions manuelles faites en base dev, seulement.
+# NE PLUS EXÉCUTER : il ÉCRIT en base (DRY_RUN = False). Toute correction passe désormais
+# par un YAML versionné, rejoué par `python -m foot_predictor.ingestion load`.
 """Fusion des équipes dupliquées (brut vs canonique).
 Lance d'abord en dry-run (DRY_RUN=True) pour vérifier, puis repasse à False."""
 

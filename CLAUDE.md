@@ -59,8 +59,8 @@ pre-commit run --all-files                # hooks : secrets, ruff, caractères d
 - Identifiants de code en anglais ; documentation, docstrings et messages de commit en français.
 - Branches : `<type>/<etape>-<sujet>` (ex. `fix/03-collecteur-lots-ids`, `docs/01-integration-cadrage`).
 - Commits atomiques, format Conventional Commits : `type(portée): résumé à l'impératif` (72 caractères max), corps qui explique le **pourquoi**. Types : `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`, `build`, `ci`, `data`, `exp`.
-- Fusion par PR avec merge commit ; branche supprimée après fusion.
-- Workflow Git provisoire (rapport J.2) en attendant la décision M15.
+- Fusion par PR avec merge commit, après CI verte et base vérifiée (`gh pr view <n> --json baseRefName` : `main`) ; branches locale et distante supprimées après fusion.
+- Workflow Git (ADR-0022) : `main` seule branche longue, tags annotés aux jalons, hooks pre-commit et pre-push (`pre-commit install`). Jamais de `--force`, de `reset --hard` sur une branche partagée, ni de changement de la configuration Git globale.
 
 ## Tests
 

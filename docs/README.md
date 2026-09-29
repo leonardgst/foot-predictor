@@ -18,7 +18,8 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Pourquoi tel choix ? | [`decisions/`](decisions/README.md) (ADR) |
 | But, périmètre, architecture cible, stratégie de données et de modélisation, feuille de route | [`cadrage/rapport_cadrage_2026-09-24.md`](cadrage/rapport_cadrage_2026-09-24.md) |
 | Cette erreur a-t-elle déjà été vue ? | [`JOURNAL_ERREURS.md`](JOURNAL_ERREURS.md) (chercher le message d'erreur) |
-| Collecter API-FOOTBALL : commandes, `refresh`, sauvegarde | [`realisation/03_collecte/README.md`](realisation/03_collecte/README.md) |
+| Collecter API-FOOTBALL : commandes, `refresh`, profils ciblés, verrou, journal T-60, tâches planifiées, sauvegarde | [`realisation/03_collecte/README.md`](realisation/03_collecte/README.md) |
+| Gel des données du 19 octobre : procédure pas à pas | [`realisation/03_collecte/gel.md`](realisation/03_collecte/gel.md) |
 | Identifiants et couverture des compétitions | [`realisation/03_collecte/couverture.md`](realisation/03_collecte/couverture.md) (généré par `coverage`) |
 | Contrôler la qualité du brut | [`realisation/05_controle_qualite/README.md`](realisation/05_controle_qualite/README.md) |
 | Constats des paliers P1 et P2 | [`realisation/05_controle_qualite/constats_P1_P2.md`](realisation/05_controle_qualite/constats_P1_P2.md) |

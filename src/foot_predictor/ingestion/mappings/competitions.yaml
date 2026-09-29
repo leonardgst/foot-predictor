@@ -1,0 +1,15 @@
+# Division football-data -> league.id API-FOOTBALL (ADR-0008, règle 2 ; partie 2, sous-étape 2.5).
+# Écrit à la main : 10 lignes, vérifiées sur football-data.co.uk/data.php et
+# docs/realisation/03_collecte/couverture.md. Le test test_yaml_mappings.py vérifie
+# que chaque league.id figure dans la configuration de collecte.
+football_data:
+  E0: 39     # Premier League
+  E1: 40     # Championship
+  SP1: 140   # La Liga
+  SP2: 141   # Segunda División
+  D1: 78     # Bundesliga
+  D2: 79     # 2. Bundesliga
+  I1: 135    # Serie A
+  I2: 136    # Serie B
+  F1: 61     # Ligue 1
+  F2: 62     # Ligue 2

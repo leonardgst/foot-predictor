@@ -39,6 +39,7 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [
     "db: test nécessitant une vraie base Postgres (APP_ENV=test, docker-compose port 5433). Exclure avec -m \"not db\" si aucune base n'est disponible.",
+    "raw: test qui lit le vrai brut (FP_RAW_DIR, FP_EXTERNAL_RAW_DIR) ; sauté ailleurs, jamais en CI.",
 ]
 
 # ruff : contrôle et formatage (rapport de cadrage B.7 et J.2).

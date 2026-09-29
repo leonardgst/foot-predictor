@@ -112,6 +112,9 @@ def test_collisions_and_unknowns_are_counted(loaded):
     assert c["lineup_entries_excluded"] == 2 + 2 + 2 + 1  # 604 ×2, 605 ×2, 501 (un match P1, un P3), 701
     assert c["matches_excluded_tapis_vert"] == 1
     assert c["collision_ids_same_day"] == 1 and c["collision_ids_birth"] == 1
+    # Critères de révision de l'ADR-0020 (la ligue 39 fait partie du top 5).
+    assert c["top5_matches_with_excluded_entry"] == 4  # 1001 (501), 1003 (604), 1004 (605), 1007 (701)
+    assert c["top5_matches_detailed"] == 7
 
 
 def test_scores_birth_dates_and_team_from_lineup(loaded):

@@ -207,6 +207,37 @@ class T60Collector:
                     pending[fixture_id].kickoff = kickoff  # heure mise à jour par l'API
 
 
+class KeepAwake:
+    """Empêche la mise en veille automatique de Windows pendant `t60`.
+
+    La commande dort des heures entre deux fenêtres de coup d'envoi : sans
+    cela, le portable se mettrait en veille et raterait les compositions.
+    `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)` garde le
+    système éveillé (pas l'écran) tant que le processus tourne ; l'état est
+    rétabli à la sortie. Sans effet hors de Windows. La fermeture du capot
+    reste une mise en veille forcée : laisser le portable ouvert et branché.
+    """
+
+    ES_CONTINUOUS = 0x80000000
+    ES_SYSTEM_REQUIRED = 0x00000001
+
+    def __enter__(self) -> KeepAwake:
+        self._set(self.ES_CONTINUOUS | self.ES_SYSTEM_REQUIRED)
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._set(self.ES_CONTINUOUS)
+
+    @staticmethod
+    def _set(flags: int) -> None:
+        import sys
+
+        if sys.platform == "win32":
+            import ctypes
+
+            ctypes.windll.kernel32.SetThreadExecutionState(flags)
+
+
 def report_lines(report: T60Report) -> list[str]:
     lines = [f"Journal T-60 du {report.day} : {report.matches} match(s) du top 5 suivis.",
              f"  compositions obtenues avant le coup d'envoi : {len(report.announced)}",

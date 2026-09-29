@@ -52,6 +52,7 @@ from foot_predictor.collect.api_football.runner import (
 from foot_predictor.collect.api_football.t60 import (
     DEFAULT_INTERVAL,
     DEFAULT_LEAD,
+    KeepAwake,
     T60Collector,
     compare_lineups,
     comparison_lines,
@@ -323,7 +324,8 @@ def cmd_t60(args, config: CollectConfig, client_factory: ClientFactory) -> int:
         print(f"Requêtes au plus : {expected_requests(matches, lead, interval)} (plafond demandé : {args.max_requests}).")
         return 0
     client = client_factory(config, args.max_requests)
-    report = T60Collector(client, args.raw_dir, args.date, leagues, lead=lead, interval=interval).run()
+    with KeepAwake():
+        report = T60Collector(client, args.raw_dir, args.date, leagues, lead=lead, interval=interval).run()
     print("\n".join(report_lines(report)))
     return 0
 

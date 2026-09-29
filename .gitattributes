@@ -1,0 +1,2 @@
+# Scripts Windows : cmd.exe exige des fins de ligne CRLF (goto et étiquettes).
+*.cmd text eol=crlf

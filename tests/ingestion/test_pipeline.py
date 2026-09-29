@@ -23,7 +23,7 @@ def sources(tmp_path):
         item["score"] = {"fulltime": {"home": 0, "away": 0}}
     build_multi(raw, p1, []).queue.close()
     external = tmp_path / "externe"
-    csv = "Div,Date,HomeTeam,AwayTeam,FTHG,FTAG\r\nE0,15/08/2015,Club Un,Club Deux,0,0\r\n"
+    csv = "Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,HS,AS,HST,AST\r\nE0,15/08/2015,Club Un,Club Deux,0,0,12,,5,x\r\n"
     raw_bytes.write_bytes(
         external, season_dir(2015), "E0", ".csv", csv.encode(), dt.datetime(2026, 9, 29, tzinfo=dt.UTC)
     )
@@ -57,9 +57,19 @@ def test_load_then_check(clean_database, sources, multi_config, tmp_path, monkey
         run = connection.execute(text("SELECT status, manifests, counts FROM ops.load_run")).mappings().one()
     assert run["status"] == "ok" and run["manifests"]  # sha256 des journaux lus
     assert run["counts"]["lineup_unknown_entries"] == 1
+    with engine.connect() as connection:  # tirs de football-data (ADR-0029) : vides si absents, jamais 0
+        shots = connection.execute(
+            text(
+                "SELECT tm.is_home, e.shots, e.shots_on_target FROM staging.team_match_stats_external e "
+                "JOIN staging.team_match tm ON tm.id = e.team_match_id ORDER BY tm.is_home DESC"
+            )
+        ).all()
+    assert [tuple(r) for r in shots] == [(True, 12, 5), (False, None, None)]
+    assert summary["fingerprints"]["team_match_stats_external"]["rows"] == 2
 
     report = run_check(engine, tmp_path / "rapports", today=dt.date(2026, 9, 29)).read_text(encoding="utf-8")
     assert "1 / 1 lignes appariées (100.00 %)" in report and "**OK**" in report
+    assert "## 6. Tirs de football-data" in report
     assert "Joueur 1" not in report and "Joueur 2" not in report  # aucun nom de joueur (noms fictifs « Joueur 11 »)
 
     with pytest.raises(LoadRefused):
@@ -68,6 +78,12 @@ def test_load_then_check(clean_database, sources, multi_config, tmp_path, monkey
         assert connection.execute(text("SELECT count(*) FROM ops.load_run")).scalar_one() == 1
 
 
-def test_cli_refuses_a_missing_raw_dir(tmp_path, capsys):
+def test_cli_refuses_a_missing_raw_dir(tmp_path, capsys, monkeypatch):
+    """Le chemin est vérifié avant la configuration de la base : aucun .env n'est nécessaire."""
+
+    def no_settings():
+        raise RuntimeError("configuration de base absente")
+
+    monkeypatch.setattr("foot_predictor.ingestion.__main__.get_settings", no_settings)
     code = main(["load", "--raw-dir", str(tmp_path / "absent"), "--confirm-db", "x"])
     assert code == 2 and "introuvable" in capsys.readouterr().err

@@ -44,7 +44,8 @@ Le périmètre attendu, c'est-à-dire les championnat-saisons de chaque palier, 
 | Identifiants | `player.id` présent (compositions, statistiques, événements, profils) | À REGARDER |
 | Identifiants | Chaque titulaire a un profil `/players` du même championnat-saison (si toutes les pages sont là) | À REGARDER |
 | Identifiants | Un identifiant n'a pas de noms incompatibles | À REGARDER |
-| Identifiants | Doublons probables : même nom, même date de naissance, identifiants différents | À REGARDER |
+| Identifiants | Doublons probables : même nom, même date de naissance, identifiants différents ; « inter-paliers » si seul le contrôle commun les trouve | À REGARDER |
+| Identifiants | **Collisions** (ADR-0008, règle 3) : même identifiant chez deux équipes le même jour ; deux fois dans un match ; deux dates de naissance | À REGARDER |
 | Plausibilité | Minutes entre 0 et 130 ; note entre 3 et 10 | À REGARDER |
 | Journal | sha256 conforme au journal, fichier présent et lisible (tout le dossier brut) | BLOQUANT |
 | Journal | Tâches `failed` du palier | BLOQUANT |
@@ -59,6 +60,16 @@ Le périmètre attendu, c'est-à-dire les championnat-saisons de chaque palier, 
 - **Buts** : les penalties manqués et les tirs au but (`comments = "Penalty Shootout"`) ne comptent pas. Un but contre son camp est attribué par l'API à l'équipe qui en profite. Les matchs sur tapis vert (AWD, WO) sont exclus des contrôles de détail.
 - **Noms** : l'API abrège les noms dans les compositions (« S. Romero ») et les donne en entier ailleurs (« Sergio Romero »). Deux noms sont jugés compatibles s'ils partagent un mot significatif : pas une initiale, pas une particule comme « de » ou « van ». La comparaison ignore les accents et translittère ø, ł, ß... Seuls les identifiants dont les noms forment plusieurs groupes incompatibles sont listés.
 - **Doublons** : la date de naissance vient uniquement des profils `/players` ; les détails de match n'en ont pas.
+- **Plusieurs paliers ensemble** (`--palier P1 --palier P2 --palier P3`) : doublons et collisions se calculent sur l'ensemble. Un cas qui réunit deux paliers est étiqueté « P1+P3 » dans le tableau de la section 5 du résumé.
+- **Collisions**, trois types (constats : [`constats_collisions.md`](constats_collisions.md)) :
+  - *même jour* : un identifiant chez deux équipes le même jour (date UTC du match). L'équipe d'un joueur est celle de sa composition, sinon celle de ses statistiques ;
+  - *même match* : l'identifiant chez les deux équipes, ou avec deux numéros de maillot dans la même équipe ;
+  - *deux naissances* : deux dates dans les profils. Une date qui change **une fois** d'une saison à l'autre est une correction de l'API, listée à part.
+- **Faux positifs écartés automatiquement**, comptés dans le résumé :
+  - l'identifiant `0`, donné par l'API aux joueurs qu'elle ne connaît pas ;
+  - les matchs dont les statistiques sont rattachées à l'équipe adverse (au moins 5 joueurs dans ce cas) ;
+  - la même entrée répétée (même équipe, même numéro).
+- **Coût** : aucune passe de plus sur le brut. Les présences (joueur, jour, équipe, match) sont relevées pendant la lecture des détails, puis regroupées une fois avec numpy : environ 160 Mo de mémoire pour P1 à P3 et 10 % de temps en plus.
 - **sha256** : la vérification porte sur tout le dossier brut, pas seulement sur le palier. Elle relit tous les fichiers : compter environ une minute par Go.
 
 ## Quand le lancer
@@ -76,4 +87,5 @@ uv run pytest tests/quality -q
 Les tests rangent les 5 matchs réels de `tests/fixtures/api_football/` dans un dossier brut temporaire (fichiers, journal, file), puis y injectent une anomalie de chaque sorte. Ils vérifient aussi :
 
 - que le dossier brut est identique, octet pour octet et date de modification comprise, avant et après le contrôle ;
-- que le résumé ne contient ni nom de joueur ni identifiant de joueur en anomalie, alors que le fichier de détails les liste.
+- que le résumé ne contient ni nom de joueur ni identifiant de joueur en anomalie, alors que le fichier de détails les liste ;
+- pour les collisions, sur des matchs synthétiques : un cas positif et un cas négatif par type, les faux positifs (identifiant 0, statistiques inversées, entrée répétée), une date corrigée, et les cas visibles seulement quand P1 et P3 sont contrôlés ensemble.

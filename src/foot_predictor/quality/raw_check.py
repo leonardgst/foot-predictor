@@ -18,6 +18,11 @@ Contrôles, par championnat-saison du palier (sauf mention contraire) :
 - identifiants, sur tout le palier : `player.id` présent partout, titulaires
   présents dans les profils, identifiant associé à plusieurs noms, doublons
   probables de personnes ;
+- collisions (ADR-0008, règle 3 : un identifiant, deux personnes), sur
+  l'ensemble des paliers contrôlés ensemble : même identifiant chez deux
+  équipes le même jour, deux fois dans un même match, ou avec deux dates de
+  naissance dans les profils (une date corrigée d'une saison à l'autre est
+  classée à part) ;
 - plausibilité : minutes entre 0 et 130, note entre 3 et 10 ;
 - journal, sur tout le dossier brut : tâches failed et suspect, fichiers dont
   le sha256 ne correspond pas au journal.
@@ -42,11 +47,14 @@ import re
 import sqlite3
 import sys
 import unicodedata
+from array import array
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
+
+import numpy as np
 
 from foot_predictor.collect.api_football import SOURCE, tasks
 from foot_predictor.collect.api_football.coverage import LeagueCoverage, latest_leagues_file, load_coverage
@@ -327,6 +335,132 @@ def probable_duplicates(profiles: dict[int, Profile]) -> list[tuple[str, list[in
     return duplicates
 
 
+# --- collisions d'identifiants (ADR-0008, règle 3) -----------------------------------------------
+#
+# Une collision est un identifiant qui désigne deux personnes. Elle se repère au
+# comportement, pas au nom : une personne ne joue pas pour deux équipes le même
+# jour, n'apparaît pas deux fois dans un match, n'a qu'une date de naissance.
+
+SAME_DAY, SAME_MATCH, BIRTH = "same_day", "same_match", "birth"
+COLLISION_LABELS = {
+    SAME_DAY: "deux équipes le même jour",
+    SAME_MATCH: "deux fois dans un même match",
+    BIRTH: "deux dates de naissance",
+}
+# Deux fois dans un même match. Chaque présence est décrite par (source, équipe,
+# numéro de maillot) ; deux présences différentes désignent deux personnes.
+# - TWO_TEAMS : l'identifiant est rattaché aux deux équipes (compositions,
+#   statistiques, ou composition d'une équipe et statistiques de l'autre) ;
+# - SAME_TEAM : deux numéros de maillot différents dans la même équipe.
+# Deux causes de faux positifs, comptées à part et exclues des collisions :
+# - SWAPPED_STATS : dans tout le match, les statistiques sont rattachées à
+#   l'équipe adverse (au moins SWAP_MIN_PLAYERS joueurs dans ce cas) ;
+# - REPEATED_ENTRY : la même entrée répétée (même équipe, même numéro).
+TWO_TEAMS, SAME_TEAM = "two_teams", "same_team"
+SWAPPED_STATS, REPEATED_ENTRY = "swapped_stats", "repeated_entry"
+FALSE_POSITIVE_LABELS = {
+    SWAPPED_STATS: "statistiques rattachées à l'équipe adverse dans tout le match",
+    REPEATED_ENTRY: "même entrée répétée (même équipe, même numéro)",
+}
+SWAP_MIN_PLAYERS = 5
+# L'API donne l'identifiant 0 à des joueurs qu'elle ne connaît pas : ce n'est
+# pas un joueur. Il est écarté des collisions et compté à part.
+UNKNOWN_PLAYER_ID = 0
+
+
+@dataclass(frozen=True)
+class Collision:
+    kind: str  # SAME_DAY, SAME_MATCH ou BIRTH
+    player: int
+    tiers: tuple[str, ...]  # paliers où apparaissent les éléments en conflit
+    text: str  # détail nominatif, pour le fichier non versionné
+    subtype: str | None = None  # SAME_MATCH : TWO_TEAMS, SAME_TEAM, ou la cause d'un faux positif
+    fixture: int | None = None  # SAME_MATCH : le match en cause
+
+    @property
+    def tier_label(self) -> str:
+        return tier_label(self.tiers)
+
+
+def tier_label(tiers: Iterable[str]) -> str:
+    """« P1 », ou « P1+P3 » pour un cas qui touche deux paliers."""
+    return "+".join(sorted(set(tiers)))
+
+
+class Appearances:
+    """Présences (joueur, jour, équipe, match, palier), une par joueur et par match.
+
+    Environ 4 millions de présences pour P1 à P3 : des tableaux d'entiers
+    (`array('q')`, 8 octets par valeur) au lieu d'un dictionnaire Python, qui
+    prendrait près de 1 Go. Le tri et le regroupement se font une fois, à la
+    fin, avec numpy.
+    """
+
+    def __init__(self) -> None:
+        self.columns = {name: array("q") for name in ("player", "day", "team", "fixture", "tier")}
+        # Méthodes `append` liées une fois pour toutes : appelées 4 millions de fois.
+        self._appends = tuple(column.append for column in self.columns.values())
+
+    def add(self, player: int, day: int, team: int, fixture: int, tier: int) -> None:
+        a_player, a_day, a_team, a_fixture, a_tier = self._appends
+        a_player(player)
+        a_day(day)
+        a_team(team)
+        a_fixture(fixture)
+        a_tier(tier)
+
+    def __len__(self) -> int:
+        return len(self.columns["player"])
+
+    def same_day_groups(self) -> list[list[tuple[int, int, int, int, int]]]:
+        """Groupes (même joueur, même jour) où figurent au moins deux équipes.
+
+        Chaque groupe est la liste de ses présences (joueur, jour, équipe, match, palier).
+        """
+        if not len(self):
+            return []
+        cols = {name: np.frombuffer(values, dtype=np.int64) for name, values in self.columns.items()}
+        order = np.lexsort((cols["team"], cols["day"], cols["player"]))  # dernière clé = clé principale
+        player, day, team = (cols[name][order] for name in ("player", "day", "team"))
+        new_key = np.ones(len(order), dtype=bool)
+        new_key[1:] = (player[1:] != player[:-1]) | (day[1:] != day[:-1])
+        group = np.cumsum(new_key) - 1
+        other_team = np.zeros(len(order), dtype=bool)
+        other_team[1:] = (team[1:] != team[:-1]) & ~new_key[1:]
+        flagged = set(np.unique(group[other_team]).tolist())
+        groups: dict[int, list[tuple[int, int, int, int, int]]] = defaultdict(list)
+        for position in np.flatnonzero(np.isin(group, list(flagged))).tolist():
+            row = int(order[position])
+            groups[int(group[position])].append(tuple(int(cols[name][row]) for name in self.columns))
+        return [groups[key] for key in sorted(groups)]
+
+
+def classify_births(seasons_by_birth: dict[str, set[int]]) -> str | None:
+    """Plusieurs dates de naissance pour un identifiant : collision ou correction ?
+
+    - une seule date : `None` (rien à signaler) ;
+    - deux dates qui se succèdent dans le temps (la première dans des saisons
+      toutes antérieures à celles de la seconde) : « correction », une donnée
+      corrigée par l'API d'une saison à l'autre ;
+    - sinon (dates qui alternent, même saison, plus de deux dates) : collision.
+    """
+    if len(seasons_by_birth) < 2:
+        return None
+    if len(seasons_by_birth) > 2:
+        return BIRTH
+    first, second = sorted(seasons_by_birth.values(), key=lambda seasons: (min(seasons), max(seasons)))
+    return "correction" if max(first) < min(second) else BIRTH
+
+
+def fixture_day(item: dict) -> int | None:
+    """Jour du match (ordinal), d'après `fixture.date` (UTC par défaut dans l'API)."""
+    value = str((item.get("fixture") or {}).get("date") or "")[:10]
+    try:
+        return dt.date.fromisoformat(value).toordinal()
+    except ValueError:
+        return None
+
+
 # --- résultats --------------------------------------------------------------------------------
 
 
@@ -416,6 +550,12 @@ class CheckResult:
     unreadable: list[str]
     journal: JournalResult
     league_names: dict[int, str]
+    collisions: list[Collision] = field(default_factory=list)
+    birth_corrections: list[Collision] = field(default_factory=list)
+    profile_tiers: dict[int, set[str]] = field(default_factory=dict)  # identifiant -> paliers de ses profils
+    appearances: int = 0  # présences (joueur, match) examinées pour les collisions
+    false_positives: list[Collision] = field(default_factory=list)  # « même match » écartés (subtype = cause)
+    unknown_id_entries: int = 0  # entrées à l'identifiant 0, écartées des collisions
 
     # Calculés une fois, à la première lecture (résumé et rapport s'en servent).
 
@@ -432,6 +572,20 @@ class CheckResult:
     @cached_property
     def duplicates(self) -> list[tuple[str, list[int]]]:
         return probable_duplicates(self.profiles)
+
+    def duplicate_tiers(self, ids: list[int]) -> tuple[str, bool]:
+        """(paliers du groupe, trouvé seulement grâce au contrôle commun).
+
+        Un contrôle palier par palier trouve un groupe si au moins deux de ses
+        identifiants ont un profil dans un même palier ; sinon, le groupe est
+        un doublon « inter-paliers ».
+        """
+        tiers = [self.profile_tiers.get(pid, set()) for pid in ids]
+        per_tier = Counter(tier for found in tiers for tier in found)
+        return tier_label(per_tier), not any(count >= 2 for count in per_tier.values())
+
+    def collisions_of(self, kind: str) -> list[Collision]:
+        return [c for c in self.collisions if c.kind == kind]
 
     @cached_property
     def checks(self) -> list[CheckLine]:
@@ -457,6 +611,16 @@ class RawChecker:
         self.profiles: dict[int, Profile] = {}
         self.profiles_checked = 0
         self._reference_cache: dict[tuple[str, int], set[int]] = {}
+        # Collisions : relevées pendant la lecture des détails et des profils,
+        # sans seconde passe sur le brut.
+        self.appearances = Appearances()
+        self.same_match: list[Collision] = []
+        self.false_positives: list[Collision] = []  # « même match » écartés, avec leur cause
+        self.unknown_id_entries = 0  # entrées à l'identifiant 0 (joueur inconnu de l'API)
+        self._tier_index = {tier: index for index, tier in enumerate(tiers)}
+        self.births: dict[int, dict[str, set[tuple[int, str]]]] = defaultdict(lambda: defaultdict(set))
+        self.profile_tiers: dict[int, set[str]] = defaultdict(set)
+        self.team_names: dict[int, str] = {}
 
     def run(self, now: dt.datetime | None = None) -> CheckResult:
         scope, notes = league_seasons(self.config, self.tiers, self.coverage)
@@ -464,6 +628,7 @@ class RawChecker:
             notes.insert(0, "Couverture inconnue (aucune réponse /leagues) : toutes les saisons "
                             "configurées sont attendues et tous les détails sont contrôlés.")
         seasons = [self._check_league_season(ls) for ls in scope]
+        collisions, corrections = self._collisions()
         leagues_file = latest_leagues_file(self.raw_dir)
         return CheckResult(
             tiers=self.tiers,
@@ -480,7 +645,42 @@ class RawChecker:
             unreadable=self.reader.unreadable,
             journal=check_journal(self.raw_dir, self.tiers),
             league_names={league: cov.name for league, cov in (self.coverage or {}).items()},
+            collisions=collisions,
+            birth_corrections=corrections,
+            profile_tiers=dict(self.profile_tiers),
+            appearances=len(self.appearances),
+            false_positives=self.false_positives,
+            unknown_id_entries=self.unknown_id_entries,
         )
+
+    def _collisions(self) -> tuple[list[Collision], list[Collision]]:
+        """Collisions des trois types, et dates de naissance corrigées (à part)."""
+        collisions = list(self.same_match)
+        for group in self.appearances.same_day_groups():
+            player, day = group[0][0], group[0][1]
+            parts = [f"{self._team(team)} (match {fixture}, {self.tiers[tier]})" for _, _, team, fixture, tier in group]
+            collisions.append(Collision(
+                SAME_DAY, player, tuple(sorted({self.tiers[row[4]] for row in group})),
+                f"{self._player(player)}, le {dt.date.fromordinal(day).isoformat()} : " + " ; ".join(parts),
+            ))
+        corrections = []
+        for player, by_birth in sorted(self.births.items()):
+            kind = classify_births({birth: {season for season, _ in seen} for birth, seen in by_birth.items()})
+            if kind is None:
+                continue
+            tiers = tuple(sorted({tier for seen in by_birth.values() for _, tier in seen}))
+            parts = [f"{birth} (saisons {', '.join(str(s) for s in sorted({season for season, _ in seen}))})"
+                     for birth, seen in sorted(by_birth.items())]
+            case = Collision(BIRTH, player, tiers, f"{self._player(player)} : " + " ; ".join(parts))
+            (collisions if kind == BIRTH else corrections).append(case)
+        return collisions, corrections
+
+    def _player(self, player: int) -> str:
+        names = self.names.get(player)
+        return f"{names.most_common(1)[0][0] if names else '?'} ({player})"
+
+    def _team(self, team: int) -> str:
+        return f"{self.team_names.get(team, '?')} ({team})"
 
     def _issue(self, family: str, ls: LeagueSeason, fixture: int | None, text: str) -> None:
         self.issues[family].append(Issue(ls.league, ls.season, fixture, text))
@@ -569,6 +769,7 @@ class RawChecker:
         teams_stats = [team for team in item.get("players") or [] if isinstance(team, dict)]
         events = [event for event in item.get("events") or [] if isinstance(event, dict)]
         self._collect_identifiers(ls, fid, lineups, teams_stats, events, starters)
+        self._record_appearances(ls, fid, fixture_day(item), lineups, teams_stats)
         self._check_plausibility(ls, fid, teams_stats)
         if status in AWARDED_STATUSES:
             result.awarded += 1
@@ -645,6 +846,91 @@ class RawChecker:
             elif name:
                 self.names[int(player_id)][name] += 1
 
+    def _record_appearances(
+        self, ls: LeagueSeason, fid: int, day: int | None, lineups: list[dict], teams_stats: list[dict]
+    ) -> None:
+        """Présences d'un match, pour les collisions « même match » et « même jour ».
+
+        Sources : compositions (titulaires et remplaçants) et statistiques
+        joueurs, chacune rattachée à son équipe et à un numéro de maillot. Les
+        événements sont écartés : un but contre son camp y est rattaché à
+        l'équipe adverse.
+
+        Le cas courant (une présence, ou une composition et des statistiques de
+        la même équipe) passe par un chemin court : cette méthode est appelée
+        pour chacun des 100 000 matchs.
+        """
+        places: dict[int, list[tuple[str, int | None, object]]] = {}
+        for lineup in lineups:
+            team = lineup.get("team") or {}
+            self._remember_team(team)
+            for entry in [*(lineup.get("startXI") or []), *(lineup.get("substitutes") or [])]:
+                player = (entry or {}).get("player") or {}
+                self._add_place(places, player.get("id"), ("L", team.get("id"), player.get("number")))
+        for block in teams_stats:
+            team = block.get("team") or {}
+            self._remember_team(team)
+            for entry in block.get("players") or []:
+                entry = entry or {}
+                games = (((entry.get("statistics") or [{}])[0]) or {}).get("games") or {}
+                self._add_place(places, (entry.get("player") or {}).get("id"), ("S", team.get("id"), games.get("number")))
+
+        tier = self._tier_index[ls.tier]
+        mismatched: list[tuple[int, list]] = []  # composition d'une équipe, statistiques de l'autre
+        for player_id, found in places.items():
+            first = found[0]
+            if len(found) == 1 or (len(found) == 2 and found[1][0] != first[0] and found[1][1] == first[1]):
+                if day is not None and first[1] is not None:
+                    self.appearances.add(player_id, day, first[1], fid, tier)
+                continue
+            lineup = {(team, number) for source, team, number in found if source == "L"}
+            stats = {(team, number) for source, team, number in found if source == "S"}
+            lineup_teams, stats_teams = {team for team, _ in lineup}, {team for team, _ in stats}
+            if len(lineup) > 1 or len(stats) > 1:
+                # Deux entrées différentes dans une même source : deux personnes.
+                subtype = TWO_TEAMS if len(lineup_teams | stats_teams) > 1 else SAME_TEAM
+                self.same_match.append(self._same_match_case(ls, fid, player_id, found, subtype))
+            elif lineup_teams and stats_teams and lineup_teams != stats_teams:
+                mismatched.append((player_id, found))  # tranché après la boucle
+            else:
+                # Même entrée répétée : une seule personne.
+                self.false_positives.append(self._same_match_case(ls, fid, player_id, found, REPEATED_ENTRY))
+                team = next(iter(lineup_teams or stats_teams))
+                if day is not None and team is not None:
+                    self.appearances.add(player_id, day, team, fid, tier)
+
+        # Si beaucoup de joueurs du match sont dans ce cas, ce sont les statistiques
+        # qui sont rattachées à l'équipe adverse : faux positif. Sinon, homonyme
+        # probable dont les statistiques portent l'identifiant de l'autre : collision.
+        swapped = len(mismatched) >= SWAP_MIN_PLAYERS
+        for player_id, found in mismatched:
+            if swapped:
+                self.false_positives.append(self._same_match_case(ls, fid, player_id, found, SWAPPED_STATS))
+                team = next(team for source, team, _ in found if source == "L")  # la composition fait foi
+                if day is not None and team is not None:
+                    self.appearances.add(player_id, day, team, fid, tier)
+            else:
+                self.same_match.append(self._same_match_case(ls, fid, player_id, found, TWO_TEAMS))
+
+    def _add_place(self, places: dict, player_id: object, place: tuple) -> None:
+        if player_id is None:
+            return  # déjà compté dans « player.id présent partout »
+        if player_id == UNKNOWN_PLAYER_ID:
+            self.unknown_id_entries += 1
+            return
+        places.setdefault(int(player_id), []).append(place)
+
+    def _remember_team(self, team: dict) -> None:
+        if team.get("id") is not None and team.get("name"):
+            self.team_names.setdefault(int(team["id"]), team["name"])
+
+    def _same_match_case(self, ls: LeagueSeason, fid: int, player_id: int, found: list, subtype: str) -> Collision:
+        sources = {"L": "composition", "S": "statistiques"}
+        where = " ; ".join(f"{sources[source]} {self._team(team) if team is not None else '?'} n° {number}"
+                           for source, team, number in found)
+        return Collision(SAME_MATCH, player_id, (ls.tier,),
+                         f"{self._player(player_id)}, match {fid} ({ls.league}, {ls.season}) : {where}", subtype, fid)
+
     def _check_plausibility(self, ls: LeagueSeason, fid: int, teams_stats: list[dict]) -> None:
         low_min, high_min = MINUTES_RANGE
         low_rating, high_rating = RATING_RANGE
@@ -695,12 +981,16 @@ class RawChecker:
                     continue
                 player_id = int(player["id"])
                 ids.add(player_id)
+                birth = (player.get("birth") or {}).get("date")
                 self.profiles[player_id] = Profile(
                     name=player.get("name"),
                     firstname=player.get("firstname"),
                     lastname=player.get("lastname"),
-                    birth=(player.get("birth") or {}).get("date"),
+                    birth=birth,
                 )
+                self.profile_tiers[player_id].add(ls.tier)
+                if birth:
+                    self.births[player_id][birth].add((ls.season, ls.tier))
                 if player.get("name"):
                     self.names[player_id][player["name"]] += 1
 
@@ -870,9 +1160,27 @@ def summary_lines(result: CheckResult) -> list[CheckLine]:
                            f"{len(conflicts)} identifiant(s) aux noms incompatibles ; "
                            f"{variants} avec des variantes tolérées, sur {len(result.names)} joueurs"))
     duplicates = result.duplicates
+    inter = sum(1 for _, ids in duplicates if result.duplicate_tiers(ids)[1])
+    detail = f"{len(duplicates)} groupe(s), sur {len(result.profiles)} profils"
+    if len(result.tiers) > 1:
+        detail += f" ; dont {inter} inter-paliers"
     lines.append(CheckLine("Identifiants", "Doublons probables (même nom, même naissance)",
-                           WATCH if duplicates else OK,
-                           f"{len(duplicates)} groupe(s), sur {len(result.profiles)} profils"))
+                           WATCH if duplicates else OK, detail))
+    for kind in (SAME_DAY, SAME_MATCH, BIRTH):
+        cases = result.collisions_of(kind)
+        ids = {c.player for c in cases}
+        detail = f"{len(ids)} identifiant(s), {len(cases)} cas"
+        if kind == SAME_MATCH:
+            two = {c.player for c in cases if c.subtype == TWO_TEAMS}
+            detail += (f" ; chez les deux équipes : {len(two)}, deux numéros dans la même équipe : {len(ids - two)} ; "
+                       f"faux positifs écartés : {len(result.false_positives)} cas")
+        if kind == BIRTH:
+            detail += (f" ; {len(result.birth_corrections)} date(s) corrigée(s) d'une saison à l'autre, "
+                       "classée(s) à part")
+        if kind == SAME_DAY:
+            detail += f", sur {result.appearances} présences (joueur, match)"
+        lines.append(CheckLine("Identifiants", f"Collisions : {COLLISION_LABELS[kind]}",
+                               WATCH if cases else OK, detail))
 
     # Plausibilité
     lines.append(CheckLine("Plausibilité", f"Minutes entre {MINUTES_RANGE[0]} et {MINUTES_RANGE[1]}",
@@ -1052,6 +1360,8 @@ def render_summary(result: CheckResult, command: str | None = None, details_name
         f"{sum(1 for names in result.names.values() if len(names) > 1)} ; aux noms incompatibles : "
         f"{len(result.name_conflicts)}.",
         f"- Profils /players : {len(result.profiles)} ; groupes de doublons probables : {len(result.duplicates)}.",
+        f"- Collisions (un identifiant, deux personnes ; ADR-0008, règle 3) : "
+        f"{len({c.player for c in result.collisions})} identifiant(s) distinct(s), tous types confondus.",
         f"- Fichiers : {journal.verified} sha256 conformes, {len(journal.mismatched)} différents, "
         f"{len(journal.missing)} absents, {len(result.unreadable)} illisibles, {len(journal.unlisted)} hors journal ; "
         f"{len(journal.bad_lines)} ligne(s) de journal illisible(s).",
@@ -1063,7 +1373,59 @@ def render_summary(result: CheckResult, command: str | None = None, details_name
         lines += [f"  - {status} {task_type} : {count}" for (status, task_type), count in sorted(problems.items())]
     else:
         lines.append(f"- File de travail : {'illisible' if journal.queue_error else 'absente'}.")
+    lines += ["", *collision_table(result)]
     return "\n".join(lines).rstrip() + "\n"
+
+
+def collision_table(result: CheckResult) -> list[str]:
+    """Identifiants distincts par type de collision et par palier (« P1+P3 » :
+    cas qui réunit deux paliers, visible seulement s'ils sont contrôlés ensemble)."""
+    columns = {
+        "Même jour": lambda c: c.kind == SAME_DAY,
+        "Même match, deux équipes": lambda c: c.kind == SAME_MATCH and c.subtype == TWO_TEAMS,
+        "Même match, deux numéros": lambda c: c.kind == SAME_MATCH and c.subtype == SAME_TEAM,
+        "Deux naissances": lambda c: c.kind == BIRTH,
+        "Naissance corrigée": lambda c: True,
+    }
+    counts: dict[str, dict[str, set[int]]] = defaultdict(lambda: defaultdict(set))
+    for case in result.collisions:
+        for column, keep in list(columns.items())[:-1]:
+            if keep(case):
+                counts[case.tier_label][column].add(case.player)
+    for case in result.birth_corrections:
+        counts[case.tier_label]["Naissance corrigée"].add(case.player)
+    duplicates: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    for _, ids in result.duplicates:
+        label, inter = result.duplicate_tiers(ids)
+        duplicates[label][0] += 1
+        duplicates[label][1] += int(inter)
+
+    lines = [
+        "## 5. Collisions et doublons par palier",
+        "",
+        "Collisions : nombre d'identifiants distincts (un identifiant peut compter dans plusieurs colonnes). "
+        "« P1+P3 » : cas qui réunit deux paliers. « Même match, deux numéros » : deux numéros de maillot "
+        "différents dans la même équipe. « Naissance corrigée » : deux dates qui se succèdent d'une saison "
+        "à l'autre, classées à part. Doublons : groupes de profils (même nom, même naissance) ; "
+        "« inter-paliers » : groupe qu'aucun contrôle palier par palier ne trouve.",
+        "",
+    ]
+    labels = sorted(set(counts) | set(duplicates), key=lambda label: (label.count("+"), label))
+    if not labels:
+        lines.append("Aucune collision ni aucun doublon.")
+    else:
+        lines += ["| Paliers | " + " | ".join(columns) + " | Doublons | dont inter-paliers |",
+                  "|---|" + "---|" * (len(columns) + 2)]
+        for label in labels:
+            cells = [len(counts[label][column]) for column in columns] + duplicates[label]
+            lines.append(f"| {label} | " + " | ".join(str(cell) for cell in cells) + " |")
+    lines += ["", "Faux positifs écartés des collisions « même match » :", ""]
+    for cause, label in FALSE_POSITIVE_LABELS.items():
+        cases = [c for c in result.false_positives if c.subtype == cause]
+        matches = {c.fixture for c in cases}
+        lines.append(f"- {label} : {len(cases)} cas, {len(matches)} match(s)")
+    lines.append(f"- entrées à l'identifiant {UNKNOWN_PLAYER_ID} (joueur inconnu de l'API) : {result.unknown_id_entries}")
+    return lines
 
 
 def render_details(result: CheckResult, command: str | None = None) -> str:
@@ -1106,8 +1468,25 @@ def render_details(result: CheckResult, command: str | None = None) -> str:
     lines += [f"Doublons probables : même nom et même date de naissance, identifiants différents ({len(duplicates)}) :"
               if duplicates else "Doublons probables : aucun.", ""]
     if duplicates:
-        lines += _bullets(f"né le {birth} : " + " ; ".join(f"{pid} {result.profiles[pid].label()}" for pid in ids)
-                          for birth, ids in duplicates) + [""]
+        lines += _bullets(f"né le {birth} [{' '.join(filter(None, (label, 'inter-paliers' if inter else '')))}] : "
+                          + " ; ".join(f"{pid} {result.profiles[pid].label()}" for pid in ids)
+                          for birth, ids in duplicates
+                          for label, inter in [result.duplicate_tiers(ids)]) + [""]
+    lines += ["Collisions (un identifiant, deux personnes ; ADR-0008, règle 3) :", ""]
+    for kind in (SAME_DAY, SAME_MATCH, BIRTH):
+        cases = result.collisions_of(kind)
+        title = f"{COLLISION_LABELS[kind].capitalize()} ({len(cases)} cas)"
+        lines += [f"{title} :", "", *_bullets(
+            f"[{c.tier_label}{', ' + c.subtype if c.subtype else ''}] {c.text}" for c in cases), ""] if cases \
+            else [f"{title} : aucun cas.", ""]
+    for cause, label in FALSE_POSITIVE_LABELS.items():
+        cases = [c for c in result.false_positives if c.subtype == cause]
+        lines += [f"Faux positif écarté, {label} ({len(cases)} cas) :", "",
+                  *_bullets(f"[{c.tier_label}] {c.text}" for c in cases), ""] if cases             else [f"Faux positif écarté, {label} : aucun cas.", ""]
+    corrections = result.birth_corrections
+    lines += [f"Dates de naissance corrigées d'une saison à l'autre, classées à part ({len(corrections)}) :", "",
+              *_bullets(f"[{c.tier_label}] {c.text}" for c in corrections), ""] if corrections \
+        else ["Dates de naissance corrigées d'une saison à l'autre : aucune.", ""]
     lines += ["## 5. Plausibilité", "", *issue_block("minutes"), *issue_block("ratings")]
 
     journal = result.journal

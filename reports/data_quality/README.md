@@ -15,7 +15,7 @@ Chaque lancement écrit deux fichiers :
 
 Pourquoi deux fichiers : les données restent privées (ADR-0002), mais l'historique des verdicts doit être gardé. Le résumé ne contient donc que des nombres ; les listes nominatives restent sur le poste.
 
-- `<palier>` vaut `tous` si la commande est lancée sans `--palier`.
+- `<palier>` vaut `tous` si la commande est lancée sans `--palier`, et `P1-P2-P3` pour plusieurs paliers contrôlés ensemble (doublons et collisions calculés sur l'ensemble).
 - Relancer le même jour remplace les deux fichiers du jour ; Git garde l'historique des résumés.
 - Ne pas modifier à la main : relancer la commande.
 

@@ -7,6 +7,7 @@ cohérence des signes (ex. `own_xg_for_last5` doit avoir un coefficient positif,
 `opp_xg_against_last5`... selon convention de nommage -- voir le test de signe
 dans tests/modeling/test_poisson_model.py).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

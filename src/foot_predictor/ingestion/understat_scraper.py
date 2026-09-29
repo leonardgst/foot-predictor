@@ -19,6 +19,7 @@ documentée en tête de ingestion/understat.py :
         "away_xg": 0.62
     }
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -80,9 +81,7 @@ def _upsert_raw_row(session: Session, ingestion_id: int, payload: dict) -> str:
 
 
 def ingest_league_matches(session: Session, client: UnderstatClient, league_code: str, season: str) -> dict:
-    log = SourceIngestionLog(
-        source_name="understat", payload_ref=f"matches/{league_code}/{season}", status="pending"
-    )
+    log = SourceIngestionLog(source_name="understat", payload_ref=f"matches/{league_code}/{season}", status="pending")
     session.add(log)
     session.flush()
 

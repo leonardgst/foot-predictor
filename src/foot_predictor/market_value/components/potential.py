@@ -46,6 +46,7 @@ Les âges d'ancrage sont des constantes nommées (pas de magie dans la
 formule) pour pouvoir être ajustés facilement si besoin, sans avoir à
 redériver le calcul.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -68,8 +69,7 @@ MIN_SCORE = 0.0
 def _age_in_years(birth_date: dt.date, as_of_date: dt.date) -> float:
     if as_of_date < birth_date:
         raise ValueError(
-            f"as_of_date ({as_of_date}) est antérieure à birth_date ({birth_date}) : "
-            "impossible de calculer un âge."
+            f"as_of_date ({as_of_date}) est antérieure à birth_date ({birth_date}) : impossible de calculer un âge."
         )
     return (as_of_date - birth_date).days / DAYS_PER_YEAR
 

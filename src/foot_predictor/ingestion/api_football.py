@@ -11,6 +11,7 @@ quasi verbatim) :
 d'homonymes légèrement plus élevé qu'avec une source qui donnerait la date
 de naissance (cf. limitation déjà actée pour les lineups).
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -56,9 +57,7 @@ def _match_context(session: Session, fixture_detail: dict, teams_mapping: dict):
 
 def _upsert_lineup_entry(session: Session, *, match_id, team_id, player_id, started, position) -> None:
     existing = session.scalar(
-        select(Lineup).where(
-            Lineup.match_id == match_id, Lineup.team_id == team_id, Lineup.player_id == player_id
-        )
+        select(Lineup).where(Lineup.match_id == match_id, Lineup.team_id == team_id, Lineup.player_id == player_id)
     )
     if existing is not None:
         existing.started = started
@@ -91,11 +90,25 @@ def ingest_api_football_lineups(session: Session) -> tuple[int, int]:
             for slot in side_lineup.get("startXI", []):
                 p = slot["player"]
                 player = get_or_create_player(session, SOURCE_NAME, p["name"], full_name=p["name"])
-                _upsert_lineup_entry(session, match_id=match.id, team_id=team.id, player_id=player.id, started=True, position=p.get("pos"))
+                _upsert_lineup_entry(
+                    session,
+                    match_id=match.id,
+                    team_id=team.id,
+                    player_id=player.id,
+                    started=True,
+                    position=p.get("pos"),
+                )
             for slot in side_lineup.get("substitutes", []):
                 p = slot["player"]
                 player = get_or_create_player(session, SOURCE_NAME, p["name"], full_name=p["name"])
-                _upsert_lineup_entry(session, match_id=match.id, team_id=team.id, player_id=player.id, started=False, position=p.get("pos"))
+                _upsert_lineup_entry(
+                    session,
+                    match_id=match.id,
+                    team_id=team.id,
+                    player_id=player.id,
+                    started=False,
+                    position=p.get("pos"),
+                )
         processed += 1
 
     session.commit()
@@ -155,9 +168,7 @@ def _upsert_player_match_stats(session: Session, *, match_id, player_id, team_id
     )
 
     existing = session.scalar(
-        select(PlayerMatchStats).where(
-            PlayerMatchStats.match_id == match_id, PlayerMatchStats.player_id == player_id
-        )
+        select(PlayerMatchStats).where(PlayerMatchStats.match_id == match_id, PlayerMatchStats.player_id == player_id)
     )
     if existing is not None:
         for key, value in values.items():

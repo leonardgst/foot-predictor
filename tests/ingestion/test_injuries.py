@@ -1,6 +1,7 @@
 """Tests de l'ingestion raw.api_football_injuries -> staging.player_injury
 (`ingestion/injuries.py`). Aucun réseau : les lignes raw sont insérées
 directement en base, comme pour les extracteurs de api_football.py."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -96,12 +97,8 @@ def test_ingest_falls_back_to_type_when_reason_missing(db_session, make_raw_inju
 
 
 def test_ingest_same_player_two_entries_creates_two_distinct_rows(db_session, make_raw_injury):
-    make_raw_injury(
-        _injury_payload(fixture_id=592872, date="2021-08-28T14:00:00+00:00", reason="Knee Injury")
-    )
-    make_raw_injury(
-        _injury_payload(fixture_id=592900, date="2021-09-15T14:00:00+00:00", reason="Ankle Injury")
-    )
+    make_raw_injury(_injury_payload(fixture_id=592872, date="2021-08-28T14:00:00+00:00", reason="Knee Injury"))
+    make_raw_injury(_injury_payload(fixture_id=592900, date="2021-09-15T14:00:00+00:00", reason="Ankle Injury"))
 
     processed, skipped = ingest_api_football_injuries(db_session)
 

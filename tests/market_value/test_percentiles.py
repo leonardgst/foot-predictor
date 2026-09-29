@@ -2,6 +2,7 @@
 scoping par cluster (anti-fuite -- cf. docs/RECAP_PROJET.md section 10.3,
 étape 5 : jamais de comparaison entre clusters différents), et cas limites
 (groupe à un seul joueur, valeurs toutes identiques, valeurs manquantes)."""
+
 from __future__ import annotations
 
 import numpy as np

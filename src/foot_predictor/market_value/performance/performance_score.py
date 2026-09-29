@@ -2,6 +2,7 @@
 Score Performance final = somme pondérée des percentiles (0-100) -- cf.
 recap clustering, section 6 étape 7.
 """
+
 from __future__ import annotations
 
 import pandas as pd

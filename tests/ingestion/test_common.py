@@ -1,6 +1,7 @@
 """Tests de la réconciliation cross-source (`ingestion/common.py`) : zone qui
 a causé le bug des 19 équipes dupliquées (docs/RECAP_PROJET.md, section 9.3).
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -231,9 +232,7 @@ def test_resolve_match_cross_source_ambiguous_pair_within_two_days(db_session, m
         home_team_id=home.id,
         away_team_id=away.id,
     )
-    cup = get_or_create_competition(
-        db_session, "football_data", "CUP", {"CUP": {"name": "Coupe nationale"}}
-    )
+    cup = get_or_create_competition(db_session, "football_data", "CUP", {"CUP": {"name": "Coupe nationale"}})
     match_cup = make_match(
         competition_id=cup.id,
         season_id=season.id,

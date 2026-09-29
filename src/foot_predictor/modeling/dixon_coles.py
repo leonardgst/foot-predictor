@@ -23,6 +23,7 @@ seule contrainte suffit : l'attaque de l'équipe de référence (la plus petite
 team_id vue à l'entraînement) est fixée à alpha = 0, toutes les autres alpha et
 tous les beta (y compris celui de l'équipe de référence) restent libres.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -215,7 +216,18 @@ def fit_dixon_coles(
     result = minimize(
         _negative_log_likelihood,
         x0,
-        args=(home_idx, away_idx, arrays.x_home, arrays.x_away, arrays.y_home, arrays.y_away, weights, n_teams, n_delta, ref_idx),
+        args=(
+            home_idx,
+            away_idx,
+            arrays.x_home,
+            arrays.x_away,
+            arrays.y_home,
+            arrays.y_away,
+            weights,
+            n_teams,
+            n_delta,
+            ref_idx,
+        ),
         method="L-BFGS-B",
         bounds=bounds,
         options={"maxiter": 500},

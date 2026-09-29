@@ -6,6 +6,7 @@ Toutes les métriques opèrent au niveau MATCH (pas au niveau ligne) : chaque
 match donne un couple (lambda_home, lambda_away) et un score réel (y_home,
 y_away), et une matrice de probabilités jointes sur les scores 0..MAX_GOALS.
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -42,9 +43,7 @@ def to_match_level(meta: pd.DataFrame, y: pd.Series, lambda_hat: np.ndarray) -> 
     ).reset_index(drop=True)
 
 
-def independent_poisson_matrix(
-    lambda_home: float, lambda_away: float, max_goals: int = MAX_GOALS
-) -> np.ndarray:
+def independent_poisson_matrix(lambda_home: float, lambda_away: float, max_goals: int = MAX_GOALS) -> np.ndarray:
     """P(a,b) = Poisson(a; lambda_home) * Poisson(b; lambda_away) -- Modèle A,
     section 4.3/5.1 du document. Ligne = buts domicile, colonne = buts extérieur."""
     goals = np.arange(max_goals + 1)
@@ -148,11 +147,7 @@ def low_score_bias_table(
     rows = []
     for a, b in scores:
         predicted = [matrix[a, b] for matrix in predictions.matrices]
-        observed = sum(
-            1
-            for row in predictions.matches.itertuples()
-            if int(row.y_home) == a and int(row.y_away) == b
-        )
+        observed = sum(1 for row in predictions.matches.itertuples() if int(row.y_home) == a and int(row.y_away) == b)
         rows.append(
             {
                 "score": f"{a}-{b}",

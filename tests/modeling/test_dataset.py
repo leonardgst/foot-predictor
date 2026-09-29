@@ -4,6 +4,7 @@ ne jamais rattacher à une équipe les features calculées pour un AUTRE match d
 cette même équipe -- LE bug de fuite le plus silencieux possible ici (une
 jointure par team_id seul, sans filtrer sur match_id, donnerait un résultat
 plausible mais faux)."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -37,12 +38,20 @@ def test_own_and_opponent_blocks_are_inverted_between_home_and_away_rows(
     away_tm = make_team_match(match_id=match.id, team_id=away_team.id, is_home=False, goals_for=1, goals_against=2)
 
     make_team_match_features(
-        team_match_id=home_tm.id, match_id=match.id, team_id=home_team.id,
-        form_points_last10=9, goals_for_last10=2.5, standing_position=1,
+        team_match_id=home_tm.id,
+        match_id=match.id,
+        team_id=home_team.id,
+        form_points_last10=9,
+        goals_for_last10=2.5,
+        standing_position=1,
     )
     make_team_match_features(
-        team_match_id=away_tm.id, match_id=match.id, team_id=away_team.id,
-        form_points_last10=3, goals_for_last10=1.0, standing_position=15,
+        team_match_id=away_tm.id,
+        match_id=match.id,
+        team_id=away_team.id,
+        form_points_last10=3,
+        goals_for_last10=1.0,
+        standing_position=15,
     )
 
     feature_columns = ["form_points_last10", "goals_for_last10", "standing_position"]
@@ -93,9 +102,15 @@ def test_features_are_scoped_to_this_match_not_another_match_of_the_same_team(
         status="played",
     )
     older_tm_a = make_team_match(match_id=older_match.id, team_id=team_a.id, is_home=True, goals_for=1, goals_against=1)
-    older_tm_c = make_team_match(match_id=older_match.id, team_id=team_c.id, is_home=False, goals_for=1, goals_against=1)
-    make_team_match_features(team_match_id=older_tm_a.id, match_id=older_match.id, team_id=team_a.id, form_points_last10=999)
-    make_team_match_features(team_match_id=older_tm_c.id, match_id=older_match.id, team_id=team_c.id, form_points_last10=888)
+    older_tm_c = make_team_match(
+        match_id=older_match.id, team_id=team_c.id, is_home=False, goals_for=1, goals_against=1
+    )
+    make_team_match_features(
+        team_match_id=older_tm_a.id, match_id=older_match.id, team_id=team_a.id, form_points_last10=999
+    )
+    make_team_match_features(
+        team_match_id=older_tm_c.id, match_id=older_match.id, team_id=team_c.id, form_points_last10=888
+    )
 
     match = make_match(
         competition_id=competition.id,

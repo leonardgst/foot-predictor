@@ -6,6 +6,7 @@ score -> écriture en base.
 Usage :
     python -m foot_predictor.market_value.run_performance_pipeline
 """
+
 from __future__ import annotations
 
 import datetime as dt

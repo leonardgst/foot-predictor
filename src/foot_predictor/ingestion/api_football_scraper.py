@@ -22,6 +22,7 @@ est reprenable d'un jour sur l'autre sans gaspiller de requêtes, grâce à
 _fixture_already_ingested (skip des fixtures déjà en raw avant d'appeler
 /fixtures?id=).
 """
+
 from __future__ import annotations
 
 import os
@@ -60,9 +61,7 @@ def fetch_fixtures(league_id: int, season: int, date_from: str, date_to: str) ->
 def fetch_fixture_detail(fixture_id: int) -> dict | None:
     """Renvoie la réponse complète (fixture + teams + lineups + players + events)
     pour un fixture_id donné, ou None si absent."""
-    response = requests.get(
-        f"{BASE_URL}/fixtures", headers=_headers(), params={"id": fixture_id}, timeout=30
-    )
+    response = requests.get(f"{BASE_URL}/fixtures", headers=_headers(), params={"id": fixture_id}, timeout=30)
     response.raise_for_status()
     data = response.json().get("response", [])
     return data[0] if data else None
@@ -103,9 +102,7 @@ def _upsert_fixture_detail(session: Session, ingestion_id: int, fixture_detail: 
     return "unchanged"
 
 
-def ingest_league_fixture_details(
-    session: Session, league_id: int, season: int, date_from: str, date_to: str
-) -> dict:
+def ingest_league_fixture_details(session: Session, league_id: int, season: int, date_from: str, date_to: str) -> dict:
     log = SourceIngestionLog(
         source_name="api-football",
         payload_ref=f"league={league_id};season={season};{date_from}..{date_to}",

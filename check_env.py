@@ -5,6 +5,7 @@ Vérification à lancer AVANT tout scraping réel :
 Ne fait aucun appel réseau vers les sources externes (football-data,
 API-Football, Understat) — vérifie juste que le terrain est prêt.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -37,8 +38,7 @@ def check_env_vars():
 def check_api_football_key():
     if not os.environ.get("API_FOOTBALL_KEY"):
         raise RuntimeError(
-            "API_FOOTBALL_KEY absente de l'environnement "
-            "(hors .env.*, à exporter manuellement dans le shell)"
+            "API_FOOTBALL_KEY absente de l'environnement (hors .env.*, à exporter manuellement dans le shell)"
         )
 
 
@@ -65,9 +65,7 @@ def check_db_connection():
 def check_alembic_head():
     import subprocess
 
-    result = subprocess.run(
-        ["uv", "run", "alembic", "current"], capture_output=True, text=True, check=True
-    )
+    result = subprocess.run(["uv", "run", "alembic", "current"], capture_output=True, text=True, check=True)
     if "(head)" not in result.stdout:
         raise RuntimeError(f"pas à jour (head) : {result.stdout.strip()}")
 

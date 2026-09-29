@@ -7,6 +7,7 @@ chaque appel.
 
 Lancement : APP_ENV=<env> uv run python -m foot_predictor.modeling.train_and_persist
 """
+
 from __future__ import annotations
 
 import datetime as dt

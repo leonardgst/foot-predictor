@@ -8,14 +8,13 @@ Réutilise les fonctions déjà en place dans football_data_scraper.py
 (fetch_division, parse_csv_content) pour ne pas dupliquer la logique de
 parsing CSV.
 """
+
 from __future__ import annotations
 
 from foot_predictor.ingestion.football_data_scraper import DIVISIONS, fetch_division, parse_csv_content
 
 
-def collect_football_data_team_names(
-    start_years: range, divisions: list[str] | None = None
-) -> dict[str, set[str]]:
+def collect_football_data_team_names(start_years: range, divisions: list[str] | None = None) -> dict[str, set[str]]:
     """Renvoie {div: {noms d'équipe distincts}} sur toutes les saisons demandées.
 
     start_years : ex. range(2015, 2025) -> saisons "2015-2016" ... "2024-2025".

@@ -7,6 +7,7 @@ lignes). Le split doit donc couper le temps une seule fois : tout ce qui est
 strictement avant `cutoff_date` va en train, tout le reste en test -- jamais un
 tirage aléatoire de lignes ou de matchs.
 """
+
 from __future__ import annotations
 
 import datetime as dt

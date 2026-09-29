@@ -11,6 +11,7 @@ Pour une entité (équipe, compétition, joueur) rencontrée dans une source don
   4. On crée la ligne de mapping (source_name, source_ref) -> entity_id, pour que
      l'étape 1 fonctionne directement la prochaine fois (idempotence).
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -75,19 +76,13 @@ def get_or_create_competition(
         session.add(competition)
         session.flush()  # pour obtenir competition.id
 
-    session.add(
-        CompetitionSourceMapping(
-            competition_id=competition.id, source_name=source_name, source_ref=source_ref
-        )
-    )
+    session.add(CompetitionSourceMapping(competition_id=competition.id, source_name=source_name, source_ref=source_ref))
     session.flush()
     return competition
 
 
 def get_or_create_season(session: Session, competition_id: int, label: str) -> Season:
-    season = session.scalar(
-        select(Season).where(Season.competition_id == competition_id, Season.label == label)
-    )
+    season = session.scalar(select(Season).where(Season.competition_id == competition_id, Season.label == label))
     if season is not None:
         return season
 
@@ -102,6 +97,7 @@ def get_or_create_season(session: Session, competition_id: int, label: str) -> S
     session.flush()
     return season
 
+
 def _normalize_source_ref(source_name: str, source_ref: str) -> str:
     """Certaines sources ont des conventions de nommage à corriger avant tout
     lookup dans le mapping YAML ou dans staging.team.
@@ -115,6 +111,7 @@ def _normalize_source_ref(source_name: str, source_ref: str) -> str:
     if source_name == "understat":
         return source_ref.replace("_", " ")
     return source_ref
+
 
 def get_or_create_team(
     session: Session,
@@ -202,9 +199,7 @@ def get_or_create_team_match(
     goals_for: int | None,
     goals_against: int | None,
 ) -> TeamMatch:
-    team_match = session.scalar(
-        select(TeamMatch).where(TeamMatch.match_id == match_id, TeamMatch.team_id == team_id)
-    )
+    team_match = session.scalar(select(TeamMatch).where(TeamMatch.match_id == match_id, TeamMatch.team_id == team_id))
     if team_match is not None:
         team_match.goals_for = goals_for
         team_match.goals_against = goals_against
@@ -324,9 +319,7 @@ def upsert_team_match_xg(
     """Met à jour le xG d'une ligne team_match déjà existante (créée par football-data).
     Ne crée PAS de nouvelle ligne : si team_match n'existe pas encore, renvoie None
     (signale que football-data n'a pas encore ingéré ce match)."""
-    team_match = session.scalar(
-        select(TeamMatch).where(TeamMatch.match_id == match_id, TeamMatch.team_id == team_id)
-    )
+    team_match = session.scalar(select(TeamMatch).where(TeamMatch.match_id == match_id, TeamMatch.team_id == team_id))
     if team_match is None:
         return None
     team_match.xg_for = xg_for

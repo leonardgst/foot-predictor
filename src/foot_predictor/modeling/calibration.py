@@ -26,6 +26,7 @@ qu'elles resomment à 1. C'est une approximation -- une méthode de calibration
 multi-classe rigoureuse (ex. calibration de Dirichlet) n'est pas implémentée
 ici, hors scope de cette passe.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

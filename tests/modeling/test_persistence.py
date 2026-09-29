@@ -1,5 +1,6 @@
 """Tests de `modeling/persistence.py` : sauvegarde/chargement joblib du
 Modèle A entraîné, sans dépendance base de données (pas de marqueur `db`)."""
+
 from __future__ import annotations
 
 import datetime as dt

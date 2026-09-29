@@ -13,6 +13,7 @@ Règles (cf. recap clustering, sections 3 et 6) :
 Seuils ajustables une fois les diagnostics (data/diagnostics.py) lancés sur
 les vraies données.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -95,9 +96,7 @@ def build_player_vectors(df: pd.DataFrame) -> pd.DataFrame:
             if non_null.any():
                 minutes_with_stat = group.loc[non_null, "minutes"].sum()
                 record[f"{stat}_per90"] = (
-                    group.loc[non_null, stat].sum() * 90 / minutes_with_stat
-                    if minutes_with_stat > 0
-                    else np.nan
+                    group.loc[non_null, stat].sum() * 90 / minutes_with_stat if minutes_with_stat > 0 else np.nan
                 )
             else:
                 record[f"{stat}_per90"] = np.nan
@@ -108,9 +107,7 @@ def build_player_vectors(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def apply_minimum_sample_filter(
-    vectors: pd.DataFrame, min_matches: int = MIN_MATCHES_IN_WINDOW
-) -> pd.DataFrame:
+def apply_minimum_sample_filter(vectors: pd.DataFrame, min_matches: int = MIN_MATCHES_IN_WINDOW) -> pd.DataFrame:
     """Ne garde que les joueurs avec assez d'historique dans la fenêtre.
     Les joueurs en-dessous du seuil ne doivent PAS être scorés (cf. recap
     clustering, section 5, garde-fou)."""

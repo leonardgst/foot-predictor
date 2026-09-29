@@ -8,6 +8,7 @@ Deux appels par championnat/saison :
 Le 2e type d'appel est le plus coûteux : pas de limite publiée par Understat,
 mais on reste raisonnable (délai entre appels).
 """
+
 from __future__ import annotations
 
 import time
@@ -63,9 +64,7 @@ def _upsert_raw_row(session: Session, ingestion_id: int, payload: dict) -> str:
 
 
 def ingest_league_players(session: Session, client: UnderstatClient, league_code: str, season: str) -> dict:
-    log = SourceIngestionLog(
-        source_name="understat", payload_ref=f"players/{league_code}/{season}", status="pending"
-    )
+    log = SourceIngestionLog(source_name="understat", payload_ref=f"players/{league_code}/{season}", status="pending")
     session.add(log)
     session.flush()
 

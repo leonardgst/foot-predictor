@@ -10,6 +10,7 @@ IMPORTANT : remplacer la valeur de `down_revision` ci-dessous par le revision id
 réel de la migration 0001 (visible en tête de son fichier), s'il diffère de
 "0001_create_schemas".
 """
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum
@@ -23,7 +24,10 @@ depends_on = None
 
 
 match_status_enum = PGEnum(
-    "scheduled", "played", "postponed", "cancelled",
+    "scheduled",
+    "played",
+    "postponed",
+    "cancelled",
     name="match_status",
     schema="staging",
 )

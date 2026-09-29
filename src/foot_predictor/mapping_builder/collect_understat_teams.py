@@ -4,6 +4,7 @@ championnat, sur une plage de saisons. Réutilise fetch_league_matches déjà
 en place dans understat_scraper.py -- aucune requête supplémentaire, les
 noms d'équipe sont déjà dans la réponse de league.get_match_data().
 """
+
 from __future__ import annotations
 
 from understatapi import UnderstatClient

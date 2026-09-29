@@ -24,6 +24,7 @@ rigoureuse (Dirichlet calibration serait plus correcte, hors scope ici).
 
 Lancement : APP_ENV=dev uv run python -m foot_predictor.modeling.run_calibration_analysis
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -186,7 +187,9 @@ def main() -> None:
         existing["calibration_experiment"] = results
         RESULTS_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
         RESULTS_JSON_PATH.write_text(json.dumps(existing, indent=2, default=str), encoding="utf-8")
-        print(f"\nRésultats de l'expérience de calibration écrits dans {RESULTS_JSON_PATH} (clé 'calibration_experiment')")
+        print(
+            f"\nRésultats de l'expérience de calibration écrits dans {RESULTS_JSON_PATH} (clé 'calibration_experiment')"
+        )
 
 
 if __name__ == "__main__":

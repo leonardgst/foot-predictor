@@ -5,6 +5,7 @@ tests utilisant une vraie base (marqueur `db`) pointent toujours vers la base
 Postgres de test (docker-compose, port 5433) et jamais vers dev/prod, quelle
 que soit la variable d'environnement du shell appelant.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -31,9 +32,7 @@ def _test_engine():
         with engine.connect():
             pass
     except Exception as exc:
-        pytest.skip(
-            f"Base de test Postgres injoignable ({settings.postgres_host}:{settings.postgres_port}) : {exc}"
-        )
+        pytest.skip(f"Base de test Postgres injoignable ({settings.postgres_host}:{settings.postgres_port}) : {exc}")
     yield engine
     engine.dispose()
 

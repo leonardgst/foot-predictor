@@ -4,6 +4,7 @@ récupération de paramètres -- on simule des matchs avec des alpha/beta/gamma/
 rho connus à l'avance, on ajuste le modèle dessus, et on vérifie que le MLE
 retrouve des valeurs proches des vraies. Pas de base de données nécessaire ici
 (données entièrement synthétiques)."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -78,12 +79,26 @@ def _build_synthetic_dataset() -> tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
                 goals_home, goals_away = _simulate_match(rng, home, away)
                 match_date = base_date + dt.timedelta(days=match_id)
                 records.append(
-                    {"match_id": match_id, "team_id": home, "opponent_team_id": away,
-                     "match_date": match_date, "competition": "Synthetic", "is_home": True, "y": goals_home}
+                    {
+                        "match_id": match_id,
+                        "team_id": home,
+                        "opponent_team_id": away,
+                        "match_date": match_date,
+                        "competition": "Synthetic",
+                        "is_home": True,
+                        "y": goals_home,
+                    }
                 )
                 records.append(
-                    {"match_id": match_id, "team_id": away, "opponent_team_id": home,
-                     "match_date": match_date, "competition": "Synthetic", "is_home": False, "y": goals_away}
+                    {
+                        "match_id": match_id,
+                        "team_id": away,
+                        "opponent_team_id": home,
+                        "match_date": match_date,
+                        "competition": "Synthetic",
+                        "is_home": False,
+                        "y": goals_away,
+                    }
                 )
 
     frame = pd.DataFrame.from_records(records)

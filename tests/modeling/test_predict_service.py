@@ -4,6 +4,7 @@ des données synthétiques minimales (pas le vrai Modèle A) : on teste
 l'assemblage (features -> X -> lambda -> distribution -> 1N2) et les cas
 limites, pas la qualité prédictive (déjà couverte par
 `tests/modeling/test_poisson_model.py` et `docs/RESULTATS_MODELE.md`)."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -50,7 +51,9 @@ def _seed_one_prior_match(
     make_match, make_team_match, *, competition_id, season_id, team_id, opponent_id, is_home, match_date, goals_for
 ):
     match = make_match(
-        competition_id=competition_id, season_id=season_id, match_date=match_date,
+        competition_id=competition_id,
+        season_id=season_id,
+        match_date=match_date,
         home_team_id=team_id if is_home else opponent_id,
         away_team_id=opponent_id if is_home else team_id,
         home_goals=goals_for if is_home else 1,
@@ -76,12 +79,26 @@ def test_predict_match_returns_a_valid_joint_probability_distribution(
     match_date = dt.datetime(2024, 9, 1, tzinfo=dt.UTC)
 
     _seed_one_prior_match(
-        make_match, make_team_match, competition_id=competition.id, season_id=season.id,
-        team_id=home_team.id, opponent_id=filler_home.id, is_home=True, match_date=past_date, goals_for=3,
+        make_match,
+        make_team_match,
+        competition_id=competition.id,
+        season_id=season.id,
+        team_id=home_team.id,
+        opponent_id=filler_home.id,
+        is_home=True,
+        match_date=past_date,
+        goals_for=3,
     )
     _seed_one_prior_match(
-        make_match, make_team_match, competition_id=competition.id, season_id=season.id,
-        team_id=away_team.id, opponent_id=filler_away.id, is_home=False, match_date=past_date, goals_for=1,
+        make_match,
+        make_team_match,
+        competition_id=competition.id,
+        season_id=season.id,
+        team_id=away_team.id,
+        opponent_id=filler_away.id,
+        is_home=False,
+        match_date=past_date,
+        goals_for=1,
     )
 
     prediction = predict_match(
@@ -102,9 +119,7 @@ def test_predict_match_returns_a_valid_joint_probability_distribution(
     assert prediction.score_matrix[a, b] == pytest.approx(prediction.score_matrix.max())
 
 
-def test_predict_match_raises_when_a_team_has_no_history(
-    db_session, make_competition, make_season, make_team
-):
+def test_predict_match_raises_when_a_team_has_no_history(db_session, make_competition, make_season, make_team):
     competition = make_competition()
     season = make_season(competition.id)
     home_team = make_team("Newly Promoted FC")
@@ -136,24 +151,47 @@ def test_predict_scheduled_match_reads_match_row_and_matches_predict_match(
     match_date = dt.datetime(2024, 9, 1, tzinfo=dt.UTC)
 
     _seed_one_prior_match(
-        make_match, make_team_match, competition_id=competition.id, season_id=season.id,
-        team_id=home_team.id, opponent_id=filler_home.id, is_home=True, match_date=past_date, goals_for=3,
+        make_match,
+        make_team_match,
+        competition_id=competition.id,
+        season_id=season.id,
+        team_id=home_team.id,
+        opponent_id=filler_home.id,
+        is_home=True,
+        match_date=past_date,
+        goals_for=3,
     )
     _seed_one_prior_match(
-        make_match, make_team_match, competition_id=competition.id, season_id=season.id,
-        team_id=away_team.id, opponent_id=filler_away.id, is_home=False, match_date=past_date, goals_for=1,
+        make_match,
+        make_team_match,
+        competition_id=competition.id,
+        season_id=season.id,
+        team_id=away_team.id,
+        opponent_id=filler_away.id,
+        is_home=False,
+        match_date=past_date,
+        goals_for=1,
     )
 
     scheduled_match = make_match(
-        competition_id=competition.id, season_id=season.id, match_date=match_date,
-        home_team_id=home_team.id, away_team_id=away_team.id, status="scheduled",
+        competition_id=competition.id,
+        season_id=season.id,
+        match_date=match_date,
+        home_team_id=home_team.id,
+        away_team_id=away_team.id,
+        status="scheduled",
     )
 
     model = _fake_persisted_model()
     from_scheduled = predict_scheduled_match(db_session, scheduled_match.id, persisted_model=model)
     direct = predict_match(
-        db_session, home_team_id=home_team.id, away_team_id=away_team.id, match_date=match_date,
-        competition_id=competition.id, season_id=season.id, persisted_model=model,
+        db_session,
+        home_team_id=home_team.id,
+        away_team_id=away_team.id,
+        match_date=match_date,
+        competition_id=competition.id,
+        season_id=season.id,
+        persisted_model=model,
     )
 
     assert from_scheduled.lambda_home == pytest.approx(direct.lambda_home)
@@ -170,10 +208,14 @@ def test_predict_scheduled_match_raises_if_match_is_not_scheduled(
     away_team = make_team("Away FC")
 
     played_match = make_match(
-        competition_id=competition.id, season_id=season.id,
+        competition_id=competition.id,
+        season_id=season.id,
         match_date=dt.datetime(2024, 9, 1, tzinfo=dt.UTC),
-        home_team_id=home_team.id, away_team_id=away_team.id,
-        home_goals=1, away_goals=0, status="played",
+        home_team_id=home_team.id,
+        away_team_id=away_team.id,
+        home_goals=1,
+        away_goals=0,
+        status="played",
     )
 
     with pytest.raises(ValueError):

@@ -5,6 +5,7 @@ docs/RESULTATS_MODELE.md + un fichier JSON brut pour réutilisation ultérieure.
 
 Lancement : APP_ENV=dev uv run python -m foot_predictor.modeling.run_comparison
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -88,7 +89,8 @@ def _select_xi(X_train, y_train, meta_train, val_cutoff: dt.datetime) -> tuple[f
         predictions = compute_predictions(
             # `model=model` lie le modèle de ce tour de boucle (B023), même si la
             # fonction n'est appelée qu'ici, avant le tour suivant.
-            val_matches, lambda h, a, model=model: dixon_coles_matrix(h, a, model.rho, tau_correction)
+            val_matches,
+            lambda h, a, model=model: dixon_coles_matrix(h, a, model.rho, tau_correction),
         )
         loss = log_loss_exact_score(predictions)
         search_log.append({"xi": xi, "val_log_loss": loss})

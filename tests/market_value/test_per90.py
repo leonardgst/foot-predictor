@@ -2,6 +2,7 @@
 calcul, exclusion des lignes à faible temps de jeu, garde-fou d'échantillon
 minimum.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -20,11 +21,24 @@ def _row(player_id, minutes, **stats):
     base = {
         "player_id": player_id,
         "minutes": minutes,
-        "goals": 0, "assists": 0, "shots": 0, "shots_on_target": 0, "key_passes": 0,
-        "tackles": 0, "interceptions": 0, "dribbles_attempts": 0, "dribbles_success": 0,
-        "dribbled_past": 0, "fouls_drawn": 0, "fouls_committed": 0,
-        "duels_won": 0, "duels_total": 0, "pass_accuracy_pct": 80.0,
-        "xg": None, "xa": None, "npxg": None,
+        "goals": 0,
+        "assists": 0,
+        "shots": 0,
+        "shots_on_target": 0,
+        "key_passes": 0,
+        "tackles": 0,
+        "interceptions": 0,
+        "dribbles_attempts": 0,
+        "dribbles_success": 0,
+        "dribbled_past": 0,
+        "fouls_drawn": 0,
+        "fouls_committed": 0,
+        "duels_won": 0,
+        "duels_total": 0,
+        "pass_accuracy_pct": 80.0,
+        "xg": None,
+        "xa": None,
+        "npxg": None,
     }
     base.update(stats)
     return base
@@ -36,10 +50,12 @@ def test_build_player_vectors_empty_input_returns_empty_dataframe():
 
 
 def test_goals_per90_scales_by_90_minutes_over_sum_of_minutes():
-    df = pd.DataFrame([
-        _row(1, 45, goals=1),
-        _row(1, 45, goals=1),
-    ])
+    df = pd.DataFrame(
+        [
+            _row(1, 45, goals=1),
+            _row(1, 45, goals=1),
+        ]
+    )
 
     vectors = build_player_vectors(df)
 
@@ -48,10 +64,12 @@ def test_goals_per90_scales_by_90_minutes_over_sum_of_minutes():
 
 
 def test_rows_below_min_minutes_are_excluded_from_aggregation():
-    df = pd.DataFrame([
-        _row(1, MIN_MINUTES_PER_MATCH - 1, goals=10),  # exclue du calcul per90
-        _row(1, 90, goals=1),
-    ])
+    df = pd.DataFrame(
+        [
+            _row(1, MIN_MINUTES_PER_MATCH - 1, goals=10),  # exclue du calcul per90
+            _row(1, 90, goals=1),
+        ]
+    )
 
     vectors = build_player_vectors(df)
 
@@ -64,10 +82,12 @@ def test_matches_in_window_counts_all_rows_including_low_minutes():
     """matches_in_window doit compter TOUS les matchs de la fenêtre, y
     compris ceux en dessous du seuil minutes, pour appliquer le garde-fou
     d'échantillon minimum sur le volume réel disponible."""
-    df = pd.DataFrame([
-        _row(1, 5, goals=0),  # sous le seuil minutes, mais compte quand même
-        _row(1, 90, goals=1),
-    ])
+    df = pd.DataFrame(
+        [
+            _row(1, 5, goals=0),  # sous le seuil minutes, mais compte quand même
+            _row(1, 90, goals=1),
+        ]
+    )
 
     vectors = build_player_vectors(df)
 
@@ -75,10 +95,12 @@ def test_matches_in_window_counts_all_rows_including_low_minutes():
 
 
 def test_duels_won_pct_ratio_computed_from_totals():
-    df = pd.DataFrame([
-        _row(1, 90, duels_won=6, duels_total=10),
-        _row(1, 90, duels_won=2, duels_total=10),
-    ])
+    df = pd.DataFrame(
+        [
+            _row(1, 90, duels_won=6, duels_total=10),
+            _row(1, 90, duels_won=2, duels_total=10),
+        ]
+    )
 
     vectors = build_player_vectors(df)
 
@@ -88,10 +110,12 @@ def test_duels_won_pct_ratio_computed_from_totals():
 def test_xg_stat_excludes_null_rows_without_treating_as_zero():
     """Une ligne avec xg=NULL doit être exclue du calcul per90 du xG (pas
     comptée comme 0), et xg_coverage doit refléter la proportion couverte."""
-    df = pd.DataFrame([
-        _row(1, 90, xg=1.8),
-        _row(1, 90, xg=None),
-    ])
+    df = pd.DataFrame(
+        [
+            _row(1, 90, xg=1.8),
+            _row(1, 90, xg=None),
+        ]
+    )
 
     vectors = build_player_vectors(df)
 

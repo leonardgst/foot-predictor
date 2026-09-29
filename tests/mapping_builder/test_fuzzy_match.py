@@ -5,6 +5,7 @@ Convertit en assertions réelles l'ancien script d'affichage manuel
 jeux de données (Premier League / Bundesliga, Understat / API-Football)
 pour valider les seuils AUTO_ACCEPT_THRESHOLD / REVIEW_THRESHOLD.
 """
+
 from __future__ import annotations
 
 from foot_predictor.mapping_builder.fuzzy_match import (
@@ -16,44 +17,113 @@ from foot_predictor.mapping_builder.fuzzy_match import (
 
 # Référentiel canonique simulé (ce que football-data + son mapping donnerait)
 CANONICAL_PREMIER_LEAGUE = {
-    "Manchester United", "Manchester City", "Newcastle United", "Tottenham Hotspur",
-    "Wolverhampton Wanderers", "Nottingham Forest", "Arsenal", "Chelsea", "Liverpool",
-    "Everton", "West Ham United", "Brighton", "Crystal Palace", "Aston Villa",
-    "Leicester", "Southampton", "Burnley", "Watford", "Norwich", "Sheffield United",
+    "Manchester United",
+    "Manchester City",
+    "Newcastle United",
+    "Tottenham Hotspur",
+    "Wolverhampton Wanderers",
+    "Nottingham Forest",
+    "Arsenal",
+    "Chelsea",
+    "Liverpool",
+    "Everton",
+    "West Ham United",
+    "Brighton",
+    "Crystal Palace",
+    "Aston Villa",
+    "Leicester",
+    "Southampton",
+    "Burnley",
+    "Watford",
+    "Norwich",
+    "Sheffield United",
 }
 
 CANONICAL_BUNDESLIGA = {
-    "Bayern Munich", "Borussia Dortmund", "RB Leipzig", "Bayer Leverkusen",
-    "Borussia Monchengladbach", "VfL Wolfsburg", "Eintracht Frankfurt", "FC Koln",
-    "Union Berlin", "Werder Bremen",
+    "Bayern Munich",
+    "Borussia Dortmund",
+    "RB Leipzig",
+    "Bayer Leverkusen",
+    "Borussia Monchengladbach",
+    "VfL Wolfsburg",
+    "Eintracht Frankfurt",
+    "FC Koln",
+    "Union Berlin",
+    "Werder Bremen",
 }
 
 # Cas Understat (underscores, parfois noms complets différents)
 UNDERSTAT_PREMIER_LEAGUE = {
-    "Manchester_United", "Manchester_City", "Newcastle_United", "Tottenham",
-    "Wolverhampton_Wanderers", "Nottingham_Forest", "Arsenal", "Chelsea", "Liverpool",
-    "Everton", "West_Ham", "Brighton", "Crystal_Palace", "Aston_Villa",
-    "Leicester", "Southampton", "Burnley", "Watford", "Norwich", "Sheffield_United",
+    "Manchester_United",
+    "Manchester_City",
+    "Newcastle_United",
+    "Tottenham",
+    "Wolverhampton_Wanderers",
+    "Nottingham_Forest",
+    "Arsenal",
+    "Chelsea",
+    "Liverpool",
+    "Everton",
+    "West_Ham",
+    "Brighton",
+    "Crystal_Palace",
+    "Aston_Villa",
+    "Leicester",
+    "Southampton",
+    "Burnley",
+    "Watford",
+    "Norwich",
+    "Sheffield_United",
 }
 
 UNDERSTAT_BUNDESLIGA = {
-    "Bayern_Munich", "Borussia_Dortmund", "RasenBallsport_Leipzig", "Bayer_Leverkusen",
-    "Borussia_M.Gladbach", "Wolfsburg", "Eintracht_Frankfurt", "FC_Koln",
-    "Union_Berlin", "Werder_Bremen",
+    "Bayern_Munich",
+    "Borussia_Dortmund",
+    "RasenBallsport_Leipzig",
+    "Bayer_Leverkusen",
+    "Borussia_M.Gladbach",
+    "Wolfsburg",
+    "Eintracht_Frankfurt",
+    "FC_Koln",
+    "Union_Berlin",
+    "Werder_Bremen",
 }
 
 # Cas API-Football (souvent noms complets, parfois avec accents corrects)
 API_FOOTBALL_PREMIER_LEAGUE = {
-    "Manchester United", "Manchester City", "Newcastle", "Tottenham",
-    "Wolves", "Nottingham Forest", "Arsenal", "Chelsea", "Liverpool",
-    "Everton", "West Ham", "Brighton", "Crystal Palace", "Aston Villa",
-    "Leicester", "Southampton", "Burnley", "Watford", "Norwich", "Sheffield Utd",
+    "Manchester United",
+    "Manchester City",
+    "Newcastle",
+    "Tottenham",
+    "Wolves",
+    "Nottingham Forest",
+    "Arsenal",
+    "Chelsea",
+    "Liverpool",
+    "Everton",
+    "West Ham",
+    "Brighton",
+    "Crystal Palace",
+    "Aston Villa",
+    "Leicester",
+    "Southampton",
+    "Burnley",
+    "Watford",
+    "Norwich",
+    "Sheffield Utd",
 }
 
 API_FOOTBALL_BUNDESLIGA = {
-    "Bayern Munchen", "Borussia Dortmund", "RB Leipzig", "Bayer Leverkusen",
-    "Borussia Monchengladbach", "Wolfsburg", "Eintracht Frankfurt", "FC Koln",
-    "Union Berlin", "Werder Bremen",
+    "Bayern Munchen",
+    "Borussia Dortmund",
+    "RB Leipzig",
+    "Bayer Leverkusen",
+    "Borussia Monchengladbach",
+    "Wolfsburg",
+    "Eintracht Frankfurt",
+    "FC Koln",
+    "Union Berlin",
+    "Werder Bremen",
 }
 
 

@@ -4,6 +4,7 @@ Ingestion raw.understat_player_match -> mise à jour xg/xa/npxg dans staging.pla
 Ne crée JAMAIS de ligne : complète une ligne déjà créée par l'ingestion
 API-Football (comme understat.py le fait déjà au niveau équipe pour le xG).
 """
+
 from __future__ import annotations
 
 import datetime as dt

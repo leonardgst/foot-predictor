@@ -3,6 +3,7 @@ le client `UnderstatClient` est toujours mocké (jamais de vraie requête vers
 understat.com), construction du payload (`_build_payload`, cas où un match
 est ignoré -- pas encore joué / xG absent), et idempotence de l'ingestion en
 base (`db`)."""
+
 from __future__ import annotations
 
 import pytest

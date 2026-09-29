@@ -16,6 +16,7 @@ Seules z1-z8 (`Z1_Z8_FEATURE_COLUMNS`) sont calculables ici. z9-z11
 demander une de ces colonnes lève une erreur explicite plutôt que de renvoyer
 une valeur inventée.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -49,8 +50,7 @@ def compute_live_z_features(
     unsupported = [c for c in feature_columns if c not in SUPPORTED_FEATURE_COLUMNS]
     if unsupported:
         raise NotImplementedError(
-            f"Features non calculables en direct (nécessitent staging.lineup, "
-            f"vide pour l'instant) : {unsupported}"
+            f"Features non calculables en direct (nécessitent staging.lineup, vide pour l'instant) : {unsupported}"
         )
 
     form = compute_rolling_form(session, team_id, is_home, before_date)

@@ -15,6 +15,7 @@ la main avant d'utiliser ces fichiers en production. Un rapport texte détaillé
 Usage :
     python -m foot_predictor.mapping_builder.build_draft_mappings
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -36,9 +37,7 @@ CORRESPONDENCE_PATH = Path(__file__).parent / "leagues_correspondence.yaml"
 # mappings/ est sous foot_predictor/ingestion/mappings/ (cf. common.py :
 # MAPPINGS_DIR = Path(__file__).parent / "mappings", et common.py est dans
 # foot_predictor/ingestion/) -- PAS directement sous foot_predictor/.
-FOOTBALL_DATA_TEAMS_MAPPING_PATH = (
-    Path(__file__).parent.parent / "ingestion" / "mappings" / "football_data_teams.yaml"
-)
+FOOTBALL_DATA_TEAMS_MAPPING_PATH = Path(__file__).parent.parent / "ingestion" / "mappings" / "football_data_teams.yaml"
 OUTPUT_DIR = Path(__file__).parent / "draft_output"
 
 

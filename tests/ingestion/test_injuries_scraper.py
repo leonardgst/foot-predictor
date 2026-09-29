@@ -3,6 +3,7 @@
 `requests.get` est systématiquement mocké : aucun appel réseau réel vers
 API-Football n'est jamais effectué dans ces tests.
 """
+
 from __future__ import annotations
 
 import pytest

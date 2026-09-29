@@ -10,6 +10,7 @@ coder en dur côté inférence risquerait de diverger silencieusement du modèle
 réellement chargé si `DEFAULT_FEATURE_COLUMNS` change plus tard (ex. ajout de
 z9-z11).
 """
+
 from __future__ import annotations
 
 import datetime as dt

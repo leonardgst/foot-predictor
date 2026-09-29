@@ -4,6 +4,7 @@ même pathologie observée sur le Modèle A, cf. `docs/RESULTATS_MODELE.md`
 section 5) et on vérifie que Platt scaling / isotonic regression, ajustés sur
 un jeu d'entraînement puis appliqués à un jeu de test disjoint, réduisent
 mesurablement l'erreur de calibration."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -118,9 +119,7 @@ def _make_synthetic_1x2(rng: np.random.Generator, n: int) -> tuple[np.ndarray, n
     raw = rng.dirichlet([3.0, 2.0, 2.5], size=n)  # (n, 3), somme à 1 par ligne
     p_home, p_draw, p_away = raw[:, 0], raw[:, 1], raw[:, 2]
 
-    outcome = np.array(
-        [rng.choice([HOME, DRAW, AWAY], p=row) for row in raw]
-    )
+    outcome = np.array([rng.choice([HOME, DRAW, AWAY], p=row) for row in raw])
     return p_home, p_draw, p_away, outcome
 
 
@@ -131,9 +130,7 @@ def test_ovr_renormalize_always_sums_to_one():
 
     for method in ("platt", "isotonic"):
         calibrators = fit_ovr_calibrators(method, p_home_train, p_draw_train, p_away_train, y_train)
-        p_home_c, p_draw_c, p_away_c = calibrate_ovr_and_renormalize(
-            calibrators, p_home_test, p_draw_test, p_away_test
-        )
+        p_home_c, p_draw_c, p_away_c = calibrate_ovr_and_renormalize(calibrators, p_home_test, p_draw_test, p_away_test)
 
         totals = p_home_c + p_draw_c + p_away_c
         np.testing.assert_allclose(totals, 1.0, atol=1e-8)

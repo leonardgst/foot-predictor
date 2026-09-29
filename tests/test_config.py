@@ -1,4 +1,5 @@
 """Clé API-FOOTBALL facultative et jamais affichée (config.py)."""
+
 from __future__ import annotations
 
 from foot_predictor.config import Settings

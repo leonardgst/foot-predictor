@@ -1,5 +1,6 @@
 """Diagnostic (lecture seule) : détecte les paires (nom brut / nom canonique)
 qui existent TOUTES LES DEUX comme staging.team distincts."""
+
 from pathlib import Path
 
 import yaml
@@ -11,14 +12,14 @@ from foot_predictor.db.session import get_session
 MAPPING_PATH = Path("src/foot_predictor/ingestion/mappings/football_data_teams.yaml")
 mapping = yaml.safe_load(MAPPING_PATH.read_text(encoding="utf-8"))
 
+
 def count_refs(session, team_id):
     n_match = session.scalar(
-        select(func.count()).select_from(Match).where(
-            (Match.home_team_id == team_id) | (Match.away_team_id == team_id)
-        )
+        select(func.count()).select_from(Match).where((Match.home_team_id == team_id) | (Match.away_team_id == team_id))
     )
     n_tm = session.scalar(select(func.count()).select_from(TeamMatch).where(TeamMatch.team_id == team_id))
     return n_match, n_tm
+
 
 with get_session() as session:
     found = 0

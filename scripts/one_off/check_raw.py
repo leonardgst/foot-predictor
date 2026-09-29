@@ -7,6 +7,7 @@ Usage :
 
 Sans argument, parcourt toutes les divisions présentes en base.
 """
+
 import sys
 from pathlib import Path
 

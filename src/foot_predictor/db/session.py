@@ -4,6 +4,7 @@ Factory de session SQLAlchemy, branchée sur src/foot_predictor/config.py
 
 À placer dans : src/foot_predictor/db/session.py
 """
+
 from __future__ import annotations
 
 from collections.abc import Iterator

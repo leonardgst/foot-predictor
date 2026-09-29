@@ -1,0 +1,52 @@
+# Hooks Git (partie 2, sous-étape 2.1 ; mode d'emploi : docs/realisation/02_environnement/README.md).
+# Installation, une fois par machine :
+#   uv tool install pre-commit      # hors de l'environnement du projet (ADR du workflow Git)
+#   pre-commit install              # installe les hooks pre-commit et pre-push
+# Les hooks sont communs à tous les checkouts du dépôt (worktree compris).
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  # Secrets : refuse un commit qui contient une clé ou un mot de passe (rapport J.3).
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files   # données ou modèles ajoutés par erreur (500 Ko par défaut)
+      - id: check-merge-conflict
+      - id: check-yaml
+      # Fins de ligne : signale un fichier qui mélange LF et CRLF, sans rien réécrire
+      # (Git convertit à l'extraction sous Windows ; les .cmd restent en CRLF, .gitattributes).
+      - id: mixed-line-ending
+        args: [--fix=no]
+
+  # Outils du projet, lancés avec les versions de uv.lock.
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff (contrôle)
+        entry: uv run ruff check --fix --force-exclude
+        language: system
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff (formatage)
+        entry: uv run ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+      - id: caracteres-controle
+        name: tabulations et caractères de contrôle (E-029)
+        entry: uv run python -m foot_predictor.outils.caracteres
+        language: system
+        files: \.(md|py|ya?ml|cmd)$
+        exclude: ^docs/archives/
+      - id: tests-sans-base
+        name: tests sans base avant push (rapport J.2)
+        entry: uv run pytest -m "not db" -q
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

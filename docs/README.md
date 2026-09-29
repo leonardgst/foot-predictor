@@ -22,6 +22,7 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Identifiants et couverture des compétitions | [`realisation/03_collecte/couverture.md`](realisation/03_collecte/couverture.md) (généré par `coverage`) |
 | Contrôler la qualité du brut | [`realisation/05_controle_qualite/README.md`](realisation/05_controle_qualite/README.md) |
 | Constats des paliers P1 et P2 | [`realisation/05_controle_qualite/constats_P1_P2.md`](realisation/05_controle_qualite/constats_P1_P2.md) |
+| Constats du palier P3 | [`realisation/05_controle_qualite/constats_P3.md`](realisation/05_controle_qualite/constats_P3.md) |
 | Rapports de contrôle datés (versionnés) | [`../reports/data_quality/`](../reports/data_quality/README.md) |
 | Équations des modèles A (Poisson) et B (Dixon-Coles) | [`MODELE_MATHEMATIQUE.md`](MODELE_MATHEMATIQUE.md) |
 | Résultats historiques A contre B, recalibration | [`RESULTATS_MODELE.md`](RESULTATS_MODELE.md) et [`model_results.json`](model_results.json) |

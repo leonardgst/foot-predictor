@@ -39,6 +39,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0031](ADR-0031-elo.md) | Elo maison (G1) : une échelle par pays, mise à jour par jour, paramètres réglés sur 2005-06 à 2014-15 puis figés | acceptée | 2026-09-29 | I.3, M17 (ADR-0012) |
 | [0032](ADR-0032-glissants-xg-proxy.md) | Glissants (G2) à décroissance en jours et retrait vers le championnat ; `xg_proxy` (tirs cadrés, coefficients positifs) à la place de l'xG avant 2022-23 | acceptée | 2026-09-29 | H.4, I.3 (ADR-0023) |
 | [0033](ADR-0033-calendrier-huis-clos.md) | Calendrier (G3) rétrospectif avec indicateur de fiabilité par pays ; huis clos (G0) par périodes sourcées, `incertain` exclu | acceptée | 2026-09-29 | I.3, I.5 (ADR-0011) |
+| [0034](ADR-0034-notebooks-latex.md) | Notebooks d'exploration sans sorties (`nbstripout`, groupe `explo`, porte unique) ; chapitres LaTeX versionnés, compilés sur Overleaf | acceptée | 2026-09-29 | L (J4), M26 |
 
 **Décisions encore ouvertes** :
 

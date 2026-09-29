@@ -33,6 +33,17 @@ dev = [
     "pytest-mock>=3.15.1",
     "ruff>=0.16.9",
 ]
+# Notebooks d'exploration (partie 3, sous-étape 3.8 ; ADR-0034) :
+#   ipykernel  : noyau Python des notebooks (VS Code, nbclient) ; sans lui, aucun notebook ne s'exécute ;
+#   matplotlib : graphiques ; pandas les délègue à matplotlib, l'alternative plus légère n'existe pas ;
+#   nbclient   : exécute un notebook sans interface (vérifier qu'il tourne de bout en bout) ;
+#   nbformat   : lit et écrit les .ipynb (dépendance de nbclient, déclarée parce qu'on l'importe).
+explo = [
+    "ipykernel>=7.4.0",
+    "matplotlib>=3.11.2",
+    "nbclient>=0.11.0",
+    "nbformat>=5.11.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -31,7 +31,8 @@ Toutes s'écrivent `uv run python -m foot_predictor.collect.api_football <comman
 | `run [--max-requests N]` | exécute la file ; N plafonne les appels HTTP du lancement (`/status` et nouvelles tentatives compris) | selon la file |
 | `status` | quota du jour (d'après le journal), files, échecs, progression par palier, matchs non terminaux | 0 |
 | `requeue --status failed\|suspect [--type T]` | remet des tâches en `pending`, après examen | 0 |
-| `backup --dest <dossier>` | copie `data/raw/` vers un dossier vide et vérifie chaque sha256 | 0 |
+| `backup --dest <dossier>` | copie `data/raw/` (sauf `_lock/`) vers un dossier vide et vérifie chaque sha256 ; refusé si une commande tient le verrou | 0 |
+| `freeze --dest D --restore-to R` | gel : verrou, `raw_check` de tous les paliers, sauvegarde, test de restauration, brouillon de `docs/DATA_FREEZE.md` (voir [`gel.md`](gel.md)) | 0 |
 | `rebuild-manifest` | reconstruit le journal depuis les fichiers, dans un **nouveau** fichier | 0 |
 | `refresh --season S [--palier P] [--dry-run] [--yes]` | remet en file les listes de matchs, équipes et blessures d'une saison en cours ; affiche le coût du prochain `run` et demande confirmation | 0 (le `run` suivant : quelques dizaines) |
 | `plan-profiles [--palier P] [--limit N] [--dry-run]` | met en file le profil (`/players/profiles`) des titulaires sans date de naissance dans le brut (ADR-0008) | 0 (le `run` suivant : 1 par joueur) |
@@ -304,14 +305,24 @@ uv run python -m foot_predictor.collect.api_football run --max-requests <budget>
 
 ## Sauvegarde et test de restauration, le jour du gel (ADR-0006)
 
-N'arrêter aucune collecte en cours de route : lancer ces commandes quand `run` est terminé.
+**Procédure complète du 19 octobre : [`gel.md`](gel.md).** La commande `freeze` enchaîne, dans l'ordre :
 
-```powershell
-# Copie vers le disque externe (dossier absent ou vide), avec vérification des sha256
-uv run python -m foot_predictor.collect.api_football backup --dest E:\foot-predictor\data-freeze-2026-10\raw
+1. la prise du verrou ;
+2. `raw_check` sur tous les paliers ;
+3. la sauvegarde vers le disque externe, avec vérification des sha256 ;
+4. le test de restauration dans un dossier vide ;
+5. le brouillon de `docs/DATA_FREEZE.md`.
 
-# Test de restauration : recopie depuis le disque externe vers un dossier vide, puis vérification
-uv run python -m foot_predictor.collect.api_football --raw-dir E:\foot-predictor\data-freeze-2026-10\raw backup --dest C:\fp_restauration\raw
+Elle s'arrête à la première étape en échec.
+
+```bash
+uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw freeze     --dest D:/foot-predictor/data-freeze-2026-10/raw --restore-to C:/fp_restauration/raw
+```
+
+`backup` reste disponible seul, par exemple pour refaire une restauration. Il refuse de copier pendant qu'une commande tient le verrou, et ne copie jamais le dossier `_lock/`.
+
+```bash
+uv run python -m foot_predictor.collect.api_football --raw-dir D:/foot-predictor/data-freeze-2026-10/raw backup --dest C:/fp_restauration/raw
 ```
 
 Un fichier « hors journal » est un avertissement : il peut apparaître après un plantage entre l'écriture du fichier et celle de sa ligne de journal. `rebuild-manifest` permet alors de comparer.

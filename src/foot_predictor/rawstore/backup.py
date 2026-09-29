@@ -1,7 +1,9 @@
 """Sauvegarde de `data/raw/` et vérification des sha256 (ADR-0006).
 
 `backup` copie tout le dossier brut (fichiers, journaux, file de travail) vers
-une destination vide, puis vérifie la copie avec `verify`. `verify` sert aussi
+une destination vide, puis vérifie la copie avec `verify`. Seul le verrou de
+collecte (`_lock/`) n'est pas copié : c'est un état de la machine, pas une
+donnée. `verify` sert aussi
 seul pour le test de restauration du jour du gel.
 
 À lancer quand aucune collecte ne tourne : la file SQLite est copiée telle
@@ -13,6 +15,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from foot_predictor.rawstore.lock import LOCK_RELATIVE_PATH
 from foot_predictor.rawstore.manifest import MANIFEST_DIR, read_manifest_file
 from foot_predictor.rawstore.store import SUFFIX, sha256_file
 
@@ -66,5 +69,10 @@ def backup(raw_dir: Path, dest: Path) -> VerifyReport:
         raise FileExistsError(f"Destination non vide, copie refusée : {dest}")
     if dest.resolve().is_relative_to(raw_dir.resolve()):
         raise ValueError("La destination ne peut pas être à l'intérieur du dossier brut.")
-    shutil.copytree(raw_dir, dest, dirs_exist_ok=True)
+    lock_dir = LOCK_RELATIVE_PATH.parts[0]
+
+    def skip_lock(directory: str, names: list[str]) -> list[str]:
+        return [lock_dir] if Path(directory).resolve() == raw_dir.resolve() and lock_dir in names else []
+
+    shutil.copytree(raw_dir, dest, dirs_exist_ok=True, ignore=skip_lock)
     return verify(dest)

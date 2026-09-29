@@ -8,6 +8,7 @@
     t60 --date J      compositions annoncées avant le coup d'envoi      (--max-requests ; ~30 par jour)
     t60-report        bilan : titulaires annoncés = titulaires du détail (0 requête, lecture seule)
     lock-status       le dossier brut est-il libre ? (avant un git pull) (0 requête)
+    freeze            gel : contrôle, sauvegarde, restauration, DATA_FREEZE (0 requête)
     status            quota du jour, files, échecs, progression         (0 requête)
     requeue           remet des tâches failed ou suspect en file        (0 requête)
     backup --dest D   copie data/raw/ et vérifie les sha256             (0 requête)
@@ -26,6 +27,7 @@ import argparse
 import datetime as dt
 import logging
 import sys
+import time
 from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
@@ -33,6 +35,7 @@ from pathlib import Path
 from foot_predictor.collect.api_football import SOURCE
 from foot_predictor.collect.api_football.client import ApiFootballClient
 from foot_predictor.collect.api_football.coverage import coverage_from_body, render_markdown
+from foot_predictor.collect.api_football.freeze import FreezeError, render_data_freeze, run_freeze
 from foot_predictor.collect.api_football.plan import DEFAULT_CONFIG_PATH, CollectConfig, ConfigError, Planner, load_config
 from foot_predictor.collect.api_football.profiles import (
     apply_profile_plan,
@@ -133,6 +136,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("t60-report", help="bilan du journal T-60 (lecture seule, aucune requête)")
     sub.add_parser("lock-status", help="état du verrou du dossier brut (0 : libre, 1 : occupé)")
+
+    freeze = sub.add_parser("freeze", help="gel : raw_check, sauvegarde, test de restauration, brouillon DATA_FREEZE")
+    freeze.add_argument("--dest", type=Path, required=True, help="sauvegarde : dossier absent ou vide (disque externe)")
+    freeze.add_argument("--restore-to", type=Path, required=True, help="test de restauration : dossier absent ou vide")
+    freeze.add_argument("--report-dir", type=Path, default=Path("reports") / "data_quality",
+                        help="résumé raw_check (défaut : reports/data_quality)")
+    freeze.add_argument("--doc", type=Path, default=Path("docs") / "DATA_FREEZE.md",
+                        help="brouillon de DATA_FREEZE.md (défaut : docs/DATA_FREEZE.md)")
+    freeze.add_argument("--allow-blocking", action="store_true",
+                        help="geler malgré un verdict BLOQUANT (après décision écrite)")
     sub.add_parser("status", help="quota, files, échecs, progression (aucune requête)")
 
     requeue = sub.add_parser("requeue", help="remet des tâches failed ou suspect en pending")
@@ -361,7 +374,29 @@ def cmd_requeue(args, config: CollectConfig, client_factory: ClientFactory) -> i
     return 0
 
 
+def cmd_freeze(args, config: CollectConfig, client_factory: ClientFactory) -> int:
+    started = time.perf_counter()
+    print(f"Gel de {args.raw_dir} : raw_check, sauvegarde vers {args.dest}, restauration vers {args.restore_to}.")
+    try:
+        report = run_freeze(config, args.raw_dir, args.dest, args.restore_to, args.report_dir,
+                            allow_blocking=args.allow_blocking)
+    except FreezeError as exc:
+        print(f"ÉCHEC du gel : {exc}", file=sys.stderr)
+        return 1
+    args.doc.parent.mkdir(parents=True, exist_ok=True)
+    args.doc.write_text(render_data_freeze(report, config), encoding="utf-8")
+    print(f"raw_check : {report.check.verdict} ; résumé {report.summary_path}")
+    print(f"Sauvegarde : {report.saved.verified} fichiers vérifiés ; restauration : {report.restored.verified}.")
+    for step, seconds in report.durations.items():
+        print(f"  {step} : {seconds:.0f} s")
+    print(f"Durée totale : {time.perf_counter() - started:.0f} s. Brouillon : {args.doc} (à relire avant commit).")
+    return 0
+
+
 def cmd_backup(args, config: CollectConfig, client_factory: ClientFactory) -> int:
+    info = read_lock(args.raw_dir)
+    if info is not None and not is_stale(info, dt.datetime.now(dt.timezone.utc)):
+        raise ValueError(f"Copie refusée : une commande écrit dans le dossier brut ({info.describe()}).")
     report = backup_mod.backup(args.raw_dir, args.dest)
     print(f"Copie de {args.raw_dir} vers {args.dest}")
     print(f"Fichiers vérifiés (sha256 conforme) : {report.verified}")
@@ -384,6 +419,7 @@ def cmd_rebuild_manifest(args, config: CollectConfig, client_factory: ClientFact
 # Commandes qui écrivent dans le dossier brut (fichiers, journal ou file) : verrou.
 LOCKED_COMMANDS = frozenset({
     "coverage", "plan", "run", "refresh", "plan-profiles", "requeue", "rebuild-manifest", "t60",
+    "freeze",  # n'écrit pas dans le brut, mais aucune collecte ne doit tourner pendant la copie
 })
 
 COMMANDS = {
@@ -395,6 +431,7 @@ COMMANDS = {
     "t60": cmd_t60,
     "t60-report": cmd_t60_report,
     "lock-status": cmd_lock_status,
+    "freeze": cmd_freeze,
     "status": cmd_status,
     "requeue": cmd_requeue,
     "backup": cmd_backup,

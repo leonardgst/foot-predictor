@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-021 — PR fusionnée dans une branche déjà fusionnée au lieu de `main` (2026-09-29)
+
+- **Contexte** : la PR #12 (tri de `docs/`) avait été ouverte avec pour base `docs/01-adr-0008-0013`, la branche de la PR #11, pour ne montrer que ses propres commits. La #11 a été fusionnée dans `main` avant la #12, et sa branche n'a pas été supprimée.
+- **Message d'erreur** : aucun ; GitHub a affiché la #12 « Merged », mais le tri (archives, ADR-0014, `docs/README.md`, journal E-006 à E-020) n'est jamais arrivé dans `main`.
+- **Cause** : une PR empilée garde sa base d'origine tant que la branche de base existe. GitHub ne la redirige vers `main` que lorsque cette branche est supprimée.
+- **Solution** : nouvelle branche `docs/01-tri-documentation-vers-main`, partie de `docs/01-tri-documentation`, avec fusion de `origin/main` (conflit sur `ETAT_PROJET.md` résolu en gardant l'état P3), puis nouvelle PR vers `main`.
+- **Fichiers concernés** : aucun fichier de code ; historique Git et branches distantes.
+- **Prévention** : supprimer la branche d'une PR dès sa fusion (règle de `CLAUDE.md`) ; avant de fusionner une PR, vérifier que sa base est `main` (`gh pr view <n> --json baseRefName`).
+- **Test de non-régression** : sans objet (procédure Git).
+
 Les entrées ci-dessous reprennent les incidents documentés avant le 2026-09-24 (source : `RECAP_PROJET.md` §9 et §12, et les récaps, archivés dans `docs/archives/`). Les numéros sont des identifiants, pas un ordre chronologique : E-006 à E-020 ont été ajoutées lors du tri de la documentation (2026-09-28).
 
 ## E-020 — HDBSCAN entraîné sans `prediction_data` (2026-09-22)

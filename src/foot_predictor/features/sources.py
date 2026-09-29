@@ -180,3 +180,34 @@ def load_matches(
         frame["round"].isna() | frame["round"].fillna("").str.startswith("Regular Season")
     )
     return frame
+
+
+def list_datasets(root: Path | None = None) -> list[str]:
+    """Versions de jeux de données présentes (dossiers `ds-*` contenant un manifeste), triées."""
+    from foot_predictor.features.dataset import DATASETS_ROOT
+
+    base = Path(root) if root else DATASETS_ROOT
+    return sorted(p.name for p in base.glob("ds-*") if (p / "manifest.json").exists()) if base.exists() else []
+
+
+def load_dataset(version: str | None = None, root: Path | None = None) -> tuple[pd.DataFrame, dict]:
+    """Lit un jeu de données versionné (la plus récente version par défaut) et son manifeste.
+
+    Seconde barrière du scellé : un jeu qui contiendrait un match à partir du 1er juillet 2025
+    est refusé (`check_seal`). Les notebooks lisent les données par cette fonction ou par
+    `load_matches`, jamais directement.
+    """
+    import json
+
+    from foot_predictor.features.dataset import DATA_FILE, DATASETS_ROOT
+
+    base = Path(root) if root else DATASETS_ROOT
+    versions = list_datasets(base)
+    if not versions:
+        raise FileNotFoundError(f"Aucun jeu de données dans {base} : lancer python -m foot_predictor.features build")
+    version = version or versions[-1]
+    folder = base / version
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    frame = pd.read_parquet(folder / DATA_FILE)
+    check_seal(frame["match_date"])
+    return frame, manifest

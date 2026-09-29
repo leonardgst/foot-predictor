@@ -20,8 +20,13 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0012](ADR-0012-validation-scelles.md) | Validation glissante 2021-22 → 2024-25 ; matchs postérieurs au 30 juin 2025 sous scellés | acceptée | 2026-09-28 | M11 |
 | [0013](ADR-0013-masse-salariale-mvs.md) | Pas de masse salariale ; « qualité du XI » en version intermédiaire ; MVS gelé | acceptée | 2026-09-28 | M12, M29 |
 | [0014](ADR-0014-tri-documentation.md) | Restructuration de la documentation : première passe (archives, index, aucun dossier vide) | acceptée | 2026-09-28 | M19, K |
+| [0015](ADR-0015-collisions-traitement-automatique.md) | Collisions d'identifiants de joueurs : exclusion automatique au chargement, YAML pour les exceptions | **proposée** | 2026-09-29 | M7 (révision de l'ADR-0008) |
 
-**Décisions encore ouvertes** (rapport, partie M) :
+**Décisions encore ouvertes** :
+
+- **ADR-0015** (proposée) : traitement des 81 collisions d'identifiants de joueurs, critère de révision de l'ADR-0008 dépassé. À trancher avant le jalon J3.
+
+Rapport, partie M :
 
 - 13 à 22 : importantes, non bloquantes. Les plus liées aux ADR ci-dessus :
   - 17 : Understat, qui conditionne l'xG en live (ADR-0011) ;

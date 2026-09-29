@@ -349,4 +349,4 @@ Un fichier « hors journal » est un avertissement : il peut apparaître après 
 - **Saison en cours, hors `refresh`** : les entraîneurs et transferts (une tâche par équipe) et les profils joueurs (`players`) de la saison ne sont pas rafraîchis. Un changement d'entraîneur survenu après leur collecte ne sera pas vu.
 - **P4** : `standings` passe par le bloc `classements_top5_d2` du YAML (saisons terminées, 2010-2025). `sidelined` passe par `plan-sidelined`, pas par le YAML : le planificateur, relancé avant chaque groupe de `run`, recomposerait les lots de 20 à chaque nouveau titulaire.
 - **Anciens scripts** : `ingestion/api_football_scraper.py` et `injuries_scraper.py` ont été supprimés en partie 2 (sous-étape 2.2) ; l'historique Git et le tag `v0.1.0` les gardent.
-- `ingestion/api_football.py` (raw vers staging) ne lit pas ce nouveau format et **ne doit pas être exécuté** : il sera remplacé par le nouveau chargeur (ADR-0008).
+- L'ancien chargement raw vers staging (`ingestion/api_football.py` et voisins) a été remplacé par `python -m foot_predictor.ingestion load` (partie 2, sous-étape 2.8 ; mode d'emploi : `docs/realisation/04_referentiel/README.md`).

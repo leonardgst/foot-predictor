@@ -15,6 +15,53 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-040 — Décompte faux des matchs de barrage dans le message de l'étape 0 et l'ADR-0030 (2026-09-29)
+
+- **Contexte** : mesures de l'étape 0 de la partie 3.
+- **Message d'erreur** : aucun ; « 290 matchs de barrage » annoncés, alors que le jeu de données en déduit 249.
+- **Cause** : addition faite de tête sur la liste des tours, au lieu d'une requête de décompte.
+- **Solution** : recoupement avec le nombre de lignes du jeu (98 501 − 204 exclus − 249 barrages + 1 barrage exclu = 98 049 matchs) ; ADR-0030 corrigée avec une mention explicite.
+- **Fichiers concernés** : `docs/decisions/ADR-0030-jeu-de-donnees.md`.
+- **Prévention** : tout chiffre d'un message ou d'une ADR vient d'une requête ou d'un script, jamais d'un calcul de tête.
+
+## E-039 — `load_dataset` choisit une version plus ancienne du même jour (2026-09-29)
+
+- **Contexte** : première exécution des notebooks (partie 3, sous-étape 3.8).
+- **Message d'erreur** : aucun ; le notebook annonce `ds-2026-09-29-9617f78d` au lieu de `ds-2026-09-29-83d28f3b`, construite après.
+- **Cause** : `list_datasets` triait les versions par nom ; deux versions du même jour se départagent par leur sha256, qui n'a rien de chronologique.
+- **Solution** : tri par date du manifeste, puis par date d'écriture du manifeste. Les données étaient identiques (même sha256 du Parquet) ; seul le manifeste différait.
+- **Fichiers concernés** : `src/foot_predictor/features/sources.py`.
+- **Prévention** : ne jamais tirer un ordre chronologique d'un nom qui contient une empreinte.
+- **Test de non-régression** : `tests/features/test_dataset.py::test_latest_dataset_is_the_most_recent_not_the_last_name`.
+
+## E-038 — Commit refusé sans que je le voie : configuration pre-commit modifiée, non indexée (2026-09-29)
+
+- **Contexte** : ajout du hook `nbstripout` (partie 3, sous-étape 3.8).
+- **Message d'erreur** : `[ERROR] Your pre-commit configuration is unstaged.` Il était masqué par un filtre `grep` sur la sortie du commit.
+- **Cause** : pre-commit refuse tout commit tant que `.pre-commit-config.yaml` est modifié sans être indexé. Le correctif prévu dans ce commit est parti dans le commit suivant.
+- **Solution** : `git reset --soft HEAD~1` (branche non poussée), puis commit de la configuration d'abord et du correctif ensuite.
+- **Fichiers concernés** : aucun fichier du dépôt (ordre des commits).
+- **Prévention** : committer une modification de `.pre-commit-config.yaml` en premier ; après chaque commit, vérifier `git log --oneline` au lieu de filtrer la sortie.
+
+## E-037 — CI rouge : ruff contrôle les notebooks en CI, pas en local (2026-09-29)
+
+- **Contexte** : PR #40 (notebooks d'exploration).
+- **Message d'erreur** : `Found 25 errors` (E702 point-virgule, I001, F401) sur `notebooks/*.ipynb`.
+- **Cause** : la CI lance `ruff check .`, qui lit aussi les `.ipynb` ; les hooks locaux ruff ne visaient que les types `python` et `pyi`.
+- **Solution** : `ruff format` et `ruff check --fix` sur les notebooks, réexécutés ensuite sans erreur ; hooks ruff étendus au type `jupyter`.
+- **Fichiers concernés** : `notebooks/*.ipynb`, `.pre-commit-config.yaml`.
+- **Prévention** : avant une PR, lancer exactement les commandes de la CI (`uv run ruff check . && uv run ruff format --check .`).
+
+## E-036 — Test gelé intermittent : `test_freeze` trouve un « identifiant » dans une durée (2026-09-29)
+
+- **Contexte** : suite complète des tests (partie 3, sous-étape 3.4) ; environ un échec sur trois.
+- **Message d'erreur** : `assert [174] == []` dans `tests/collect/api_football/test_freeze.py::test_freeze_checks_saves_restores_and_drafts_data_freeze`.
+- **Cause** : le test cherche, par l'expression `\b<identifiant>\b`, des identifiants de joueurs synthétiques dans le brouillon `DATA_FREEZE.md`. Une durée affichée (« 0.174 s », par exemple) contient parfois le nombre cherché.
+- **Solution** : aucune dans le code, gelé jusqu'au gel (règle 3). `gel.md`, étape 4 : relancer les tests si seul celui-ci échoue avec ce message.
+- **Fichiers concernés** : `tests/collect/api_football/test_freeze.py` (gelé), `docs/realisation/03_collecte/gel.md`.
+- **Prévention** : chercher un identifiant avec des délimiteurs qui excluent un chiffre voisin et un point décimal ; à corriger en phase B de la partie 2 (2.11, chemins gelés).
+- **Test de non-régression** : à écrire en phase B.
+
 ## E-035 — `could not resize shared memory segment` en lisant tous les matchs (2026-09-29)
 
 - **Contexte** : premier essai de la porte de lecture des matchs (`features/sources.py`, partie 3, sous-étape 3.1) sur la base de travail.

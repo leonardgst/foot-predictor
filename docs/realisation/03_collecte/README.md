@@ -35,8 +35,14 @@ Toutes s'écrivent `uv run python -m foot_predictor.collect.api_football <comman
 | `rebuild-manifest` | reconstruit le journal depuis les fichiers, dans un **nouveau** fichier | 0 |
 | `refresh --season S [--palier P] [--dry-run] [--yes]` | remet en file les listes de matchs, équipes et blessures d'une saison en cours ; affiche le coût du prochain `run` et demande confirmation | 0 (le `run` suivant : quelques dizaines) |
 | `plan-profiles [--palier P] [--limit N] [--dry-run]` | met en file le profil (`/players/profiles`) des titulaires sans date de naissance dans le brut (ADR-0008) | 0 (le `run` suivant : 1 par joueur) |
+| `t60 --date J --max-requests N [--dry-run]` | journal T-60 : compositions annoncées avant le coup d'envoi des matchs du top 5 du jour (ADR-0010) | de 15 à 75 selon le jour |
+| `t60-report` | bilan du journal T-60 : part des titulaires annoncés présents dans le détail d'après-match (lecture seule) | 0 |
+| `lock-status` | état du verrou du dossier brut ; code 0 : libre, 1 : une commande tourne | 0 |
 
-Option commune : `--raw-dir <dossier>` pour travailler sur un autre dossier que `data/raw` (test de restauration, par exemple).
+Options communes, à placer **avant** la commande :
+
+- `--raw-dir <dossier>` pour travailler sur un autre dossier que `data/raw` (test de restauration, par exemple) ;
+- `--wait-lock <minutes>` pour attendre la fin d'une autre commande au lieu d'échouer (tâches planifiées).
 
 ## Fichiers produits
 
@@ -176,6 +182,46 @@ uv run python -m foot_predictor.collect.api_football run
 - une dernière fois après le dernier week-end avant le gel (17-18 octobre), c'est-à-dire le **19 octobre au matin**, avant `backup`.
 
 Une liste demandée le 17 octobre ne contiendrait pas les matchs de ce week-end. Au coût d'une soixantaine de requêtes, un rafraîchissement supplémentaire ne pose aucun problème de quota.
+
+## Verrou de collecte et `git pull`
+
+**Une seule commande écrit dans un dossier brut à la fois.** Les commandes qui écrivent prennent un verrou, `data/raw/_lock/collecte.lock` : `coverage`, `plan`, `run`, `refresh`, `plan-profiles`, `requeue`, `rebuild-manifest` et `t60`. Les `--dry-run`, `status`, `backup`, `t60-report` et `lock-status` s'en passent.
+
+- **Mécanisme** : un fichier créé de façon atomique (le système refuse de le créer s'il existe déjà). Il contient le PID, la commande, l'heure et la machine. Il est supprimé à la fin de la commande, même après une erreur.
+- **Seconde commande** : elle échoue aussitôt (code de retour 3), avec le nom de la commande en cours. Avec `--wait-lock 120`, elle attend jusqu'à 2 heures ; les tâches planifiées l'utilisent.
+- **Verrou périmé** : le processus qui le tenait n'existe plus (plantage, portable éteint), ou le verrou a plus de 18 heures. Il est remplacé par la commande suivante, avec un avertissement. `lock-status` ne supprime jamais rien.
+
+**Avant tout `git pull` dans `C:/foot-predictor`** :
+
+```bash
+uv run python -m foot_predictor.collect.api_football lock-status   # code 0 : libre ; 1 : ne pas faire de git pull
+git pull --ff-only
+```
+
+Pourquoi : un `git pull` change le code pendant qu'il s'exécute, et une tâche planifiée peut tourner sans que l'on y pense (voir « Tâches planifiées »).
+
+## Journal T-60 : `t60` et `t60-report` (ADR-0010)
+
+But unique : vérifier que le onze du détail de match, collecté après coup, est celui annoncé avant le coup d'envoi. C'est l'hypothèse de l'évaluation H2 en rejeu. Critère de l'ADR-0010 : plus de 2 % de titulaires différents.
+
+**Documentation v3**, `/fixtures/lineups` : « Lineups are available between 20 and 40 minutes before the fixture when the competition covers this feature. » `/fixtures` accepte `date` (AAAA-MM-JJ) avec `timezone`, et `ids` (« Maximum of 20 fixtures ids »). Même source que pour les profils ciblés.
+
+Déroulé de `t60 --date J` :
+
+1. `/fixtures?date=J&timezone=UTC` : tous les matchs du jour avec leur heure **réelle**, en 1 requête. On garde ceux du top 5 non commencés ;
+2. à partir de 40 minutes avant chaque coup d'envoi, `/fixtures?ids=` par lots de 20, toutes les 5 minutes, jusqu'à obtenir deux compositions de 11 titulaires ou jusqu'au coup d'envoi ;
+3. entre deux fenêtres, la commande dort. Elle s'arrête après le dernier coup d'envoi du jour.
+
+- **Fichiers** : `api_football/daily/<J>/fixtures/day__<horodatage>.json.gz` et `api_football/daily/<J>/lineups/<hash12>__<horodatage>.json.gz`, avec le journal habituel.
+- **Ce ne sont pas des détails de match** : le planificateur ignore `daily/`. Le détail d'après-match est demandé normalement, après le `refresh` suivant.
+- **Coût** : `--dry-run` simule le pire cas d'après les listes du brut. Les heures peuvent y être périmées ; la vraie commande relit la liste du jour. Journées du 9 au 18 octobre : 15 le vendredi, 20 le lundi, 71 à 73 le samedi et le dimanche. `--max-requests` est obligatoire.
+- **Bilan** : `t60-report`, à la session de gel, après le dernier `refresh`. Pour chaque match annoncé dont le détail est dans le brut, il compare les titulaires, équipe par équipe. Il n'affiche que des nombres, et ne lit **ni score ni buts** (scellé, ADR-0012).
+
+```bash
+uv run python -m foot_predictor.collect.api_football t60 --date 2026-10-10 --max-requests 80 --dry-run
+uv run python -m foot_predictor.collect.api_football --wait-lock 120 t60 --date 2026-10-10 --max-requests 80
+uv run python -m foot_predictor.collect.api_football t60-report
+```
 
 ## Profils ciblés : `plan-profiles` (ADR-0008)
 

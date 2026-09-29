@@ -136,10 +136,21 @@ def _parse_block(tier: str, raw: dict) -> Block:
 # --- lecture du brut ---------------------------------------------------------------
 
 
+# Réponses d'avant-match du journal T-60 : jamais un « détail reçu ».
+PREMATCH_PREFIX = f"{SOURCE}/daily/"
+
+
 def fixture_ids_in_manifest(raw_dir: Path) -> set[int]:
-    """Matchs dont le détail est déjà stocké (réponse 200 sans `errors`)."""
+    """Matchs dont le détail est déjà stocké (réponse 200 sans `errors`).
+
+    Les réponses du journal T-60 (`daily/`) sont ignorées : demandées avant le
+    coup d'envoi, elles n'ont ni événements ni statistiques. Les compter
+    empêcherait de demander le vrai détail après le match.
+    """
     ids: set[int] = set()
     for entry in read_entries(raw_dir, SOURCE):
+        if str(entry.get("file") or "").startswith(PREMATCH_PREFIX):
+            continue
         if entry.get("http_status") == 200 and not entry.get("errors") and entry.get("fixture_ids"):
             ids.update(entry["fixture_ids"])
     return ids

@@ -23,9 +23,9 @@ import datetime as dt
 
 from sqlalchemy.orm import Session
 
-from foot_predictor.features.rolling_form import compute_rolling_form
-from foot_predictor.features.rolling_xg import compute_rolling_xg
-from foot_predictor.features.standing import compute_standings_before_date
+from foot_predictor.features.legacy.rolling_form import compute_rolling_form
+from foot_predictor.features.legacy.rolling_xg import compute_rolling_xg
+from foot_predictor.features.legacy.standing import compute_standings_before_date
 from foot_predictor.modeling.features_config import Z1_Z8_FEATURE_COLUMNS
 
 SUPPORTED_FEATURE_COLUMNS = frozenset(Z1_Z8_FEATURE_COLUMNS)

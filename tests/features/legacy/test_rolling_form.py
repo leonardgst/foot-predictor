@@ -9,7 +9,7 @@ import datetime as dt
 
 import pytest
 
-from foot_predictor.features.rolling_form import FORM_WINDOW, compute_rolling_form
+from foot_predictor.features.legacy.rolling_form import FORM_WINDOW, compute_rolling_form
 
 pytestmark = pytest.mark.db
 

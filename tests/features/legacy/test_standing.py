@@ -8,7 +8,7 @@ import datetime as dt
 
 import pytest
 
-from foot_predictor.features.standing import compute_standings_before_date
+from foot_predictor.features.legacy.standing import compute_standings_before_date
 
 pytestmark = pytest.mark.db
 

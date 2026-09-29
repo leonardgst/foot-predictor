@@ -1,4 +1,6 @@
-"""Calcul du xG glissant (staging.team_match/match -> features.team_match_features).
+"""> **Remplacé (partie 3, ADR-0030) — retrait prévu en partie 4.** Ancien module, par ligne, sur l'ancien schéma (`features.team_match_features`) ; les variables du MVP sont dans `features/elo.py`, `rolling.py`, `rest.py` et `dataset.py`.
+
+Calcul du xG glissant (staging.team_match/match -> features.team_match_features).
 
 Fenêtre glissante des 5 derniers matchs (plus courte que la forme/buts car le
 xG est plus volatile -- fenêtre de 10 serait moins réactive), même contexte

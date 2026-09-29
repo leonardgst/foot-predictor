@@ -4,6 +4,7 @@
     plan --palier P   crée les tâches du palier dans la file            (0 requête)
     run               exécute la file                                   (--max-requests, --dry-run)
     refresh --season S remet en file les listes d'une saison en cours   (0 requête ; coût affiché)
+    plan-profiles     titulaires sans date de naissance -> file         (0 requête ; 1 par joueur au run)
     status            quota du jour, files, échecs, progression         (0 requête)
     requeue           remet des tâches failed ou suspect en file        (0 requête)
     backup --dest D   copie data/raw/ et vérifie les sha256             (0 requête)
@@ -25,6 +26,12 @@ from foot_predictor.collect.api_football import SOURCE
 from foot_predictor.collect.api_football.client import ApiFootballClient
 from foot_predictor.collect.api_football.coverage import coverage_from_body, render_markdown
 from foot_predictor.collect.api_football.plan import DEFAULT_CONFIG_PATH, CollectConfig, ConfigError, Planner, load_config
+from foot_predictor.collect.api_football.profiles import (
+    apply_profile_plan,
+    build_profile_plan,
+    plan_lines as profile_plan_lines,
+    profile_blocks,
+)
 from foot_predictor.collect.api_football.queue import WorkQueue
 from foot_predictor.collect.api_football.refresh import apply_refresh, build_refresh_plan, plan_lines
 from foot_predictor.collect.api_football.runner import (
@@ -83,6 +90,13 @@ def build_parser() -> argparse.ArgumentParser:
                          help="palier concerné, répétable ; défaut : tous les paliers déjà planifiés")
     refresh.add_argument("--dry-run", action="store_true", help="affiche les tâches et le coût, sans rien modifier")
     refresh.add_argument("--yes", action="store_true", help="ne pas demander de confirmation")
+
+    profiles = sub.add_parser(
+        "plan-profiles", help="met en file les profils des titulaires sans date de naissance (aucune requête)")
+    profiles.add_argument("--palier", action="append", dest="tiers",
+                          help="palier concerné, répétable ; défaut : tous ceux qui collectent des profils")
+    profiles.add_argument("--limit", type=int, default=None, help="nombre maximal de tâches ajoutées")
+    profiles.add_argument("--dry-run", action="store_true", help="affiche le décompte, sans modifier la file")
 
     sub.add_parser("status", help="quota, files, échecs, progression (aucune requête)")
 
@@ -223,6 +237,25 @@ def cmd_refresh(args, config: CollectConfig, client_factory: ClientFactory) -> i
     return 0
 
 
+def cmd_plan_profiles(args, config: CollectConfig, client_factory: ClientFactory) -> int:
+    tiers = args.tiers or list(config.tiers)
+    unknown = [tier for tier in tiers if tier not in config.tiers]
+    if unknown:
+        raise ConfigError(f"Palier(s) inconnu(s) : {', '.join(unknown)}")
+    if not profile_blocks(config, tiers):
+        raise ConfigError("Aucun bloc de championnat avec « players » dans ces paliers.")
+    plan = build_profile_plan(config, args.raw_dir, tiers)
+    if args.dry_run:
+        print("\n".join(profile_plan_lines(plan, limit=args.limit)))
+        print("\nSimulation : file inchangée.")
+        return 0
+    with WorkQueue.in_raw_dir(args.raw_dir) as queue:
+        added = apply_profile_plan(queue, plan, args.limit)
+    print("\n".join(profile_plan_lines(plan, queued=added, limit=args.limit)))
+    print("Elles partiront au prochain run, après les autres tâches du même palier.")
+    return 0
+
+
 def cmd_status(args, config: CollectConfig, client_factory: ClientFactory) -> int:
     print("\n".join(status_lines(args.raw_dir)))
     return 0
@@ -260,6 +293,7 @@ COMMANDS = {
     "plan": cmd_plan,
     "run": cmd_run,
     "refresh": cmd_refresh,
+    "plan-profiles": cmd_plan_profiles,
     "status": cmd_status,
     "requeue": cmd_requeue,
     "backup": cmd_backup,

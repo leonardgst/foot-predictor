@@ -33,6 +33,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0025](ADR-0025-bases-de-donnees.md) | Bases : base de travail reconstructible, base de test éphémère, ancienne base dev intacte, rôle dédié au worktree | acceptée | 2026-09-29 | M14 |
 | [0026](ADR-0026-environnement-windows.md) | Environnement : Windows natif et Git Bash ; WSL2 étudié après le gel | acceptée | 2026-09-29 | M13 |
 | [0027](ADR-0027-perimetre-chargeurs.md) | Périmètre des chargeurs du référentiel : MVP et H2 ; transferts, classements, indisponibilités, cotes reportés | acceptée | 2026-09-29 | M7 (ADR-0008) |
+| [0028](ADR-0028-scelle-technique.md) | Scellé technique : date unique, porte unique de lecture des matchs (`features/sources.py`), journal des tests scellés | acceptée | 2026-09-29 | M11 (ADR-0012) |
 
 **Décisions encore ouvertes** :
 

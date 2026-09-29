@@ -29,6 +29,7 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Committer des données (`data/`, `models/`) : licences et volume.
 - Lancer `load` sur une autre base que la base de travail reconstructible : il vide `staging` (et `features`). L'ancienne base `foot_predictor_dev` (brut JSONB, 19 fusions manuelles) reste intacte ; le garde-fou la refuse, ne jamais le contourner (ADR-0025).
 - Corriger le référentiel en base : toute correction est un YAML de `ingestion/mappings/`, rejoué par `load` (ADR-0008, règle 4).
+- Lire une valeur (score, tirs, xG, cotes) d'un match joué à partir du **1er juillet 2025** (scellé, ADR-0012). Le code lit les matchs par la seule porte `features/sources.py` (ADR-0028) ; une requête à la main (`psql`) porte un filtre `match_date < '2025-07-01'` explicite, et après cette date on ne fait que des décomptes de présence.
 
 ## Collecte : verrou et tâches planifiées (ADR-0018)
 

@@ -1,0 +1,97 @@
+"""Porte unique de lecture des matchs : filtre du scellé en SQL (base de test)."""
+
+from __future__ import annotations
+
+import datetime as dt
+
+import pytest
+
+from foot_predictor.db.models import Competition, Match, Season, Team, TeamMatch
+from foot_predictor.features.sources import load_matches
+
+pytestmark = pytest.mark.db
+
+
+@pytest.fixture
+def league(db_session):
+    """Un championnat synthétique, deux équipes et trois matchs de part et d'autre du scellé."""
+    competition = Competition(name="Ligue synthétique", country="Nulle part", api_league_id=999_101, kind="league")
+    db_session.add(competition)
+    db_session.flush()
+    seasons = {}
+    for year in (2024, 2025):
+        season = Season(
+            competition_id=competition.id,
+            label=f"{year}-{year + 1}",
+            year=year,
+            start_date=dt.date(year, 7, 1),
+            end_date=dt.date(year + 1, 6, 30),
+        )
+        db_session.add(season)
+        db_session.flush()
+        seasons[year] = season
+    home, away = Team(name="Équipe A", origin="hors_api"), Team(name="Équipe B", origin="hors_api")
+    db_session.add_all([home, away])
+    db_session.flush()
+    dates = [
+        (2024, dt.datetime(2025, 5, 20, 19, 0, tzinfo=dt.UTC)),
+        (2024, dt.datetime(2025, 6, 30, 23, 30, tzinfo=dt.UTC)),  # dernier instant lisible
+        (2025, dt.datetime(2025, 7, 1, 0, 0, tzinfo=dt.UTC)),  # premier instant scellé
+        (2025, dt.datetime(2025, 8, 16, 15, 0, tzinfo=dt.UTC)),
+    ]
+    for year, date in dates:
+        match = Match(
+            competition_id=competition.id,
+            season_id=seasons[year].id,
+            match_date=date,
+            home_team_id=home.id,
+            away_team_id=away.id,
+            home_goals_90=1,
+            away_goals_90=0,
+            status="played",
+            origin="hors_api",
+            round="Regular Season - 1",
+        )
+        db_session.add(match)
+        db_session.flush()
+        db_session.add_all(
+            [
+                TeamMatch(match_id=match.id, team_id=home.id, is_home=True, goals_for=1, goals_against=0),
+                TeamMatch(match_id=match.id, team_id=away.id, is_home=False, goals_for=0, goals_against=1),
+            ]
+        )
+    db_session.flush()
+    return competition
+
+
+def test_the_gate_filters_sealed_matches_in_sql(db_session, league):
+    frame = load_matches(db_session, competition_ids=[league.id])
+    assert len(frame) == 2
+    assert frame["match_date"].max().date() == dt.date(2025, 6, 30)
+    assert frame["is_regular_season"].all()
+    assert list(frame["home_goals_90"]) == [1, 1]
+
+
+def test_until_is_a_strict_upper_bound(db_session, league):
+    frame = load_matches(db_session, competition_ids=[league.id], until=dt.date(2025, 6, 30))
+    assert len(frame) == 1
+
+
+def test_until_after_the_seal_does_not_lift_it(db_session, league):
+    frame = load_matches(db_session, competition_ids=[league.id], until=dt.date(2026, 1, 1))
+    assert len(frame) == 2
+
+
+def test_sealed_test_reads_everything_and_logs(db_session, league, tmp_path):
+    log = tmp_path / "journal.md"
+    frame = load_matches(
+        db_session, competition_ids=[league.id], sealed_test=True, experiment="experiments/essai.yaml", sealed_log=log
+    )
+    assert len(frame) == 4
+    assert "2 match(s) scellé(s) lus" in log.read_text(encoding="utf-8")
+
+
+def test_missing_values_stay_empty(db_session, league):
+    frame = load_matches(db_session, competition_ids=[league.id])
+    assert frame["home_shots_api"].isna().all()  # aucune statistique : vide, jamais 0
+    assert frame["home_xg_api"].isna().all()

@@ -73,9 +73,12 @@ uv run python -m foot_predictor.collect.api_football run --max-requests 300
 uv run python -m foot_predictor.collect.api_football status
 uv run python -m foot_predictor.collect.api_football t60-report
 cd /c/fp-travail && git fetch origin --tags && git switch --no-track -c data/03-gel-2026-10 v0.2.0
+export PRE_COMMIT_ALLOW_NO_CONFIG=1   # dès l'étape 4 : sans elle, tout commit, push et push de tag échoue sur ce tag (E-034)
 uv sync --all-groups && uv run pytest -m "not db" -q                 # 288 réussis (répété le 29/09)
 uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw freeze \
     --dest D:/foot-predictor/data-freeze-2026-10/raw --restore-to C:/fp_restauration/raw
-# commit : PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit ... ; PR, fusion, tag data-freeze-2026-10
+# même terminal (variable exportée) : commit, git push -u origin data/03-gel-2026-10, PR, fusion,
+#   git tag -a data-freeze-2026-10 origin/main ..., git push origin data-freeze-2026-10
 # puis seulement : suppression des tâches, lock-status, git pull --ff-only et uv sync dans C:/foot-predictor
+# retour du worktree sur main : git switch --detach origin/main && unset PRE_COMMIT_ALLOW_NO_CONFIG
 ```

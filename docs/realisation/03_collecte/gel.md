@@ -67,9 +67,12 @@ cd /c/fp-travail
 git status                                   # propre ; sinon, committer ou mettre de côté d'abord
 git fetch origin --tags
 git switch --no-track -c data/03-gel-2026-10 v0.2.0
+export PRE_COMMIT_ALLOW_NO_CONFIG=1          # hooks sans configuration sur ce tag (E-034) : voir ci-dessous
 uv sync --all-groups                         # environnement du tag v0.2.0 (dépendances de la partie 1)
 uv run pytest -m "not db" -q                 # 288 tests réussis attendus
 ```
+
+**Hooks Git sur cette branche (E-034)** : les hooks `pre-commit` et `pre-push` installés en partie 2 sont communs au worktree et au checkout principal. Le tag `v0.2.0` n'a pas de `.pre-commit-config.yaml` : sans la variable, **chaque** `git commit`, `git push` et `git push` de tag de cette branche échoue (« No .pre-commit-config.yaml file was found », code 1 ; répété le 2026-09-29 sur un clone). `export PRE_COMMIT_ALLOW_NO_CONFIG=1` vaut pour tout le terminal, donc pour les étapes 4 à 7 : si tu ouvres un nouveau terminal entre-temps, relance l'`export`. La variable se retire au retour sur `main`, à la fin de l'étape 7 : sans elle, les hooks tournent de nouveau normalement.
 
 **Pourquoi le tag `v0.2.0`, et pas `origin/main`** (ADR-0021) : c'est le code répété à blanc le 29 septembre et celui du checkout principal. `main` contient la partie 2, dont les dépendances et `config.py` ont changé. La PR du gel se fusionne ensuite dans `main` normalement : elle n'ajoute que `docs/DATA_FREEZE.md` et un résumé de contrôle, sans conflit.
 
@@ -95,11 +98,12 @@ La commande enchaîne cinq étapes et s'arrête à la première en échec :
 - Relire `docs/DATA_FREEZE.md` et compléter les sections « À compléter » : heure du gel, bilan T-60, MLS 2017, renouvellement coupé, tâches supprimées.
 - Vérifier qu'il ne contient **aucun nom ni identifiant de joueur** et aucun résultat de match (ADR-0012).
 - Commit `data(gel): ...` avec `docs/DATA_FREEZE.md` et le résumé `raw_check_tous_<date>.md`, puis la PR (base `main`), et la fusion après une CI verte.
-- **Hooks Git** : les hooks pre-commit installés en partie 2 sont communs au worktree et au checkout principal. Le tag `v0.2.0` n'a pas de `.pre-commit-config.yaml` : sur cette branche, committer avec `PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit ...`. Le hook `pre-push` lance les tests sans base du code de la branche (ceux du tag).
+- **Hooks Git** : le commit et le push de la branche (`git push -u origin data/03-gel-2026-10`) se font dans le terminal de l'étape 4, où `PRE_COMMIT_ALLOW_NO_CONFIG=1` est exporté (E-034). Vérifier avant : `echo $PRE_COMMIT_ALLOW_NO_CONFIG` affiche `1`. Les hooks sont alors sautés ; la CI de la PR lance les tests.
 
 ### 7. Tag, ménage, abonnement
 
 ```bash
+echo $PRE_COMMIT_ALLOW_NO_CONFIG           # 1 : le worktree est encore sur la branche du tag (E-034)
 git fetch origin
 git tag -a data-freeze-2026-10 origin/main -m "Gel des données API-FOOTBALL du 2026-10-19 (docs/DATA_FREEZE.md)"
 git push origin data-freeze-2026-10
@@ -108,6 +112,7 @@ uv run python scripts/taches_planifiees/creer_taches.py --delete   # tâches tou
 uv run python -m foot_predictor.collect.api_football lock-status && git pull --ff-only
 uv sync --all-groups                                               # dépendances de main (partie 2)
 cd /c/fp-travail && git switch --detach origin/main && uv sync --all-groups   # worktree revenu sur main
+unset PRE_COMMIT_ALLOW_NO_CONFIG             # retour sur main : les hooks reprennent
 ```
 
 Le `git pull` du checkout principal n'a lieu qu'ici, après le tag du gel : c'est la seule mise à jour de `C:/foot-predictor` depuis la partie 1, et `lock-status` reste exigé juste avant.
@@ -130,6 +135,7 @@ Ne rien supprimer, ni dans `data/raw/` ni sur `D:`. Relire le message : `freeze`
 
 | Échec | Cause probable | Conduite |
 |---|---|---|
+| `git commit` ou `git push` : « No .pre-commit-config.yaml file was found » | variable absente dans ce terminal (E-034) | `export PRE_COMMIT_ALLOW_NO_CONFIG=1`, puis relancer la même commande |
 | « Dossier brut occupé » | une collecte ou une tâche planifiée tourne | attendre la fin (`lock-status`), relancer |
 | `raw_check` BLOQUANT | match terminé sans détail, tâche `failed`, fichier corrompu | lire le résumé ; `requeue`, puis `run --max-requests ...` (le quota reste disponible jusqu'au 22 à 07:56 UTC) ; relancer `freeze` avec une **nouvelle** destination vide |
 | Sauvegarde : sha256 différent ou fichier absent sur `D:` | copie interrompue, disque externe défaillant | relancer vers une nouvelle destination vide (`.../raw-2`) ; si l'échec se répète, vérifier le disque (`chkdsk D:`) ou en changer |

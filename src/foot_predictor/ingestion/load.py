@@ -37,6 +37,7 @@ from foot_predictor.rawstore.manifest import MANIFEST_DIR
 TABLES = [
     "competition", "season", "team", "coach", "player", "match", "team_match", "team_match_stats",
     "lineup", "player_match_stats", "competition_source_mapping", "team_source_mapping", "match_source_mapping",
+    "team_match_stats_external",
 ]  # fmt: skip
 # Vidées avant chargement (CASCADE : features.* qui référencent staging).
 TRUNCATED = [
@@ -44,7 +45,7 @@ TRUNCATED = [
     *(f"staging.{table}" for table in TABLES),
 ]  # fmt: skip
 FINGERPRINT_EXCLUDED = {"created_at"}
-ALEMBIC_HEAD = "0004_referentiel_identifiants"
+ALEMBIC_HEAD = "0005_tirs_football_data"
 
 
 class LoadRefused(RuntimeError):

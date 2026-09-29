@@ -89,3 +89,75 @@ def test_source_mappings(loaded):
     assert {m["source_ref"] for m in table(api, "competition_source_mapping")} == {"E0"}
     assert {m["source_ref"] for m in table(api, "team_source_mapping")} == {"Club Un", "Club Deux", "Ancien Club"}
     assert all(m["source_name"] == "football_data" for m in table(api, "match_source_mapping"))
+
+
+# --- Tirs de football-data (ADR-0029) : sans réseau et sans base -------------------------------
+
+SHOTS_HEADER = "Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,HS,AS,HST,AST\r\n"
+
+
+def shots_by_match(api) -> dict[int, dict[bool, tuple]]:
+    """match_id -> {domicile?: (tirs, tirs cadrés)} depuis les lignes de team_match_stats_external."""
+    side = {tm["id"]: (tm["match_id"], tm["is_home"]) for tm in table(api, "team_match")}
+    out: dict[int, dict[bool, tuple]] = {}
+    for row in table(api, "team_match_stats_external"):
+        assert row["source"] == "football_data"
+        match_id, is_home = side[row["team_match_id"]]
+        out.setdefault(match_id, {})[is_home] = (row["shots"], row["shots_on_target"])
+    return out
+
+
+def test_old_file_without_shot_columns_gives_empty_values(loaded):
+    """Colonnes absentes d'un ancien fichier : une ligne par équipe, valeurs vides, jamais 0."""
+    api, external = loaded
+    shots = shots_by_match(api)
+    assert len(shots) == 3  # 2 matchs appariés + 1 match hors API ; le non apparié n'a rien
+    assert all(values == {True: (None, None), False: (None, None)} for values in shots.values())
+    assert external.counts["fd_shots_rows"] == 6
+    assert external.counts["fd_shots_rows_incomplete"] == 6
+
+
+@pytest.fixture
+def loaded_with_shots(tmp_path, multi_config):
+    raw = tmp_path / "raw"
+    p1 = [synthetic(1001, "2015-08-15", 1, 2, [11], [21]), synthetic(1002, "2015-08-22", 2, 1, [21], [11])]
+    build_multi(raw, p1, []).queue.close()
+    external = tmp_path / "externe"
+    rows = [
+        "E0,15/08/2015,Club Un,Club Deux,0,0,14,9,6,3\r\n",  # complet
+        "E0,22/08/2015,Club Deux,Club Un,1,0,11,,x,2\r\n",  # tirs extérieur vide, cadrés domicile illisible
+    ]
+    raw_bytes.write_bytes(external, season_dir(2015), "E0", ".csv", (SHOTS_HEADER + "".join(rows)).encode(), STAMP)
+    raw_bytes.write_bytes(
+        external, season_dir(2014), "E0", ".csv",
+        (SHOTS_HEADER + "E0,16/08/2014,Club Un,Ancien Club,3,1,7,5,4,0\r\n").encode(), STAMP,
+    )  # fmt: skip
+    api = ApiLoad(raw, multi_config)
+    api.run()
+    external_load = ExternalLoad(
+        api, external, {"E0": 39}, teams={"Club Un": 1, "Club Deux": 2}, hors_api={"Ancien Club"},
+        seasons=range(2014, 2016),
+    )  # fmt: skip
+    external_load.run()
+    return api, external_load
+
+
+def test_shots_follow_the_home_and_away_sides(loaded_with_shots):
+    api, _ = loaded_with_shots
+    fixture_match = {m["api_fixture_id"]: m["id"] for m in table(api, "match") if m["api_fixture_id"]}
+    shots = shots_by_match(api)
+    assert shots[fixture_match[1001]] == {True: (14, 6), False: (9, 3)}
+
+
+def test_empty_or_unreadable_values_stay_empty_never_zero(loaded_with_shots):
+    api, external = loaded_with_shots
+    fixture_match = {m["api_fixture_id"]: m["id"] for m in table(api, "match") if m["api_fixture_id"]}
+    assert shots_by_match(api)[fixture_match[1002]] == {True: (11, None), False: (None, 2)}
+    assert external.counts["fd_shots_rows_incomplete"] == 2
+
+
+def test_hors_api_match_gets_its_shots(loaded_with_shots):
+    """Un 0 lu dans le fichier reste un 0 : seule l'absence donne une valeur vide."""
+    api, _ = loaded_with_shots
+    (created,) = [m for m in table(api, "match") if m["origin"] == "hors_api"]
+    assert shots_by_match(api)[created["id"]] == {True: (7, 4), False: (5, 0)}

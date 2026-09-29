@@ -11,11 +11,16 @@ numérotation interne. Règles :
   ± 1 jour). Aucune création : une ligne non appariée est comptée et listée ;
 - **hors de la couverture API**, football-data crée le match (origine
   « hors_api »), et la saison si besoin ;
-- `*_source_mapping` garde le lien : division, nom d'équipe, ligne de fichier.
+- `*_source_mapping` garde le lien : division, nom d'équipe, ligne de fichier ;
+- pour chaque match apparié **ou** créé, une ligne par équipe dans
+  `team_match_stats_external` : tirs et tirs cadrés (`HS`, `HST` à domicile, `AS`,
+  `AST` à l'extérieur ; ADR-0029). Une valeur absente ou illisible reste vide,
+  jamais 0 ; une colonne absente d'un ancien fichier aussi.
 
 Scellé (ADR-0012) : la cohérence des scores entre les deux sources n'est
 contrôlée que pour les matchs antérieurs au 1er juillet 2025. Au-delà, seuls
-les taux d'appariement et les décomptes sont produits.
+les taux d'appariement et les décomptes sont produits. Les tirs des matchs
+scellés sont chargés (permis), jamais comparés ni résumés ici.
 """
 
 from __future__ import annotations
@@ -29,9 +34,10 @@ from foot_predictor.collect.football_data.download import FIRST_SEASON, LAST_SEA
 from foot_predictor.ingestion import raw_api
 from foot_predictor.ingestion.football_data_csv import CsvMatch, read_matches
 from foot_predictor.ingestion.load_api import ApiLoad
+from foot_predictor.seal import SEAL_DATE
 
 SOURCE = "football_data"
-SEALED_FROM = dt.date(2025, 7, 1)
+SEALED_FROM = SEAL_DATE  # date unique du scellé (ADR-0028)
 TOLERANCE = dt.timedelta(days=1)
 
 
@@ -65,6 +71,8 @@ class ExternalLoad:
     rates: dict[tuple[str, int], tuple[int, int]] = field(default_factory=dict)  # (div, saison) -> (appariés, lignes)
     unmatched: list[Unmatched] = field(default_factory=list)
     score_mismatches: dict[tuple[str, int], int] = field(default_factory=dict)  # avant le scellé seulement
+    _shots_id: int = 0
+    _shots_team_matches: set[int] = field(default_factory=set)
 
     def run(self) -> None:
         api = self.api
@@ -120,6 +128,7 @@ class ExternalLoad:
                         )
                         match_mapping_id += 1
                         self._compare_scores(division, season, row, fid)
+                        self._emit_shots(api.match_ids[fid], row)
                     self.rates[(division, season)] = (matched, len(rows))
                     self.counts["fd_rows_covered"] += len(rows)
                     self.counts["fd_rows_matched"] += matched
@@ -150,8 +159,30 @@ class ExternalLoad:
                         (match_mapping_id, next_match, SOURCE, f"{division}:{season}:{row.line}"),
                     )
                     match_mapping_id += 1
+                    self._emit_shots(next_match, row)
                     next_match += 1
                     self.counts["matches_hors_api"] += 1
+
+    def _emit_shots(self, match_id: int, row: CsvMatch) -> None:
+        """Tirs et tirs cadrés des deux équipes, dans `team_match_stats_external`.
+
+        L'identifiant de `team_match` suit la règle des chargeurs : 2 × match − 1 pour
+        l'équipe à domicile, 2 × match pour l'extérieur. Le domicile du CSV est celui du
+        match API (l'appariement se fait sur le couple ordonné domicile, extérieur).
+        Deux lignes du CSV appariées au même match : seule la première est gardée.
+        """
+        for is_home, (shots_col, target_col) in ((True, ("HS", "HST")), (False, ("AS", "AST"))):
+            team_match_id = 2 * match_id - (1 if is_home else 0)
+            if team_match_id in self._shots_team_matches:
+                self.counts["fd_shots_duplicate_pairing"] += 1
+                continue
+            self._shots_team_matches.add(team_match_id)
+            shots, on_target = integer(row.row.get(shots_col)), integer(row.row.get(target_col))
+            self._shots_id += 1
+            self.api.rows.add("team_match_stats_external", (self._shots_id, SOURCE, team_match_id, shots, on_target))
+            self.counts["fd_shots_rows"] += 1
+            if shots is None or on_target is None:
+                self.counts["fd_shots_rows_incomplete"] += 1
 
     def _team(self, name: str, hors_api_ids: dict[str, int]) -> int | None:
         if name in self.teams:

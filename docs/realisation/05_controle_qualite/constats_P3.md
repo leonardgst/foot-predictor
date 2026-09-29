@@ -68,9 +68,9 @@ Au sens strict (championnat aller-retour classique avec moins de matchs listés 
 |---|---|---|
 | MLS (253) 2017 | 373 matchs de saison régulière pour 22 équipes. 20 équipes en ont 34, deux en ont 33. La liste ne contient aucun match annulé ni reporté : il manque probablement un match entre ces deux équipes. | 1 requête (`/fixtures?league=253&season=2017`). Si le match apparaît : 1 requête de plus pour son détail. |
 
-- **Rien n'est lancé** : la décision revient à l'utilisateur, avec accord explicite (`CLAUDE.md`), sur la réserve de quota.
-- Si l'API ne connaît pas ce match, la nouvelle liste sera identique : le trou sera alors documenté dans `DATA_FREEZE.md`.
 - Enjeu faible : la MLS ne fait pas partie de la population d'évaluation (top 5, ADR-0012). Elle ne sert qu'à l'historique des joueurs et aux expériences sur les données d'apprentissage.
+
+**Suite donnée (2026-09-29, ADR-0019)** : la liste a été redemandée seule (`refresh --season 2017 --palier P3 --league 253`), pour 2 requêtes (`/status` et la liste). La nouvelle version est **identique** à l'ancienne : 390 matchs, dont 373 de saison régulière, les mêmes identifiants, deux équipes à 33 matchs. L'API ne connaît pas le match manquant. C'est un **trou de la source**, à consigner dans `DATA_FREEZE.md` ; aucun lot de détails n'a été créé.
 
 ## Points à reprendre au chargement (J3)
 
@@ -88,6 +88,22 @@ Au sens strict (championnat aller-retour classique avec moins de matchs listés 
 | Minutes hors de 0 à 130 | 1 | Anomalie de source | Écarter |
 | Nombre de matchs inattendu | 33 sur 114 | Voir le classement ci-dessus | Formats et saisons interrompues documentés ; MLS 2017 selon la décision |
 | Nombre de matchs non vérifié | 17 championnat-saisons (Écosse, Argentine) | Pas de libellé « Regular Season » | Vérifier au chargement à partir des libellés de journée |
+
+## Mise à jour du 2026-09-29 : profils ciblés (ADR-0016)
+
+Le compte « titulaires sans profil » ci-dessus (1 503 en P3, 335 en P1) ne regarde que les pages `/players` du **même** championnat-saison. Il surestime le manque : un joueur peut avoir son profil dans une autre saison ou un autre palier. Le nouvel indicateur de `raw_check`, « titulaires sans date de naissance (tous profils confondus) », regarde tous les profils du brut.
+
+| Bloc | Titulaires distincts | Sans date avant | Profils ciblés demandés | Sans date après |
+|---|---|---|---|---|
+| P1 top 5 | 7 915 | 72 | 72 | **61** |
+| P1 D2 | 11 887 | 192 | 192 | **157** |
+| P3 | 19 802 | 661 | 661 | **211** |
+| **Total** | — | **925** | **925** | **429** |
+
+- Coût : 927 requêtes (`/players/profiles?player=`, une par joueur, plus 2 `/status`). Toutes les tâches sont `done` : l'API connaît chacun de ces joueurs.
+- Rendement : 496 dates obtenues. Il est faible pour P1 (46 sur 264) : ces joueurs ont un profil, mais sans date de naissance. Il est élevé pour P3 (450 sur 661).
+- Les nouveaux profils révèlent 3 groupes de doublons de plus (97 au lieu de 94) ; aucune nouvelle collision.
+- Résumé : `reports/data_quality/raw_check_P1-P2-P3_2026-09-29.md` (régénéré après les profils ciblés).
 
 ## Conséquences pour les décisions
 

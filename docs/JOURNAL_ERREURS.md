@@ -15,6 +15,17 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-034 — Hooks Git sans configuration sur le tag `v0.2.0` : commit **et** push refusés (2026-09-29)
+
+- **Contexte** : relecture de la procédure de gel (partie 3, sous-étape 3.0). Les hooks `pre-commit` et `pre-push` installés en partie 2 dans `C:/foot-predictor/.git/hooks` sont communs à tous les checkouts du dépôt, worktree compris. La branche du gel part du tag `v0.2.0`, qui n'a pas de `.pre-commit-config.yaml`.
+- **Message d'erreur** : « No .pre-commit-config.yaml file was found », code 1, pour `git commit`, `git push` d'une branche et `git push` d'un tag.
+- **Cause** : `gel.md` ne prévoyait `PRE_COMMIT_ALLOW_NO_CONFIG=1` que pour le commit de l'étape 6. Le push de la branche du gel et `git push origin data-freeze-2026-10` (étape 7) auraient échoué le jour de l'échéance.
+- **Solution** : `export PRE_COMMIT_ALLOW_NO_CONFIG=1` dès l'étape 4, valable pour chaque commit, push et push de tag de la branche du gel ; `unset` au retour du worktree sur `main`. Répété le 2026-09-29 sur un clone jetable (`C:/fp-repetition-hooks`, origine nue locale, hooks recopiés octet pour octet) : sur le tag, commit, push et push de tag refusés sans la variable, acceptés avec ; sur `main`, sans la variable, un commit lance bien les hooks (un fichier avec une tabulation est refusé, un fichier propre accepté) et le push lance les tests sans base.
+- **Fichiers concernés** : `docs/realisation/03_collecte/gel.md` (étapes 4, 6, 7 et tableau des échecs), `docs/ETAT_PROJET.md` (« Commandes de la session de gel »).
+- **Prévention** : toute procédure qui se lance sur un tag ancien est répétée avec les hooks installés, commit **et** push compris.
+- **Écart de la partie 2 consigné ici** : l'installation des hooks (`pre-commit install`, partie 2) a écrit deux fichiers dans `C:/foot-predictor/.git/hooks`, ce qui n'avait pas été signalé comme écart au retour. Sans effet sur les tâches planifiées : `refresh_run.cmd`, `t60.cmd` et `creer_taches.py` n'appellent jamais `git` (vérifié en lecture le 2026-09-29).
+- **Test de non-régression** : aucun test automatique possible (hooks et tag hors du code) ; la répétition ci-dessus est décrite pour être rejouée.
+
 ## E-033 — Appariement par calendrier en échec sur des saisons entières (Championship, Ligue 2) (2026-09-29)
 
 - **Contexte** : brouillon du YAML des équipes football-data (partie 2, sous-étape 2.5).

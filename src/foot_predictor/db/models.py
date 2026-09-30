@@ -17,12 +17,14 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     SmallInteger,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum
 from sqlalchemy.dialects.postgresql import JSONB
@@ -632,7 +634,11 @@ class ModelRegistry(Base):
     """Un modèle entraîné : version, horizon, carte d'identité, chemin ; au plus un modèle actif."""
 
     __tablename__ = "model_registry"
-    __table_args__ = (CheckConstraint("horizon IN ('H1', 'H2')", name="ck_model_registry_horizon"), {"schema": "ops"})
+    __table_args__ = (
+        CheckConstraint("horizon IN ('H1', 'H2')", name="ck_model_registry_horizon"),
+        Index("uq_model_registry_one_active", "active", unique=True, postgresql_where=text("active")),
+        {"schema": "ops"},
+    )
 
     version: Mapped[str] = mapped_column(Text, primary_key=True)
     horizon: Mapped[str] = mapped_column(Text, nullable=False)
@@ -657,6 +663,8 @@ class Prediction(Base):
             "(status = 'available') = (lambda_home IS NOT NULL AND total_distribution IS NOT NULL)",
             name="ck_prediction_values_iff_available",
         ),
+        Index("ix_ops_prediction_lookup", "match_id", "model_version", "horizon", "mode"),
+        Index("ix_ops_prediction_mode_day", "mode", "match_day"),
         {"schema": "ops"},
     )
 

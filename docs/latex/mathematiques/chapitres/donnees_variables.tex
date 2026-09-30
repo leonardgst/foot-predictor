@@ -24,7 +24,8 @@ commande reconstruit entièrement le référentiel \code{staging} à partir du b
   \item un match de football-data est apparié au match API de même équipe à domicile, même équipe
         à l'extérieur, à un jour près ; hors de la couverture de l'API, football-data crée le
         match (origine \og hors API \fg{}) ;
-  \item les tirs et tirs cadrés de chaque équipe viennent de football-data (ADR-0029).
+  \item les tirs et tirs cadrés de chaque équipe viennent d'API-FOOTBALL pour un match joué depuis
+        2015-16 où elle a les deux équipes, sinon de football-data (ADR-0029, ADR-0035).
 \end{itemize}
 La \emph{cible} est le nombre de buts de chaque équipe au temps réglementaire (ADR-0009). Les matchs
 annulés, abandonnés ou sur tapis vert sont exclus : ils ne donnent ni ligne ni historique.
@@ -163,19 +164,20 @@ linéaire fixe des tirs cadrés \(s_c\) et non cadrés \(s_n\) (tirs contrés co
   \qquad
   (a, b) = \operatorname*{arg\,min}_{a \ge 0,\ b \ge 0}\ \sum_{(m,e)} \big(y_{m,e} - a\, s_{c} - b\, s_{n}\big)^2,
 \]
-sur les \(40\,394\) lignes des saisons 2015-16 à 2020-21, avant tous les plis de validation. Pas de
+sur les \(44\,334\) lignes des saisons 2015-16 à 2020-21, avant tous les plis de validation. Pas de
 constante (zéro tir donne zéro) et des coefficients positifs ou nuls (un tir ne retire pas de but
 attendu), comme pour un vrai xG, somme de probabilités de but par tir.
 
-Sans la contrainte, on trouve \(b = -0{,}0126\). La contrainte \(b \ge 0\) est donc active, et les
+Sans la contrainte, on trouve \(b = -0{,}0156\). La contrainte \(b \ge 0\) est donc active, et les
 conditions d'optimalité donnent \(b = 0\) et \(a = \sum y\, s_c / \sum s_c^2\) :
 \[
-  \mathrm{xg\_proxy} = 0{,}3033\, s_c.
+  \mathrm{xg\_proxy} = 0{,}3076\, s_c.
 \]
 Contrôle sur 2022-23 à 2024-25, contre l'xG d'API-FOOTBALL, par équipe et par match : corrélation
-\(0{,}685\), écart moyen absolu \(0{,}495\). Limite : les tirs de football-data changent de
-définition pour la Serie A de 2018-19 à 2020-21, ce qui y surestime l'\(\mathrm{xg\_proxy}\)
-d'environ \(0{,}27\) par équipe et par match (ADR-0029, ADR-0032).
+\(0{,}687\), écart moyen absolu \(0{,}495\). Les tirs d'API-FOOTBALL (depuis 2015-16) évitent la
+rupture de série de football-data en Serie A de 2018-19 à 2020-21, qui y surestimait
+l'\(\mathrm{xg\_proxy}\) d'environ \(0{,}27\) par équipe et par match (ADR-0029, ADR-0035). Après le
+gel, seuls les tirs de football-data existeront : écart moyen de \(+0{,}02\) (ADR-0035).
 
 % ---------------------------------------------------------------------------------------------
 \section{Calendrier et contexte (groupes G3 et G0)}

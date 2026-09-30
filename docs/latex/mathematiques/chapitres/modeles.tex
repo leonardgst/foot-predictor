@@ -1,0 +1,89 @@
+% Chapitre « Modèles » (partie 4, lot 2, jalon J6) : une section par modèle, relue avec son code.
+% Sources : ADR-0009, ADR-0012, ADR-0037 ; code de src/foot_predictor/modeling/ (design.py,
+% diagnostics.py, distributions.py, models/). Les chiffres cités viennent des rapports
+% reports/experiments/*.json (jeu ds-2026-09-30-ba2b91f7, 4 plis, 7 156 matchs).
+
+\chapter{Modèles}
+\label{chap:modeles}
+
+Ce chapitre présente les modèles du MVP dans l'ordre du rapport de cadrage (I.4) : chaque étape
+répond à une question. Tous partagent la même interface (apprendre sur des lignes \((m, e)\),
+prédire des matchs) et la même sortie : \(\lambda_{\mathrm{dom}}\), \(\lambda_{\mathrm{ext}}\) et la
+loi du total \(T = Y_{\mathrm{dom}} + Y_{\mathrm{ext}}\), repliée sur \(\{0, \dots, 9, \ge 10\}\).
+Les variables sont celles des groupes G0 (contexte : domicile, championnat, huis clos) et G1 (Elo),
+standardisées sur l'apprentissage du pli seulement.
+
+% ---------------------------------------------------------------------------------------------
+\section{M1 : la régression linéaire sur le total}
+\label{sec:m1}
+
+\paragraph{Modèle.} Pour un match \(m\) de variables \(x_m\) (constante, indicatrices de
+championnat, huis clos, Elo des deux équipes),
+\[
+  T_m = x_m^\top \beta + \varepsilon_m,
+  \qquad
+  \hat\beta = (X^\top X)^{-1} X^\top T .
+\]
+\paragraph{Hypothèses de Gauss-Markov.} (1) linéarité ; (2) exogénéité, \(\mathbb{E}[\varepsilon
+\mid X] = 0\) ; (3) homoscédasticité, \(\operatorname{Var}(\varepsilon_m \mid X) = \sigma^2\) ;
+(4) erreurs non corrélées ; (5) \(X\) de plein rang. Sous (1) à (5), \(\hat\beta\) est le meilleur
+estimateur linéaire sans biais, de variance \(\sigma^2 (X^\top X)^{-1}\) ; \(\hat\sigma^2 = \lVert T -
+X\hat\beta\rVert^2 / (n - p)\). Le coefficient de détermination est \(R^2 = 1 - \sum_m \hat\varepsilon_m^2
+/ \sum_m (T_m - \bar T)^2\).
+
+\paragraph{Intervalles.} L'intervalle de confiance de la moyenne \(x^\top\beta\) a pour écart-type
+\(\mathrm{se}(x^\top\hat\beta) = \hat\sigma \sqrt{x^\top (X^\top X)^{-1} x}\) ; celui de
+\emph{prédiction} d'un nouveau total ajoute le bruit :
+\(s(x) = \sqrt{\hat\sigma^2 + \mathrm{se}(x^\top\hat\beta)^2}\).
+
+\paragraph{Loi prédictive discrétisée.} Avec \(\mu = x^\top\hat\beta\) et \(s = s(x)\),
+\[
+  P(T = 0) = \Phi\!\Big(\frac{\tfrac12 - \mu}{s}\Big),\quad
+  P(T = k) = \Phi\!\Big(\frac{k + \tfrac12 - \mu}{s}\Big) - \Phi\!\Big(\frac{k - \tfrac12 - \mu}{s}\Big)\ (1 \le k \le 9),\quad
+  P(T \ge 10) = 1 - \Phi\!\Big(\frac{9{,}5 - \mu}{s}\Big).
+\]
+La masse sous \(-\tfrac12\), celle des totaux \og négatifs \fg{}, est rabattue sur 0.
+
+\paragraph{Pourquoi M1 ne suffit pas (chiffres des 4 plis).} Le \(R^2\) d'apprentissage vaut
+\(2{,}1\,\%\) : le total est très bruité (rapport C.2). Aucune moyenne prédite n'est négative (la plus
+petite vaut \(2{,}13\)), mais la loi normale met \(2{,}5\,\%\) de sa masse sur des totaux négatifs, ce
+qui gonfle \(P(T = 0)\) (\(8{,}7\,\%\) prédit contre \(6{,}4\,\%\) observé) et creuse \(P(T = 1)\). La
+variance des résidus croît avec la valeur ajustée (de \(2{,}48\) à \(3{,}13\) du premier au dernier
+quintile ; test de Breusch-Pagan, \(p < 10^{-5}\)) : l'hypothèse (3) est fausse, comme on l'attend
+d'un comptage dont la variance suit la moyenne. L'intervalle normal est symétrique alors que la loi
+d'un comptage est asymétrique à droite. Résultat : M1 est \emph{moins bon} que la référence B1 sur
+le log-loss du total (écart \(-0{,}0108\), intervalle à 95 \% \([-0{,}0166 ; -0{,}0049]\)).
+
+% ---------------------------------------------------------------------------------------------
+\section{M2 : le modèle de Poisson sur le total}
+\label{sec:m2}
+
+\paragraph{Modèle.} \(T_m \sim \mathcal{P}(\mu_m)\), avec le lien logarithme
+\(\log \mu_m = x_m^\top\beta\) : la moyenne est toujours positive et les effets sont
+multiplicatifs. La log-vraisemblance
+\[
+  \ell(\beta) = \sum_m \big[T_m\, x_m^\top\beta - e^{x_m^\top\beta} - \log T_m!\big]
+\]
+est concave ; son maximum annule le score \(\sum_m (T_m - \mu_m)\, x_m = 0\) et s'obtient par
+moindres carrés repondérés itérés (IRLS). Conséquence du score : avec une constante et des
+indicatrices de championnat, la somme des \(\hat\mu_m\) de chaque championnat égale la somme des
+totaux observés (propriété vérifiée par les tests).
+
+\paragraph{Déviance et dispersion.} La déviance \(D = 2 \sum_m [T_m \log(T_m/\hat\mu_m) - (T_m -
+\hat\mu_m)]\) mesure l'écart au modèle saturé. Sous Poisson, \(\operatorname{Var}(T \mid x) =
+\mathbb{E}(T \mid x)\). On le vérifie par
+\[
+  \hat\varphi = \frac{1}{n - p} \sum_m \frac{(T_m - \hat\mu_m)^2}{\hat\mu_m}
+  \quad\text{et le test de Cameron-Trivedi :}\quad
+  \frac{(T_m - \hat\mu_m)^2 - T_m}{\hat\mu_m} = \alpha\, \hat\mu_m + \eta_m ,
+\]
+régression sans constante dont l'alternative est \(\operatorname{Var}(T) = \mu + \alpha\mu^2\)
+(binomiale négative). Résultat : \(\hat\varphi = 0{,}99\) dans chaque pli, \(\hat\alpha \approx
+-0{,}004\) (\(t \approx -1\)) : aucune surdispersion du total une fois le championnat et l'Elo pris
+en compte.
+
+\paragraph{Ce que M2 apporte.} Une vraie loi de comptage, positive et asymétrique : M2 bat M1 de
+\(0{,}0162\) (\([0{,}0115 ; 0{,}0208]\)) et bat B1 de \(0{,}0054\) (\([0{,}0018 ; 0{,}0090]\)),
+avec une pente de calibration poolée de \(0{,}97\). Ce qu'il rate : le total mélange deux équipes ;
+\(\log(\lambda_{\mathrm{dom}} + \lambda_{\mathrm{ext}})\) n'est pas linéaire dans les forces des
+équipes, et l'on perd \og qui marque \fg{} (section suivante, M3).

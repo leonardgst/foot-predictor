@@ -1,0 +1,16 @@
+# M3 : Poisson par équipe, erreurs standard groupées par match, variables G0 + G1 (décision 5).
+# Comparé à B1 (objectif du MVP) et à M2 (faut-il décomposer par équipe ?). Le diagnostic de
+# dispersion de chaque pli (Cameron-Trivedi, rapport de vraisemblance NB2) décide si M4 est évalué.
+name: m3
+dataset: ds-2026-09-30-ba2b91f7
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  - {id: B1, model: b1, grid: {window: [1, 2, 3, 6]}}
+  - {id: M2, model: m2, params: {groups: [G0, G1]}}
+  - {id: M3, model: m3, params: {groups: [G0, G1], check_dispersion: true}}
+comparisons:
+  - [B1, M3]
+  - [M2, M3]

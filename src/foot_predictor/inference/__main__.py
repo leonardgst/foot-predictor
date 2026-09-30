@@ -1,0 +1,45 @@
+"""Inférence en ligne de commande (partie 5, ADR-0040).
+
+    python -m foot_predictor.inference check [--only rows]
+
+`check` : contrôles sur données réelles de la période de développement (lignes d'inférence contre
+le jeu d'entraînement), rapport Markdown et JSON dans `reports/inference/`. Les commandes `predict`
+et `models` arrivent aux sous-étapes 5.2 et 5.3.
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import sys
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="python -m foot_predictor.inference")
+    sub = parser.add_subparsers(dest="command", required=True)
+    check = sub.add_parser("check", help="contrôles sur données réelles (période de développement)")
+    check.add_argument("--only", choices=["rows"], help="un seul contrôle")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="backslashreplace")
+    args = build_parser().parse_args(argv)
+    from foot_predictor.inference import check
+
+    if args.command != "check":  # predict et models : sous-étapes 5.2 et 5.3
+        return 2
+    today = dt.datetime.now(dt.UTC).date().isoformat()
+    report = check.run_rows_check()
+    report["date"] = today
+    json_path, md_path = check.write_report(report, f"lignes_{today}", check.render_rows(report))
+    print(
+        f"Lignes : {'identiques' if report['all_identical'] else 'ÉCART'} ({report['rows_compared']} lignes) ; {md_path}"
+    )
+    return 0 if report["all_identical"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -37,3 +37,6 @@ htmlcov/
 
 # Réglages locaux de Claude Code (permissions propres à la machine)
 .claude/settings.local.json
+
+# Mesures de l'inférence : JSON et Markdown versionnés, tableaux intermédiaires non (partie 5).
+reports/inference/*.parquet

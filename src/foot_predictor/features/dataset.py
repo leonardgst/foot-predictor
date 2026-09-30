@@ -32,12 +32,16 @@ from foot_predictor.seal import check_seal
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DATASETS_ROOT = REPO_ROOT / "data" / "datasets"
+SEALED_DATASETS_ROOT = REPO_ROOT / "data" / "datasets_scelles"
+"""Jeux construits avec `--sealed-test` (test scellé, ADR-0012) : jamais lus par défaut."""
 ELO_PARAMS_PATH = Path(__file__).resolve().parent / "params" / "elo.json"
 
 FIRST_SEASON = 2000
 LAST_SEASON = 2024
 LEARNING_FROM = 2015
 VALIDATION_FROM = 2021
+SEALED_FROM_SEASON = 2025
+"""Première saison sous scellés (2025-26) : phase « scelle », lignes présentes seulement avec --sealed-test."""
 DATA_FILE = "dataset.parquet"
 
 
@@ -47,12 +51,12 @@ def load_elo_params(path: Path = ELO_PARAMS_PATH) -> EloParams:
 
 
 def phase_of(season_year: pd.Series) -> pd.Series:
-    """« rodage » avant 2015-16, « apprentissage » de 2015-16 à 2020-21, « validation » ensuite (ADR-0012)."""
+    """« rodage » avant 2015-16, « apprentissage » jusqu'en 2020-21, « validation » jusqu'en 2024-25, « scelle » ensuite (ADR-0012)."""
     return pd.Series(
         np.select(
-            [season_year < LEARNING_FROM, season_year < VALIDATION_FROM],
-            ["rodage", "apprentissage"],
-            default="validation",
+            [season_year < LEARNING_FROM, season_year < VALIDATION_FROM, season_year < SEALED_FROM_SEASON],
+            ["rodage", "apprentissage", "validation"],
+            default="scelle",
         ),
         index=season_year.index,
     )
@@ -64,12 +68,18 @@ def build_frame(
     coefficients: xg_proxy.XgProxyCoefficients,
     periods: list[huis_clos.Period] | None = None,
     half_lives: tuple[int, ...] = HALF_LIVES,
+    sealed_test: bool = False,
 ) -> pd.DataFrame:
     """Jeu de données à partir de la table des matchs (toutes compétitions), sans accès à la base.
 
-    Refuse une table qui contient un match sous scellés (ADR-0012), comme la porte.
+    Refuse une table qui contient un match sous scellés (ADR-0012), comme la porte, sauf avec
+    `sealed_test=True` (test scellé, une fois par version) : les lignes vont alors jusqu'à la
+    dernière saison présente, et les variables de chaque match scellé se calculent, comme toutes les
+    autres, avec les seuls matchs terminés avant son jour (règle temporelle inchangée).
     """
-    check_seal(matches["match_date"])
+    if not sealed_test:
+        check_seal(matches["match_date"])
+    last_season = int(matches["season_year"].max()) if sealed_test else LAST_SEASON
     elo = compute_elo(matches, elo_params)
     rolling = compute_rolling(matches, coefficients, half_lives=half_lives)
     rest = compute_rest(matches)
@@ -77,7 +87,7 @@ def build_frame(
     rows = matches[
         matches["api_league_id"].isin(list(LADDERS))
         & matches["is_regular_season"]
-        & matches["season_year"].between(FIRST_SEASON, LAST_SEASON)
+        & matches["season_year"].between(FIRST_SEASON, last_season)
         & (matches["status"] == "played")
         & ~matches["excluded"].astype(bool)
         & matches["home_goals_90"].notna()

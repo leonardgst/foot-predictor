@@ -32,11 +32,13 @@ def market_probabilities(odds: pd.DataFrame) -> pd.DataFrame:
     return odds
 
 
-def load_market_probabilities() -> pd.DataFrame:
-    """Cotes des matchs de la période de développement, lues par la porte (scellé filtré en SQL)."""
+def load_market_probabilities(
+    sealed_test: bool = False, experiment: str | None = None, sealed_log=None
+) -> pd.DataFrame:
+    """Cotes lues par la porte (scellé filtré en SQL ; levé seulement pour le test scellé, journalisé)."""
     from foot_predictor.features.sources import load_odds
 
-    return market_probabilities(load_odds())
+    return market_probabilities(load_odds(sealed_test=sealed_test, experiment=experiment, sealed_log=sealed_log))
 
 
 def probabilities(odds: pd.DataFrame, version: str, match_ids) -> np.ndarray:

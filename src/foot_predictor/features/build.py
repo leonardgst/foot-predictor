@@ -16,6 +16,7 @@ from foot_predictor.features.dataset import (
     FIRST_SEASON,
     LAST_SEASON,
     LEARNING_FROM,
+    SEALED_DATASETS_ROOT,
     VALIDATION_FROM,
     build_frame,
     counts_of,
@@ -64,8 +65,20 @@ def database_trace(connection) -> dict:
     return {"alembic_revision": revision, "load_run_id": load_run}
 
 
-def run_build(output_root: Path | None = None, record: bool = True, engine=None, today: dt.date | None = None) -> dict:
-    """Construit une version du jeu de données ; renvoie un résumé (version, chemin, lignes, durée)."""
+def run_build(
+    output_root: Path | None = None,
+    record: bool = True,
+    engine=None,
+    today: dt.date | None = None,
+    sealed_test: bool = False,
+    experiment: str | None = None,
+) -> dict:
+    """Construit une version du jeu de données ; renvoie un résumé (version, chemin, lignes, durée).
+
+    `sealed_test=True` (test scellé, ADR-0012 règle 5, une fois par version) : lit aussi les matchs
+    scellés par la porte (usage journalisé dans `reports/sealed_tests.md`, `experiment` obligatoire)
+    et écrit dans `data/datasets_scelles/`, jamais lu par défaut.
+    """
     from foot_predictor.features.sources import load_matches
 
     started = time.monotonic()
@@ -75,19 +88,22 @@ def run_build(output_root: Path | None = None, record: bool = True, engine=None,
         engine = get_engine()
     with engine.connect() as connection:
         trace = database_trace(connection)
-    matches = load_matches(engine)  # toutes compétitions, filtre du scellé en SQL
-    frame = build_frame(matches, load_elo_params(), xg_proxy.load(), huis_clos.load_periods())
+    if sealed_test and not experiment:
+        raise ValueError("--sealed-test exige le fichier d'expérience (--experiment), pour le journal du scellé.")
+    # Toutes compétitions ; filtre du scellé en SQL, levé seulement avec sealed_test (journalisé).
+    matches = load_matches(engine, sealed_test=sealed_test, experiment=experiment)
+    frame = build_frame(matches, load_elo_params(), xg_proxy.load(), huis_clos.load_periods(), sealed_test=sealed_test)
     manifest_base = {
         **trace,
         "git_commit": git_commit(),
         "git_dirty": git_dirty(),  # vrai : construit avec du code non committé, à reconstruire
         "registry_sha256": registry.sha256(),
         "parameters": frozen_parameters(),
-        "scope": scope(),
+        "scope": scope() | ({"sealed_test": True, "experiment": experiment} if sealed_test else {}),
         "counts": counts_of(frame),
     }
     today = today or dt.datetime.now(dt.UTC).date()
-    root = Path(output_root) if output_root else DATASETS_ROOT
+    root = Path(output_root) if output_root else (SEALED_DATASETS_ROOT if sealed_test else DATASETS_ROOT)
     path, manifest = write_snapshot(frame, manifest_base, root, today)
     if record:
         with engine.begin() as connection:

@@ -204,18 +204,26 @@ def list_datasets(root: Path | None = None) -> list[str]:
     return [name for _, _, name in sorted(found)]
 
 
-def load_dataset(version: str | None = None, root: Path | None = None) -> tuple[pd.DataFrame, dict]:
+def load_dataset(
+    version: str | None = None,
+    root: Path | None = None,
+    *,
+    sealed_test: bool = False,
+    experiment: str | None = None,
+    sealed_log: Path | None = None,
+) -> tuple[pd.DataFrame, dict]:
     """Lit un jeu de données versionné (la plus récente version par défaut) et son manifeste.
 
     Seconde barrière du scellé : un jeu qui contiendrait un match à partir du 1er juillet 2025
-    est refusé (`check_seal`). Les notebooks lisent les données par cette fonction ou par
+    est refusé (`check_seal`), sauf avec `sealed_test=True` (test scellé) : la version se lit alors
+    dans `data/datasets_scelles/`, et l'usage est journalisé (`reports/sealed_tests.md`). Les notebooks lisent les données par cette fonction ou par
     `load_matches`, jamais directement.
     """
     import json
 
-    from foot_predictor.features.dataset import DATA_FILE, DATASETS_ROOT
+    from foot_predictor.features.dataset import DATA_FILE, DATASETS_ROOT, SEALED_DATASETS_ROOT
 
-    base = Path(root) if root else DATASETS_ROOT
+    base = Path(root) if root else (SEALED_DATASETS_ROOT if sealed_test else DATASETS_ROOT)
     versions = list_datasets(base)
     if not versions:
         raise FileNotFoundError(f"Aucun jeu de données dans {base} : lancer python -m foot_predictor.features build")
@@ -223,7 +231,7 @@ def load_dataset(version: str | None = None, root: Path | None = None) -> tuple[
     folder = base / version
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     frame = pd.read_parquet(folder / DATA_FILE)
-    check_seal(frame["match_date"])
+    check_seal(frame["match_date"], sealed_test=sealed_test, experiment=experiment, log_path=sealed_log)
     return frame, manifest
 
 
@@ -244,12 +252,18 @@ order by o.match_id, o.version
 """
 
 
-def load_odds(connectable=None, *, until: dt.date | None = None) -> pd.DataFrame:
+def load_odds(
+    connectable=None,
+    *,
+    until: dt.date | None = None,
+    sealed_test: bool = False,
+    experiment: str | None = None,
+    sealed_log: Path | None = None,
+) -> pd.DataFrame:
     """Cotes plus/moins 2,5 de football-data des matchs antérieurs au scellé (référence de marché, ADR-0036).
 
     Même porte que `load_matches` : filtre du scellé dans la requête SQL, puis `check_seal`.
-    Pas d'option `sealed_test` ici : le test scellé (4.16) lira les cotes par sa propre commande,
-    journalisée. Colonnes : `match_id`, `match_date`, `version` (`avant_cloture`, `cloture`),
+    `sealed_test=True` : cotes des matchs scellés aussi (test scellé, journalisé). Colonnes : `match_id`, `match_date`, `version` (`avant_cloture`, `cloture`),
     `odds_over_2_5`, `odds_under_2_5`, `odds_column`, `n_odds`.
     """
     if connectable is None:
@@ -260,12 +274,14 @@ def load_odds(connectable=None, *, until: dt.date | None = None) -> pd.DataFrame
         connectable = connectable.connection()
     if isinstance(connectable, Engine):
         with connectable.connect() as connection:
-            return load_odds(connection, until=until)
-    params = {"upper": _upper_bound(until, sealed_test=False).to_pydatetime()}
+            return load_odds(
+                connection, until=until, sealed_test=sealed_test, experiment=experiment, sealed_log=sealed_log
+            )
+    params = {"upper": _upper_bound(until, sealed_test).to_pydatetime()}
     connectable.execute(text("set max_parallel_workers_per_gather = 0"))  # /dev/shm du conteneur (E-035)
     frame = pd.read_sql(text(_ODDS_SQL), connectable, params=params)
     frame["match_date"] = pd.to_datetime(frame["match_date"], utc=True)
-    check_seal(frame["match_date"])
+    check_seal(frame["match_date"], sealed_test=sealed_test, experiment=experiment, log_path=sealed_log)
     frame["match_id"] = frame["match_id"].astype("int64")
     for column in ("odds_over_2_5", "odds_under_2_5"):
         frame[column] = frame[column].astype(float)

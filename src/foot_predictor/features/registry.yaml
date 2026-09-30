@@ -110,7 +110,7 @@ variables:
   - nom: phase
     portee: [equipe]
     groupe: ID
-    definition: « rodage » avant 2015-16, « apprentissage » de 2015-16 à 2020-21, « validation » de 2021-22 à 2024-25 (ADR-0012)
+    definition: « rodage » avant 2015-16, « apprentissage » de 2015-16 à 2020-21, « validation » de 2021-22 à 2024-25, « scelle » ensuite (jeu du test scellé seulement, ADR-0012)
     source: season_year
     horizon: sans objet
     disponible_en_live: oui

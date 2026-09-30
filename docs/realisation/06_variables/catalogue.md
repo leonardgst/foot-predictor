@@ -86,7 +86,7 @@
 ### `phase`
 
 - **Colonnes** : `phase`
-- **Définition** : « rodage » avant 2015-16, « apprentissage » de 2015-16 à 2020-21, « validation » de 2021-22 à 2024-25 (ADR-0012)
+- **Définition** : « rodage » avant 2015-16, « apprentissage » de 2015-16 à 2020-21, « validation » de 2021-22 à 2024-25, « scelle » ensuite (jeu du test scellé seulement, ADR-0012)
 - **Source** : season_year
 - **Horizon** : sans objet ; **disponible en live** : oui
 - **Paramètres** : apprentissage_depuis = 2015; validation_depuis = 2021

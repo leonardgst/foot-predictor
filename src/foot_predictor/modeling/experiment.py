@@ -194,10 +194,24 @@ def run_experiment(
     manifest: dict | None = None,
     now: dt.datetime | None = None,
     odds: pd.DataFrame | None = None,
+    sealed_test: bool = False,
+    dataset: str | None = None,
+    sealed_log: Path | None = None,
 ) -> dict:
-    """Exécute une expérience ; écrit toujours un rapport, même en cas d'échec (statut « échec »)."""
+    """Exécute une expérience ; écrit toujours un rapport, même en cas d'échec (statut « échec »).
+
+    `sealed_test=True` : test scellé (ADR-0012, règle 5), seulement pour un fichier qui le déclare
+    (`sealed_test: true`) ; un pli unique (apprentissage jusqu'à la dernière saison de développement,
+    test sur les matchs scellés), lectures journalisées, ligne de résultat ajoutée au journal.
+    """
     path = Path(path)
     spec = load_spec(path)
+    if bool(spec.get("sealed_test", False)) != sealed_test:
+        raise ExperimentError(
+            f"{path} : "
+            + ("fichier du test scellé : --sealed-test obligatoire." if not sealed_test else "--sealed-test refusé : "
+               "le fichier ne déclare pas sealed_test: true.")
+        )  # fmt: skip
     now = now or dt.datetime.now(dt.UTC)
     experiment_id = f"{spec['name']}-{now:%Y%m%dT%H%M%S}"
     report: dict = {
@@ -215,11 +229,17 @@ def run_experiment(
         if data is None:
             from foot_predictor.features.sources import load_dataset
 
-            data, manifest = load_dataset(spec["dataset"])
+            data, manifest = load_dataset(
+                dataset or spec["dataset"], sealed_test=sealed_test, experiment=path.as_posix(), sealed_log=sealed_log
+            )
         report["dataset"] = {
             "version": (manifest or {}).get("version"),
             "manifest_sha256": (manifest or {}).get("manifest_sha256"),
         }
+        if sealed_test and odds is None and any(m["model"] == "market" for m in spec["models"]):
+            from foot_predictor.modeling.models import market
+
+            odds = market.load_market_probabilities(sealed_test=True, experiment=path.as_posix(), sealed_log=sealed_log)
         report.update(_execute(spec, data, predictions_dir / experiment_id, odds))
         report["status"] = "ok"
     except Exception as error:  # noqa: BLE001 - un essai qui échoue est conservé, pas caché
@@ -231,7 +251,30 @@ def run_experiment(
         json.dumps(report, indent=2, ensure_ascii=False, default=_json_default) + "\n", encoding="utf-8"
     )
     write_index(reports_dir)
+    if sealed_test:
+        from foot_predictor.seal import append_log_line
+
+        append_log_line(experiment=path.as_posix(), result=sealed_summary(report), log_path=sealed_log)
     return report
+
+
+SEALED_DONE = "évaluation terminée"
+"""Marque, dans le journal du scellé, d'une évaluation scellée menée à son terme (une seule par fichier)."""
+
+
+def sealed_summary(report: dict) -> str:
+    """Ligne de résultat du journal du scellé : statut, rapport, premier écart de log-loss."""
+    if report["status"] != "ok":
+        return f"échec de l'évaluation ({report.get('error', '?')}), rapport {report['id']}"
+    text = f"{SEALED_DONE}, rapport {report['id']}"
+    for item in report.get("comparisons", []):
+        if "log_loss" in item:
+            p = item["log_loss"]["pooled"]
+            text += (
+                f" ; {item['a']} − {item['b']} : {p['mean']:+.4f} [{p['low']:+.4f} ; {p['high']:+.4f}], {p['n']} matchs"
+            )
+            break
+    return text
 
 
 def _json_default(value):
@@ -247,7 +290,14 @@ def _json_default(value):
 
 
 def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.DataFrame | None) -> dict:
-    folds = protocol.folds(spec["folds"])
+    if spec.get("sealed_test"):
+        first, last = spec.get("train_seasons", [protocol.FIRST_TRAINING_SEASON, protocol.SEAL_DATE.year - 1])
+        fold = protocol.sealed_fold(data, last_training_season=int(last))
+        if fold.first_season != int(first):
+            raise ExperimentError(f"train_seasons commence en {first}, le protocole en {fold.first_season}.")
+        folds = [fold]
+    else:
+        folds = protocol.folds(spec["folds"])
     full = [m for m in spec["models"] if m["model"] != "market"]
     markets = [m for m in spec["models"] if m["model"] == "market"]
     if markets:
@@ -267,7 +317,7 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
     small_probs: dict[str, dict] = {}
     small_truth: dict[int, np.ndarray] = {}
     for fold in folds:
-        truth_all = protocol.outcomes(data, fold.test_season)
+        truth_all = protocol.outcomes(data, fold.test_seasons)
         entry = {"season": fold.test_season, "name": fold.name, "eval_matches": int(len(truth_all)), "models": {}}
         predicted = {}
         for model_spec in full:

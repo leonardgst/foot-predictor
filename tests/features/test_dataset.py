@@ -186,3 +186,53 @@ def test_round_and_shots_source_are_carried_as_identifiers():
     groups = {v.name: v.group for v in registry.variables()}
     assert groups["shots_source"] == groups["round"] == "ID"  # jamais des variables du modèle
     assert "shots_source" not in registry.feature_columns()
+
+
+def _with_a_sealed_match() -> pd.DataFrame:
+    matches = synthetic_matches()
+    sealed = matches[matches["api_league_id"] == 39].iloc[[0]].copy()
+    sealed["match_id"] = matches["match_id"].max() + 1
+    sealed["match_date"] = pd.Timestamp("2025-08-16 15:00", tz="UTC")
+    sealed["match_day"] = dt.date(2025, 8, 16)
+    sealed["season_year"] = 2025
+    sealed["status"] = "played"
+    sealed["home_goals_90"], sealed["away_goals_90"] = 2, 1
+    return pd.concat([matches, sealed], ignore_index=True)
+
+
+def test_sealed_matches_are_refused_without_the_sealed_test_option():
+    with pytest.raises(SealViolation):
+        build_frame(_with_a_sealed_match(), PARAMS, COEF)
+
+
+def test_sealed_test_build_adds_the_sealed_rows_with_prior_history_only():
+    matches = _with_a_sealed_match()
+    frame = build_frame(matches, PARAMS, COEF, sealed_test=True)
+    sealed = frame[frame["season_year"] == 2025]
+    assert len(sealed) == 2 and set(sealed["phase"]) == {"scelle"}
+    # Règle temporelle inchangée : changer le résultat du match scellé ne change pas sa ligne.
+    changed = matches.copy()
+    changed.loc[changed["season_year"] == 2025, ["home_goals_90", "away_goals_90"]] = [9, 9]
+    again = build_frame(changed, PARAMS, COEF, sealed_test=True)
+    features = [c for c in registry.feature_columns() if c in frame.columns]
+    pd.testing.assert_frame_equal(
+        sealed[features].reset_index(drop=True), again[again["season_year"] == 2025][features].reset_index(drop=True)
+    )
+    # Les lignes d'avant le scellé sont identiques à celles d'un build ordinaire.
+    ordinary = build_frame(synthetic_matches(), PARAMS, COEF)
+    pd.testing.assert_frame_equal(frame[frame["season_year"] < 2025].reset_index(drop=True), ordinary)
+
+
+def test_sealed_dataset_is_read_only_with_the_option_and_the_read_is_logged(tmp_path):
+    from foot_predictor.features.sources import load_dataset
+
+    frame = build_frame(_with_a_sealed_match(), PARAMS, COEF, sealed_test=True)
+    folder, manifest = write_snapshot(frame, {"counts": counts_of(frame)}, tmp_path, dt.date(2026, 10, 20))
+    with pytest.raises(SealViolation):
+        load_dataset(manifest["version"], tmp_path)
+    log = tmp_path / "journal.md"
+    read, _ = load_dataset(
+        manifest["version"], tmp_path, sealed_test=True, experiment="experiments/x.yaml", sealed_log=log
+    )
+    assert (read["phase"] == "scelle").sum() == 2
+    assert "experiments/x.yaml" in log.read_text(encoding="utf-8")

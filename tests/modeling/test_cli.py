@@ -6,9 +6,15 @@ from foot_predictor.modeling import __main__ as cli
 from foot_predictor.modeling import experiment
 
 
-def test_sealed_test_option_is_refused_in_this_phase(tmp_path, capsys):
+def test_sealed_test_is_refused_when_the_safeguards_refuse(tmp_path, capsys, monkeypatch):
+    from foot_predictor.modeling import sealed
+
+    def refuse(experiment, log_path=None):
+        raise sealed.SealedTestRefused("Tag pre-scelle-h1 absent")
+
+    monkeypatch.setattr(sealed, "check_sealed_test_allowed", refuse)
     assert cli.main(["evaluate", str(tmp_path / "x.yaml"), "--sealed-test"]) == 2
-    assert "phase B" in capsys.readouterr().err
+    assert "pre-scelle-h1" in capsys.readouterr().err
 
 
 def test_index_command_writes_the_index(tmp_path, monkeypatch):

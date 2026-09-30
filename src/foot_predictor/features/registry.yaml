@@ -131,6 +131,30 @@ variables:
     manquant: jamais vide
     risque_fuite: nul
     parade: définie par l'ADR-0012
+  - nom: round
+    portee: [equipe]
+    groupe: ID
+    definition: journée du match selon API-FOOTBALL (« Regular Season - 12 ») ; bloc du bootstrap par (championnat, saison, journée)
+    source: staging.match.round
+    horizon: sans objet
+    disponible_en_live: "oui : calendrier API figé ; vide pour un match hors API"
+    parametres: {}
+    historique_minimal: aucun
+    manquant: vide pour un match hors API (le bootstrap prend alors la semaine ISO)
+    risque_fuite: nul
+    parade: identifiant de regroupement, jamais une variable
+  - nom: shots_source
+    portee: [equipe]
+    groupe: ID
+    definition: source des tirs de ce match pour l'xg_proxy de l'historique (api, football_data, vide si aucune) ; même valeur pour les deux lignes du match
+    source: features/xg_proxy.py (select_shots, ADR-0035)
+    horizon: sans objet
+    disponible_en_live: "non : décrit les statistiques du match, connues après lui"
+    parametres: {api_depuis: 2015}
+    historique_minimal: aucun
+    manquant: vide si aucune source n'a de tirs pour ce match
+    risque_fuite: élevé
+    parade: jamais une variable (connue après le match) ; sert au contrôle du changement de source après le gel
   # ------------------------------------------------------------------ cible
   - nom: goals_for
     portee: [equipe]
@@ -271,21 +295,21 @@ variables:
     portee: [equipe, adversaire]
     groupe: G2
     definition: comme goals_for_ewm_h{h}, pour l'xg_proxy de l'équipe (a · tirs cadrés + b · tirs non cadrés)
-    source: staging.team_match_stats_external (football-data), features/params/xg_proxy.json
+    source: tirs de staging.team_match_stats (API, depuis 2015-16, si complets) sinon staging.team_match_stats_external (football-data), ADR-0035 ; features/params/xg_proxy.json
     horizon: H1
-    disponible_en_live: "oui : tirs de football-data"
+    disponible_en_live: "oui : tirs de football-data seulement après le gel (changement de source, ADR-0035)"
     parametres: {demi_vie_jours: [60, 120, 240], anciennete_max_jours: 730, poids_a_priori: 3, fichier: features/params/xg_proxy.json}
     historique_minimal: un match de championnat avec les tirs des deux équipes dans les 730 jours
-    manquant: vide si aucun match avec tirs (4 D2 avant 2017-18) ; xgp_weight_h{h} = 0 le dit
+    manquant: vide si aucun match avec tirs (D2 avant 2015-16, et en partie jusqu'en 2016-17) ; xgp_weight_h{h} = 0 le dit
     risque_fuite: faible
     parade: coefficients estimés sur 2015-16 à 2020-21 seulement, avant tous les plis de validation
   - nom: xgp_against_ewm_h{h}
     portee: [equipe, adversaire]
     groupe: G2
     definition: comme xgp_for_ewm_h{h}, pour l'xg_proxy concédé (tirs de l'adversaire)
-    source: staging.team_match_stats_external (football-data), features/params/xg_proxy.json
+    source: tirs de staging.team_match_stats (API, depuis 2015-16, si complets) sinon staging.team_match_stats_external (football-data), ADR-0035 ; features/params/xg_proxy.json
     horizon: H1
-    disponible_en_live: "oui : tirs de football-data"
+    disponible_en_live: "oui : tirs de football-data seulement après le gel (changement de source, ADR-0035)"
     parametres: {demi_vie_jours: [60, 120, 240], anciennete_max_jours: 730, poids_a_priori: 3, fichier: features/params/xg_proxy.json}
     historique_minimal: un match de championnat avec les tirs des deux équipes dans les 730 jours
     manquant: vide si aucun match avec tirs ; xgp_weight_h{h} = 0 le dit
@@ -309,7 +333,7 @@ variables:
     definition: somme des poids des matchs de championnat retenus dont les tirs des deux équipes sont connus
     source: features/rolling.py
     horizon: H1
-    disponible_en_live: "oui : tirs de football-data"
+    disponible_en_live: "oui : tirs de football-data seulement après le gel (changement de source, ADR-0035)"
     parametres: {demi_vie_jours: [60, 120, 240], anciennete_max_jours: 730}
     historique_minimal: aucun
     manquant: jamais vide (0 sans historique)

@@ -83,6 +83,7 @@ def build_frame(
         & matches["home_goals_90"].notna()
         & matches["away_goals_90"].notna()
     ]
+    shots_source = xg_proxy.select_shots(rows)["shots_source"]  # contrôle du changement de source (ADR-0035)
     sides = []
     for side, other in (("home", "away"), ("away", "home")):
         sides.append(
@@ -96,6 +97,8 @@ def build_frame(
                     "competition_id": rows["competition_id"],
                     "api_league_id": rows["api_league_id"],
                     "season_year": rows["season_year"],
+                    "round": rows["round"].astype("string"),
+                    "shots_source": shots_source,
                     "goals_for": rows[f"{side}_goals_90"],
                     "goals_against": rows[f"{other}_goals_90"],
                     "is_home": side == "home",

@@ -46,6 +46,7 @@ def team_rows(matches: pd.DataFrame, coefficients: xg_proxy.XgProxyCoefficients)
     ou exclu ne donne jamais de valeur, même par erreur.
     """
     frame = matches[matches["api_league_id"].isin(list(LADDERS))]
+    shots = xg_proxy.select_shots(frame)  # API depuis 2015-16 si complète, sinon football-data (ADR-0035)
     parts = []
     for side, other in (("home", "away"), ("away", "home")):
         part = pd.DataFrame(
@@ -57,10 +58,8 @@ def team_rows(matches: pd.DataFrame, coefficients: xg_proxy.XgProxyCoefficients)
                 "is_home": side == "home",
                 "goals_for": frame[f"{side}_goals_90"].astype("Float64"),
                 "goals_against": frame[f"{other}_goals_90"].astype("Float64"),
-                "xgp_for": xg_proxy.apply(coefficients, frame[f"{side}_shots_fd"], frame[f"{side}_sot_fd"]).to_numpy(),
-                "xgp_against": xg_proxy.apply(
-                    coefficients, frame[f"{other}_shots_fd"], frame[f"{other}_sot_fd"]
-                ).to_numpy(),
+                "xgp_for": xg_proxy.apply(coefficients, shots[f"{side}_shots"], shots[f"{side}_sot"]).to_numpy(),
+                "xgp_against": xg_proxy.apply(coefficients, shots[f"{other}_shots"], shots[f"{other}_sot"]).to_numpy(),
                 "history": (
                     (frame["status"] == "played")
                     & ~frame["excluded"].astype(bool)

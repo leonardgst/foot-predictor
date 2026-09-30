@@ -15,6 +15,26 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-046 — Matrice singulière quand un pli n'a aucun match à huis clos (2026-09-30)
+
+- **Contexte** : premiers tests de M1 et M2 (partie 4, sous-étape 4.7), apprentissage sur 2015-16 à 2018-19.
+- **Message d'erreur** : `SingularMatrixWarning: The design matrix is rank-deficient`.
+- **Cause** : la colonne `behind_closed_doors` (et son interaction avec le domicile) est constante, nulle, sur un apprentissage sans huis clos : son coefficient n'est pas estimable.
+- **Solution** : `Design.fit` retire les colonnes constantes de l'apprentissage et l'écrit (`dropped` dans la description du modèle).
+- **Fichiers concernés** : `src/foot_predictor/modeling/design.py`.
+- **Prévention** : ne pas ignorer un avertissement de rang ; une colonne constante se retire, elle ne se « régularise » pas.
+- **Test de non-régression** : `tests/modeling/test_total.py::test_constant_training_column_is_dropped_not_estimated`.
+
+## E-045 — Fins de ligne mélangées dans une page de résultats (2026-09-30)
+
+- **Contexte** : tableaux de `docs/resultats/modeles.md` générés par `modeling summary` et redirigés vers un fichier.
+- **Message d'erreur** : hook `mixed-line-ending` : `docs/resultats/modeles.md: mixed line endings` ; deux commits refusés.
+- **Cause** : sous Windows, la sortie console de Python écrit des fins de ligne CRLF ; le reste de la page était en LF.
+- **Solution** : option `summary --output <fichier>` (UTF-8, LF) ; fichier existant converti en LF.
+- **Fichiers concernés** : `src/foot_predictor/modeling/__main__.py`.
+- **Prévention** : écrire les fichiers générés par le code, jamais par une redirection de la console Windows.
+- **Test de non-régression** : `tests/modeling/test_cli.py::test_summary_writes_a_utf8_lf_file`.
+
 ## E-044 — Pente de calibration impossible à estimer pour une prévision constante (2026-09-30)
 
 - **Contexte** : premier essai de l'exécuteur d'expériences sur un modèle « moyenne » (même loi pour tous les matchs, comme B0), partie 4, sous-étape 4.3.

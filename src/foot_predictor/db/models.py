@@ -15,6 +15,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     Numeric,
@@ -620,3 +621,69 @@ class DatasetVersion(Base):
     scope: Mapped[dict] = mapped_column(JSONB, nullable=False)
     counts: Mapped[dict] = mapped_column(JSONB, nullable=False)
     path: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# ops : registre des modèles et prédictions (migration 0008, ADR-0040)
+# ---------------------------------------------------------------------------
+
+
+class ModelRegistry(Base):
+    """Un modèle entraîné : version, horizon, carte d'identité, chemin ; au plus un modèle actif."""
+
+    __tablename__ = "model_registry"
+    __table_args__ = (CheckConstraint("horizon IN ('H1', 'H2')", name="ck_model_registry_horizon"), {"schema": "ops"})
+
+    version: Mapped[str] = mapped_column(Text, primary_key=True)
+    horizon: Mapped[str] = mapped_column(Text, nullable=False)
+    card: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    path: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    registered_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Prediction(Base):
+    """Une prédiction (ou un refus motivé) pour un match. Aucune clé étrangère vers `staging` : survit à `load`."""
+
+    __tablename__ = "prediction"
+    __table_args__ = (
+        CheckConstraint("horizon IN ('H1', 'H2')", name="ck_prediction_horizon"),
+        CheckConstraint("mode IN ('replay', 'live')", name="ck_prediction_mode"),
+        CheckConstraint(
+            "status IN ('available', 'unavailable', 'out_of_scope', 'excluded', 'h2_unavailable')",
+            name="ck_prediction_status",
+        ),
+        CheckConstraint(
+            "(status = 'available') = (lambda_home IS NOT NULL AND total_distribution IS NOT NULL)",
+            name="ck_prediction_values_iff_available",
+        ),
+        {"schema": "ops"},
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    match_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    api_fixture_id: Mapped[int | None] = mapped_column(BigInteger)
+    competition_id: Mapped[int | None] = mapped_column(BigInteger)
+    home_team_id: Mapped[int | None] = mapped_column(BigInteger)
+    away_team_id: Mapped[int | None] = mapped_column(BigInteger)
+    kickoff_utc: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    match_day: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    model_version: Mapped[str] = mapped_column(Text, nullable=False)
+    horizon: Mapped[str] = mapped_column(Text, nullable=False)
+    mode: Mapped[str] = mapped_column(Text, nullable=False)
+    reference_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    reasons: Mapped[list] = mapped_column(JSONB, nullable=False)
+    lambda_home: Mapped[float | None] = mapped_column(Float)
+    lambda_away: Mapped[float | None] = mapped_column(Float)
+    expected_total: Mapped[float | None] = mapped_column(Float)
+    total_distribution: Mapped[dict | None] = mapped_column(JSONB)
+    p_over_2_5: Mapped[float | None] = mapped_column(Float)
+    interval_low: Mapped[int | None] = mapped_column(SmallInteger)
+    interval_high: Mapped[int | None] = mapped_column(SmallInteger)
+    announced_coverage: Mapped[float | None] = mapped_column(Float)
+    variables_used: Mapped[list] = mapped_column(JSONB, nullable=False)
+    variables_not_present: Mapped[list] = mapped_column(JSONB, nullable=False)
+    data_version: Mapped[str] = mapped_column(Text, nullable=False)
+    data_complete_until: Mapped[dt.date | None] = mapped_column(Date)

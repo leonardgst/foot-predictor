@@ -26,7 +26,7 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Constats du palier P3 | [`realisation/05_controle_qualite/constats_P3.md`](realisation/05_controle_qualite/constats_P3.md) |
 | Collisions d'identifiants de joueurs (P1 à P3) | [`realisation/05_controle_qualite/constats_collisions.md`](realisation/05_controle_qualite/constats_collisions.md) |
 | Rapports de contrôle datés (versionnés) | [`../reports/data_quality/`](../reports/data_quality/README.md) |
-| Retours de session (bilan, écarts, reste à faire) | [`retours/`](retours/) : [`partie-1_2026-09-29.md`](retours/partie-1_2026-09-29.md), [`partie-2a_2026-09-29.md`](retours/partie-2a_2026-09-29.md), [`partie-3a_2026-09-29.md`](retours/partie-3a_2026-09-29.md), [`partie-4-lot1_2026-09-30.md`](retours/partie-4-lot1_2026-09-30.md), [`partie-4-lot2_2026-09-30.md`](retours/partie-4-lot2_2026-09-30.md) |
+| Retours de session (bilan, écarts, reste à faire) | [`retours/`](retours/) : [`partie-1_2026-09-29.md`](retours/partie-1_2026-09-29.md), [`partie-2a_2026-09-29.md`](retours/partie-2a_2026-09-29.md), [`partie-3a_2026-09-29.md`](retours/partie-3a_2026-09-29.md), [`partie-4-lot1_2026-09-30.md`](retours/partie-4-lot1_2026-09-30.md), [`partie-4-lot2_2026-09-30.md`](retours/partie-4-lot2_2026-09-30.md), [`partie-4a_2026-09-30.md`](retours/partie-4a_2026-09-30.md) |
 | Équations des modèles A (Poisson) et B (Dixon-Coles) | [`MODELE_MATHEMATIQUE.md`](MODELE_MATHEMATIQUE.md) |
 | Résultats historiques A contre B, recalibration | [`RESULTATS_MODELE.md`](RESULTATS_MODELE.md) et [`model_results.json`](model_results.json) |
 | Environnement : ruff, pre-commit, CI, bases, workflow Git (ADR-0022) | [`realisation/02_environnement/README.md`](realisation/02_environnement/README.md) |

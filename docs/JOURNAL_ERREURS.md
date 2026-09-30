@@ -15,6 +15,15 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-047 — PR fusionnée avant la fin de la CI (2026-09-30)
+
+- **Contexte** : fusion de la PR #55 (ablations, partie 4, sous-étape 4.12).
+- **Message d'erreur** : aucun ; `gh pr checks 55 --watch` a répondu « no checks reported » et la commande suivante a fusionné.
+- **Cause** : la CI n'avait pas encore démarré ; `gh pr checks --watch` rend la main tout de suite quand aucune vérification n'existe, et la fusion était enchaînée sans condition.
+- **Solution** : les deux exécutions (PR et commit de fusion sur `main`) ont été attendues après coup : **vertes** toutes les deux. Pour les PR suivantes, attente d'une exécution **terminée** du commit de tête (`gh run list --commit <sha>`) avant la fusion.
+- **Fichiers concernés** : aucun.
+- **Prévention** : ne jamais enchaîner `gh pr merge` derrière `gh pr checks --watch` ; vérifier qu'une exécution existe et qu'elle est `completed success`.
+
 ## E-046 — Matrice singulière quand un pli n'a aucun match à huis clos (2026-09-30)
 
 - **Contexte** : premiers tests de M1 et M2 (partie 4, sous-étape 4.7), apprentissage sur 2015-16 à 2018-19.

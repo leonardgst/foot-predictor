@@ -54,7 +54,8 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Une expérience = `experiments/<nom>.yaml` → `reports/experiments/<id>.json` ; **tous les essais sont conservés**, échecs compris (`INDEX.md` en donne le nombre). Mesurer d'abord avec peu de rééchantillonnages. Les chiffres de `docs/resultats/` sont générés (`modeling summary`), jamais recopiés à la main.
 - Tout modèle : `fit(lignes d'apprentissage)` puis `predict(lignes sans cible)` ; ajustements dans le pli ; lignes à valeur manquante exclues et comptées ; comparaisons sur l'intersection des matchs.
 - Les cotes sont une **référence**, jamais une variable ; la clôture n'est jamais une référence de l'horizon H1 (ADR-0036).
-- **Test scellé** (`--sealed-test`, `sealed_test=True`) : **une seule fois par version**, en phase B, sur la liste figée par le tag `pre-scelle-h1` ; résultat publié tel quel.
+- **Test scellé** (`--sealed-test`, `sealed_test=True`) : **une seule fois par version**, en phase B, sur la liste figée par le tag `pre-scelle-h1` (ADR-0039) ; résultat publié tel quel, aucun modèle modifié ensuite. La commande refuse elle-même un code changé depuis le tag ou un second test.
+- **Depuis le tag `pre-scelle-h1`** : aucun changement sous `src/foot_predictor/modeling/`, `src/foot_predictor/features/`, `experiments/` avant le test scellé H1.
 - **Un lot par session** : finir le lot, écrire son retour, mettre à jour la ligne « Reprise » d'`ETAT_PROJET.md` (dernière modification de chaque PR), puis s'arrêter.
 
 ## Commandes principales
@@ -79,7 +80,7 @@ pre-commit run --all-files                # hooks : secrets, ruff, caractères d
 - Identifiants de code en anglais ; documentation, docstrings et messages de commit en français.
 - Branches : `<type>/<etape>-<sujet>` (ex. `fix/03-collecteur-lots-ids`, `docs/01-integration-cadrage`).
 - Commits atomiques, format Conventional Commits : `type(portée): résumé à l'impératif` (72 caractères max), corps qui explique le **pourquoi**. Types : `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `chore`, `build`, `ci`, `data`, `exp`.
-- Fusion par PR avec merge commit, après CI verte et base vérifiée (`gh pr view <n> --json baseRefName` : `main`) ; branches locale et distante supprimées après fusion.
+- Fusion par PR avec merge commit, après CI verte et base vérifiée (`gh pr view <n> --json baseRefName` : `main`) ; branches locale et distante supprimées après fusion. « CI verte » = une exécution **terminée en succès** pour le commit de tête (`gh run list --commit <sha>`) : `gh pr checks --watch` rend la main sans rien attendre si la CI n'a pas démarré (E-047).
 - Workflow Git (ADR-0022) : `main` seule branche longue, tags annotés aux jalons, hooks pre-commit et pre-push (`pre-commit install`). Jamais de `--force`, de `reset --hard` sur une branche partagée, ni de changement de la configuration Git globale.
 
 ## Tests

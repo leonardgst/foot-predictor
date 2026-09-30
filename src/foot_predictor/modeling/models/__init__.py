@@ -8,5 +8,6 @@ Le marché (`model: market`) n'est pas un modèle ajustable : l'exécuteur le tr
 from __future__ import annotations
 
 from foot_predictor.modeling.models.base import Model
+from foot_predictor.modeling.models.references import B0, B1
 
-MODELS: dict[str, type[Model]] = {}
+MODELS: dict[str, type[Model]] = {"b0": B0, "b1": B1}

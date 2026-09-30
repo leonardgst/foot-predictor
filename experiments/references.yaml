@@ -1,0 +1,21 @@
+# Références du protocole (partie 4, sous-étape 4.5 ; ADR-0036, ADR-0037).
+#
+# B0 : Poisson de moyenne globale ; B1 : moyenne par championnat et côté, fenêtre choisie par
+# validation interne ; marché : P(T > 2,5) implicite, avant clôture (référence H1) et clôture
+# (borne haute). Le marché n'est comparé que sur l'événement plus/moins 2,5.
+name: references
+dataset: ds-2026-09-30-ba2b91f7
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  - {id: B0, model: b0}
+  - {id: B1, model: b1, grid: {window: [1, 2, 3, 6]}}
+  - {id: marche_avant_cloture, model: market, params: {version: avant_cloture}}
+  - {id: marche_cloture, model: market, params: {version: cloture}}
+comparisons:
+  - [B0, B1]
+  - [B0, marche_avant_cloture]
+  - [B1, marche_avant_cloture]
+  - [marche_avant_cloture, marche_cloture]

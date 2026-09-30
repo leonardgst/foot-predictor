@@ -2,11 +2,12 @@
 
     python -m foot_predictor.modeling evaluate experiments/<nom>.yaml
     python -m foot_predictor.modeling index
+    python -m foot_predictor.modeling summary reports/experiments/<id>.json
 
 `evaluate` exécute une expérience sur les 4 plis de validation (2021-22 à 2024-25), écrit
 `reports/experiments/<id>.json`, les prédictions par match dans `data/experiments/<id>/`
 (ignoré par Git) et régénère `reports/experiments/INDEX.md`. `index` ne fait que régénérer
-l'index. Les matchs scellés sont refusés : `--sealed-test` est réservé au test scellé de la
+l'index. `summary` imprime les tableaux Markdown d'un rapport (pages de `docs/resultats/`). Les matchs scellés sont refusés : `--sealed-test` est réservé au test scellé de la
 phase B (4.16), une fois, sur une liste figée et tagguée ; il n'est pas ouvert ici.
 """
 
@@ -28,6 +29,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="réservé au test scellé de la phase B (ADR-0012, règle 5) : refusé dans cette phase",
     )
     sub.add_parser("index", help="régénère reports/experiments/INDEX.md")
+    summary = sub.add_parser("summary", help="tableaux Markdown d'un rapport d'expérience")
+    summary.add_argument("report", type=Path, help="reports/experiments/<id>.json")
     return parser
 
 
@@ -38,6 +41,11 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     from foot_predictor.modeling import experiment
 
+    if args.command == "summary":
+        from foot_predictor.modeling.summary import summarize
+
+        print(summarize(args.report))
+        return 0
     if args.command == "index":
         print(f"Index : {experiment.write_index()}")
         return 0

@@ -1,0 +1,147 @@
+{
+  "reference": "ablations-20260930T110352 (A2_G0G2)",
+  "days": [
+    {
+      "day": "2022-03-13",
+      "matches": 75,
+      "statuses": {
+        "out_of_scope": 49,
+        "available": 26
+      },
+      "predicted": 26,
+      "in_reference": true,
+      "max_abs_lambda": 4.440892098500626e-16,
+      "log_loss_replay": 1.8650172576193793,
+      "log_loss_evaluation": 1.8650172576193793,
+      "reasons": [
+        "hors périmètre du modèle H1 (championnat hors du top 5) : pas de prédiction"
+      ],
+      "seconds": 2.44
+    },
+    {
+      "day": "2021-08-06",
+      "matches": 14,
+      "statuses": {
+        "out_of_scope": 13,
+        "available": 1
+      },
+      "predicted": 1,
+      "in_reference": true,
+      "max_abs_lambda": 0.0,
+      "log_loss_replay": 1.4295996091370484,
+      "log_loss_evaluation": 1.4295996091370484,
+      "reasons": [
+        "hors périmètre du modèle H1 (championnat hors du top 5) : pas de prédiction",
+        "hors périmètre du modèle H1 (coupe) : pas de prédiction"
+      ],
+      "seconds": 2.16
+    },
+    {
+      "day": "2023-04-08",
+      "matches": 80,
+      "statuses": {
+        "out_of_scope": 53,
+        "available": 27
+      },
+      "predicted": 27,
+      "in_reference": true,
+      "max_abs_lambda": 4.440892098500626e-16,
+      "log_loss_replay": 1.7196452238503768,
+      "log_loss_evaluation": 1.7196452238503768,
+      "reasons": [
+        "hors périmètre du modèle H1 (championnat hors du top 5) : pas de prédiction"
+      ],
+      "seconds": 2.51
+    },
+    {
+      "day": "2022-08-05",
+      "matches": 26,
+      "statuses": {
+        "out_of_scope": 23,
+        "available": 3
+      },
+      "predicted": 3,
+      "in_reference": true,
+      "max_abs_lambda": 2.220446049250313e-16,
+      "log_loss_replay": 2.077205472263755,
+      "log_loss_evaluation": 2.077205472263755,
+      "reasons": [
+        "hors périmètre du modèle H1 (championnat hors du top 5) : pas de prédiction",
+        "hors périmètre du modèle H1 (coupe) : pas de prédiction"
+      ],
+      "seconds": 2.04
+    },
+    {
+      "day": "2024-05-19",
+      "matches": 77,
+      "statuses": {
+        "out_of_scope": 44,
+        "available": 33
+      },
+      "predicted": 33,
+      "in_reference": true,
+      "max_abs_lambda": 8.881784197001252e-16,
+      "log_loss_replay": 1.8478967920458096,
+      "log_loss_evaluation": 1.8478967920458096,
+      "reasons": [
+        "hors périmètre du modèle H1 (championnat hors du top 5) : pas de prédiction"
+      ],
+      "seconds": 2.75
+    },
+    {
+      "day": "2023-08-11",
+      "matches": 19,
+      "statuses": {
+        "out_of_scope": 15,
+        "available": 4
+      },
+      "predicted": 4,
+      "in_reference": true,
+      "max_abs_lambda": 4.440892098500626e-16,
+      "log_loss_replay": 1.4698152965575306,
+      "log_loss_evaluation": 1.4698152965575306,
+      "reasons": [
+        "hors périmètre du modèle H1 (championnat hors du top 5) : pas de prédiction",
+        "hors périmètre du modèle H1 (coupe) : pas de prédiction"
+      ],
+      "seconds": 2.17
+    },
+    {
+      "day": "2025-05-10",
+      "matches": 87,
+      "statuses": {
+        "out_of_scope": 60,
+        "available": 27
+      },
+      "predicted": 27,
+      "in_reference": true,
+      "max_abs_lambda": 4.440892098500626e-16,
+      "log_loss_replay": 1.8675618482309215,
+      "log_loss_evaluation": 1.8675618482309215,
+      "reasons": [
+        "hors périmètre du modèle H1 (championnat hors du top 5) : pas de prédiction"
+      ],
+      "seconds": 2.76
+    },
+    {
+      "day": "2024-08-15",
+      "matches": 40,
+      "statuses": {
+        "out_of_scope": 38,
+        "available": 2
+      },
+      "predicted": 2,
+      "in_reference": true,
+      "max_abs_lambda": 2.220446049250313e-16,
+      "log_loss_replay": 1.410051536424636,
+      "log_loss_evaluation": 1.410051536424636,
+      "reasons": [
+        "hors périmètre du modèle H1 (championnat hors du top 5) : pas de prédiction",
+        "hors périmètre du modèle H1 (coupe) : pas de prédiction"
+      ],
+      "seconds": 2.23
+    }
+  ],
+  "all_reproduced": true,
+  "date": "2026-09-30"
+}

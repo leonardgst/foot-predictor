@@ -214,3 +214,104 @@ def render_replay(report: dict) -> str:
             f"{s['reference_matches']} | {s['max_abs_lambda']:.1e} | {s['max_abs_probability']:.1e} | {s['seconds']:.1f} |"
         )
     return "\n".join(lines) + "\n"
+
+
+# ------------------------------------------------------------------------------ prédictions de journées
+
+
+def run_predictions_check(context=None) -> dict:
+    """Décision 3 (suite) : `predict_day` en rejeu reproduit l'évaluation sur des journées réelles.
+
+    Pour les jours les plus chargés et les premières journées des quatre saisons de validation :
+    prédictions de rejeu (lignes d'inférence, disponibilité, modèle du pli) contre prédictions de
+    l'expérience d'ablation pour les mêmes matchs ; log-loss de la journée recalculé des deux côtés.
+    """
+    import numpy as np
+
+    from foot_predictor.features.sources import load_dataset
+    from foot_predictor.inference.context import build_context
+    from foot_predictor.inference.predict import K_LABELS, predict_day
+    from foot_predictor.modeling import metrics
+
+    if context is None:
+        context = build_context()
+    dataset = context.dataset if context.dataset is not None else load_dataset(DATASET_VERSION)[0]
+    reference = pd.read_parquet(REPO_ROOT / "data" / "experiments" / ABLATION_REPORT / "predictions.parquet")
+    reference = reference[reference["model"] == ABLATION_MODEL].set_index("match_id")
+    top5 = dataset[dataset["eval_population"]]
+    days = []
+    for season in (2021, 2022, 2023, 2024):
+        per_day = top5[top5["season_year"] == season].groupby("match_day").size()
+        days += [per_day.idxmax(), per_day.index.min()]
+    results = []
+    for day in days:
+        started = time.perf_counter()
+        answers = predict_day(day, "replay", context)
+        seconds = time.perf_counter() - started
+        predicted = [a for a in answers if a["prediction"] is not None]
+        statuses = pd.Series([a["status"] for a in answers]).value_counts().to_dict()
+        ids = [a["match_id"] for a in predicted]
+        ours = np.array([[a["prediction"]["total_distribution"][k] for k in K_LABELS] for a in predicted])
+        totals = np.array([a["actual_score"]["home"] + a["actual_score"]["away"] for a in predicted])
+        ref = reference.loc[[i for i in ids if i in reference.index]]
+        in_reference = len(ref) == len(ids)
+        max_lambda = (
+            float(max(np.abs(np.array([a["prediction"]["lambda_home"] for a in predicted]) - ref["lambda_home"].to_numpy()).max(),
+                      np.abs(np.array([a["prediction"]["lambda_away"] for a in predicted]) - ref["lambda_away"].to_numpy()).max()))
+            if in_reference and ids else None
+        )  # fmt: skip
+        ll_ours = float(metrics.log_loss_by_match(ours, totals).mean()) if ids else None
+        ll_ref = (
+            float(metrics.log_loss_by_match(ref[[f"p_total_{k}" for k in range(11)]].to_numpy(), totals).mean())
+            if in_reference and ids else None
+        )  # fmt: skip
+        reasons = sorted({r for a in answers if a["prediction"] is None for r in a["reasons"]})
+        results.append(
+            {
+                "day": pd.Timestamp(day).date().isoformat(),
+                "matches": len(answers),
+                "statuses": {str(k): int(v) for k, v in statuses.items()},
+                "predicted": len(predicted),
+                "in_reference": bool(in_reference),
+                "max_abs_lambda": max_lambda,
+                "log_loss_replay": ll_ours,
+                "log_loss_evaluation": ll_ref,
+                "reasons": reasons[:6],
+                "seconds": round(seconds, 2),
+            }
+        )
+    return {
+        "reference": f"{ABLATION_REPORT} ({ABLATION_MODEL})",
+        "days": results,
+        "all_reproduced": all(
+            r["in_reference"]
+            and (r["max_abs_lambda"] or 0.0) <= 1e-9
+            and (r["log_loss_replay"] is None or abs(r["log_loss_replay"] - r["log_loss_evaluation"]) <= 1e-9)
+            for r in results
+        ),
+    }
+
+
+def render_predictions(report: dict) -> str:
+    lines = [
+        f"# Prédictions de rejeu sur des journées réelles — {report['date']}",
+        "",
+        "Produit par `python -m foot_predictor.inference check` (ADR-0040). `predict_day` en rejeu (lignes d'inférence, "
+        f"matrice de disponibilité, modèle du pli) contre l'expérience {report['reference']} pour les mêmes matchs.",
+        "",
+        f"**Verdict : {'reproduites' if report['all_reproduced'] else 'ÉCART'}.**",
+        "",
+        "| Jour | Matchs (toutes compétitions) | Statuts | Prédits | Écart max. λ | Log-loss rejeu | Log-loss évaluation | Durée (s) |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for r in report["days"]:
+        statuses = ", ".join(f"{k} {v}" for k, v in sorted(r["statuses"].items()))
+        lam = "—" if r["max_abs_lambda"] is None else f"{r['max_abs_lambda']:.1e}"
+        ll1 = "—" if r["log_loss_replay"] is None else f"{r['log_loss_replay']:.4f}"
+        ll2 = "—" if r["log_loss_evaluation"] is None else f"{r['log_loss_evaluation']:.4f}"
+        lines.append(f"| {r['day']} | {r['matches']} | {statuses} | {r['predicted']} | {lam} | {ll1} | {ll2} | "
+                     f"{r['seconds']:.1f} |")  # fmt: skip
+    reasons = sorted({reason for r in report["days"] for reason in r["reasons"]})
+    if reasons:
+        lines += ["", "Raisons rencontrées (matchs non prédits) :", ""] + [f"- {reason}" for reason in reasons]
+    return "\n".join(lines) + "\n"

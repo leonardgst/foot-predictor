@@ -18,7 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m foot_predictor.inference")
     sub = parser.add_subparsers(dest="command", required=True)
     check = sub.add_parser("check", help="contrôles sur données réelles (période de développement)")
-    check.add_argument("--only", choices=["rows"], help="un seul contrôle")
+    check.add_argument("--only", choices=["rows", "replay"], help="un seul contrôle")
     return parser
 
 
@@ -32,13 +32,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.command != "check":  # predict et models : sous-étapes 5.2 et 5.3
         return 2
     today = dt.datetime.now(dt.UTC).date().isoformat()
-    report = check.run_rows_check()
-    report["date"] = today
-    json_path, md_path = check.write_report(report, f"lignes_{today}", check.render_rows(report))
-    print(
-        f"Lignes : {'identiques' if report['all_identical'] else 'ÉCART'} ({report['rows_compared']} lignes) ; {md_path}"
-    )
-    return 0 if report["all_identical"] else 1
+    ok = True
+    if args.only in (None, "rows"):
+        report = check.run_rows_check()
+        report["date"] = today
+        _, md_path = check.write_report(report, f"lignes_{today}", check.render_rows(report))
+        print(
+            f"Lignes : {'identiques' if report['all_identical'] else 'ÉCART'} ({report['rows_compared']} lignes) ; {md_path}"
+        )
+        ok &= report["all_identical"]
+    if args.only in (None, "replay"):
+        report = check.run_replay_check()
+        report["date"] = today
+        _, md_path = check.write_report(report, f"rejeu_{today}", check.render_replay(report))
+        print(f"Rejeu : {'reproduit' if report['all_reproduced'] else 'ÉCART'} ; {md_path}")
+        ok &= report["all_reproduced"]
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

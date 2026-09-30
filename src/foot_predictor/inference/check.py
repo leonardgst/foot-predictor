@@ -128,3 +128,89 @@ def write_report(report: dict, name: str, markdown: str, reports_dir: Path = REP
     json_path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     md_path.write_text(markdown, encoding="utf-8", newline="\n")
     return json_path, md_path
+
+
+# ------------------------------------------------------------------------------ reproduction du rejeu
+
+ABLATION_REPORT = "ablations-20260930T110352"
+ABLATION_MODEL = "A2_G0G2"
+
+
+def run_replay_check(dataset: pd.DataFrame | None = None, manifest: dict | None = None) -> dict:
+    """Décision 3 : les modèles de rejeu reproduisent les prédictions de l'évaluation (ablation A2_G0G2).
+
+    Pour chaque saison de validation S : modèle de rejeu du pli S (entraîné ou lu dans le cache),
+    prédictions des matchs du top 5 de S, comparées match par match à celles de l'expérience.
+    """
+    import numpy as np
+
+    from foot_predictor.features.sources import load_dataset
+    from foot_predictor.inference.models import replay_model
+    from foot_predictor.modeling import protocol
+
+    if dataset is None:
+        dataset, manifest = load_dataset(DATASET_VERSION)
+    reference = pd.read_parquet(REPO_ROOT / "data" / "experiments" / ABLATION_REPORT / "predictions.parquet")
+    reference = reference[reference["model"] == ABLATION_MODEL]
+    seasons = []
+    for season in (2021, 2022, 2023, 2024):
+        started = time.perf_counter()
+        loaded = replay_model(season, dataset, manifest)
+        seconds = time.perf_counter() - started
+        rows = protocol.test_rows(dataset, season)
+        rows, _ = protocol.usable(rows, loaded.features)
+        predicted = loaded.model.predict(protocol.complete_matches(rows))
+        ref = reference[reference["fold"] == season].set_index("match_id").loc[predicted.match_id]
+        p_cols = [c for c in ref.columns if c.startswith("p_total_")]
+        seasons.append(
+            {
+                "season": season,
+                "model": loaded.version,
+                "half_life": loaded.card["model"]["params"].get("half_life"),
+                "last_training_season": loaded.card["training"]["last_season"],
+                "matches": int(len(predicted)),
+                "reference_matches": int((reference["fold"] == season).sum()),
+                "max_abs_lambda": float(
+                    max(
+                        np.abs(predicted.lambda_home - ref["lambda_home"].to_numpy()).max(),
+                        np.abs(predicted.lambda_away - ref["lambda_away"].to_numpy()).max(),
+                    )
+                ),
+                "max_abs_probability": float(np.abs(predicted.total - ref[p_cols].to_numpy()).max()),
+                "seconds": round(seconds, 2),
+            }
+        )
+    tolerance = 1e-9
+    return {
+        "reference": f"{ABLATION_REPORT} ({ABLATION_MODEL})",
+        "tolerance": tolerance,
+        "seasons": seasons,
+        "all_reproduced": all(
+            s["matches"] == s["reference_matches"]
+            and s["max_abs_probability"] <= tolerance
+            and s["max_abs_lambda"] <= tolerance
+            for s in seasons
+        ),
+    }
+
+
+def render_replay(report: dict) -> str:
+    lines = [
+        f"# Reproduction du rejeu — {report['date']}",
+        "",
+        "Produit par `python -m foot_predictor.inference check` (ADR-0040, décision 3). Modèle de rejeu de chaque saison "
+        f"(pli S, appris sur 2015-16 à S − 1) contre les prédictions de l'expérience {report['reference']}, match par "
+        f"match ; tolérance {report['tolerance']:g}.",
+        "",
+        f"**Verdict : {'reproduites' if report['all_reproduced'] else 'ÉCART'}.**",
+        "",
+        "| Saison | Modèle | Demi-vie | Dernière saison apprise | Matchs | Écart max. λ | Écart max. P(T = k) | Durée (s) |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for s in report["seasons"]:
+        lines.append(
+            f"| {s['season']}-{(s['season'] + 1) % 100:02d} | `{s['model']}` | {s['half_life']} | "
+            f"{s['last_training_season']}-{(s['last_training_season'] + 1) % 100:02d} | {s['matches']} / "
+            f"{s['reference_matches']} | {s['max_abs_lambda']:.1e} | {s['max_abs_probability']:.1e} | {s['seconds']:.1f} |"
+        )
+    return "\n".join(lines) + "\n"

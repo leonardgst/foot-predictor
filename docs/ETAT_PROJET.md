@@ -3,7 +3,7 @@
 **Dernière mise à jour** : 2026-09-30 (partie 5, lot 1 en cours)
 **Partie courante** : 5/6, inférence, API et interface (J7, J8), phase A, lot 1. La partie 4 attend sa phase B (test scellé, puis entraînement final) après la session de gel du **lundi 19 octobre** ; les phases B des parties 2, 3, 4 et 5 se font sur demande.
 
-**Reprise de la partie 5 au lot 1, sous-étape 5.1** (variables d'un match quelconque, branche `feat/11-lignes-inference` ; 5.0 faite : ADR-0040, groupes `api` et `ui`). Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
+**Reprise de la partie 5 au lot 1, sous-étape 5.2** (modèles actif et de rejeu, branche `feat/11-modeles-rejeu` ; faits : 5.0 ADR-0040, 5.1 `inference/rows.py`, 622 lignes identiques au bit près). Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé

@@ -1,0 +1,178 @@
+{
+  "dataset": "ds-2026-09-30-ba2b91f7",
+  "days": [
+    {
+      "day": "2021-08-06",
+      "rows": 4,
+      "expected_rows": 4,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.2,
+      "reason": "première journée 2021-22 (promus sans historique de D1)"
+    },
+    {
+      "day": "2022-01-12",
+      "rows": 2,
+      "expected_rows": 2,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.35,
+      "reason": "milieu de saison 2021-22"
+    },
+    {
+      "day": "2022-05-22",
+      "rows": 44,
+      "expected_rows": 44,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.57,
+      "reason": "dernier jour 2021-22"
+    },
+    {
+      "day": "2022-03-13",
+      "rows": 72,
+      "expected_rows": 72,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.12,
+      "reason": "jour le plus chargé 2021-22"
+    },
+    {
+      "day": "2022-08-05",
+      "rows": 12,
+      "expected_rows": 12,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.2,
+      "reason": "première journée 2022-23 (promus sans historique de D1)"
+    },
+    {
+      "day": "2023-01-24",
+      "rows": 10,
+      "expected_rows": 10,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.69,
+      "reason": "milieu de saison 2022-23"
+    },
+    {
+      "day": "2023-06-04",
+      "rows": 32,
+      "expected_rows": 32,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.57,
+      "reason": "dernier jour 2022-23"
+    },
+    {
+      "day": "2023-04-08",
+      "rows": 86,
+      "expected_rows": 86,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.47,
+      "reason": "jour le plus chargé 2022-23"
+    },
+    {
+      "day": "2023-08-11",
+      "rows": 12,
+      "expected_rows": 12,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.3,
+      "reason": "première journée 2023-24 (promus sans historique de D1) ; Ligue 1 à 18 clubs, première journée 2023-24"
+    },
+    {
+      "day": "2024-01-19",
+      "rows": 10,
+      "expected_rows": 10,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.55,
+      "reason": "milieu de saison 2023-24"
+    },
+    {
+      "day": "2024-06-02",
+      "rows": 24,
+      "expected_rows": 24,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.64,
+      "reason": "dernier jour 2023-24"
+    },
+    {
+      "day": "2024-05-19",
+      "rows": 90,
+      "expected_rows": 90,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.79,
+      "reason": "jour le plus chargé 2023-24"
+    },
+    {
+      "day": "2024-08-15",
+      "rows": 6,
+      "expected_rows": 6,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.7,
+      "reason": "première journée 2024-25 (promus sans historique de D1)"
+    },
+    {
+      "day": "2025-01-13",
+      "rows": 8,
+      "expected_rows": 8,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.62,
+      "reason": "milieu de saison 2024-25"
+    },
+    {
+      "day": "2025-05-25",
+      "rows": 58,
+      "expected_rows": 58,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 5.03,
+      "reason": "dernier jour 2024-25"
+    },
+    {
+      "day": "2025-05-10",
+      "rows": 90,
+      "expected_rows": 90,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 4.78,
+      "reason": "jour le plus chargé 2024-25"
+    },
+    {
+      "day": "2020-12-15",
+      "rows": 62,
+      "expected_rows": 62,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 3.73,
+      "reason": "huis clos (2020-21)"
+    }
+  ],
+  "all_identical": true,
+  "rows_compared": 622,
+  "date": "2026-09-30"
+}

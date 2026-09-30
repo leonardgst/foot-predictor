@@ -1,9 +1,11 @@
-"""Script de bout en bout : construit (X, y), split chronologique, ajuste le
+"""> **Remplacé (partie 4, ADR-0037) — retrait en partie 5.** Ancien module (modèles A et B, schéma `features.team_match_features`) ; le protocole et les modèles du MVP sont dans `modeling/protocol.py`, `experiment.py` et `modeling/models/`.
+
+Script de bout en bout : construit (X, y), split chronologique, ajuste le
 Modèle A (Poisson indépendant) puis le Modèle B (Dixon-Coles hybride), évalue
 les deux sur le même test set et écrit les résultats dans
 docs/RESULTATS_MODELE.md + un fichier JSON brut pour réutilisation ultérieure.
 
-Lancement : APP_ENV=dev uv run python -m foot_predictor.modeling.run_comparison
+Lancement : APP_ENV=dev uv run python -m foot_predictor.modeling.legacy.run_comparison
 """
 
 from __future__ import annotations
@@ -16,9 +18,9 @@ import numpy as np
 import pandas as pd
 
 from foot_predictor.db.session import get_session
-from foot_predictor.modeling.dataset import build_dataset
-from foot_predictor.modeling.dixon_coles import fit_dixon_coles, prepare_match_arrays, tau_correction
-from foot_predictor.modeling.evaluation import (
+from foot_predictor.modeling.legacy.dataset import build_dataset
+from foot_predictor.modeling.legacy.dixon_coles import fit_dixon_coles, prepare_match_arrays, tau_correction
+from foot_predictor.modeling.legacy.evaluation import (
     brier_score_1x2,
     calibration_table_home_win,
     compute_predictions,
@@ -28,8 +30,8 @@ from foot_predictor.modeling.evaluation import (
     low_score_bias_table,
     to_match_level,
 )
-from foot_predictor.modeling.poisson_model import fit_poisson_model
-from foot_predictor.modeling.split import chronological_split
+from foot_predictor.modeling.legacy.poisson_model import fit_poisson_model
+from foot_predictor.modeling.legacy.split import chronological_split
 
 # Coupure documentée : dernière saison complète (2024-2025, démarrant en août
 # 2024 pour les 5 championnats suivis) en test, tout le reste en train.

@@ -201,3 +201,9 @@ def test_negative_binomial_has_mean_mu_and_variance_mu_plus_alpha_mu2():
 def test_fold_keeps_all_the_mass_in_the_last_category():
     folded = dist.fold(dist.poisson_pmf([6.0], support=12))
     assert folded.sum() == pytest.approx(1.0) and folded[0, -1] == pytest.approx(poisson.sf(9, 6.0))
+
+
+def test_constant_forecast_has_an_undefined_slope_and_the_global_gap_as_intercept():
+    outcome = np.array([1, 0, 0, 0] * 50, dtype=float)  # fréquence observée 0,25
+    intercept, slope = m.calibration_slope_intercept(np.full(200, 0.5), outcome)
+    assert np.isnan(slope) and intercept == pytest.approx(math.log(0.25 / 0.75))

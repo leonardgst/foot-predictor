@@ -10,8 +10,8 @@ import datetime as dt
 
 import pytest
 
-from foot_predictor.modeling.features_config import DEFAULT_FEATURE_COLUMNS
-from foot_predictor.modeling.live_features import compute_live_z_features
+from foot_predictor.modeling.legacy.features_config import DEFAULT_FEATURE_COLUMNS
+from foot_predictor.modeling.legacy.live_features import compute_live_z_features
 
 pytestmark = pytest.mark.db
 

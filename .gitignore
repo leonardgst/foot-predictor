@@ -26,8 +26,8 @@ docker-compose.override.yml
 .coverage
 htmlcov/
 
-# Modèles entraînés (régénérables via train_and_persist.py, dépendent de l'environnement/des données)
-models/
+# Modèles entraînés (un dossier par version, models/<version>/ ; seulement à la racine du dépôt)
+/models/
 
 # Données (licences et volume ; brut API-FOOTBALL dans data/raw/, ADR-0003)
 /data/

@@ -1,4 +1,6 @@
-"""Persistence du Modèle A entraîné (joblib), pour éviter de ré-entraîner à
+"""> **Remplacé (partie 4, ADR-0037) — retrait en partie 5.** Ancien module (modèles A et B, schéma `features.team_match_features`) ; le protocole et les modèles du MVP sont dans `modeling/protocol.py`, `experiment.py` et `modeling/models/`.
+
+Persistence du Modèle A entraîné (joblib), pour éviter de ré-entraîner à
 chaque appel du service d'inférence (`predict_service.py`).
 
 Ce qui est persisté n'est pas seulement le `PoissonModel` (coefficients
@@ -19,7 +21,7 @@ from pathlib import Path
 
 import joblib
 
-from foot_predictor.modeling.poisson_model import PoissonModel
+from foot_predictor.modeling.legacy.poisson_model import PoissonModel
 
 DEFAULT_MODEL_PATH = Path("models/poisson_model_a.joblib")
 
@@ -42,6 +44,6 @@ def load_model(path: Path = DEFAULT_MODEL_PATH) -> PersistedPoissonModel:
     if not path.exists():
         raise FileNotFoundError(
             f"Aucun modèle persisté à {path}. Lancer d'abord : "
-            "APP_ENV=<env> uv run python -m foot_predictor.modeling.train_and_persist"
+            "APP_ENV=<env> uv run python -m foot_predictor.modeling.legacy.train_and_persist"
         )
     return joblib.load(path)

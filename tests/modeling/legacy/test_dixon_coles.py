@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from foot_predictor.modeling.dixon_coles import fit_dixon_coles, tau_correction
-from foot_predictor.modeling.evaluation import dixon_coles_matrix
+from foot_predictor.modeling.legacy.dixon_coles import fit_dixon_coles, tau_correction
+from foot_predictor.modeling.legacy.evaluation import dixon_coles_matrix
 
 
 @pytest.mark.parametrize(

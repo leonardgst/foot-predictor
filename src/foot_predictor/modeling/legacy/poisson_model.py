@@ -1,4 +1,6 @@
-"""Modèle A -- régression de Poisson indépendante (section 4 et 5.1 du
+"""> **Remplacé (partie 4, ADR-0037) — retrait en partie 5.** Ancien module (modèles A et B, schéma `features.team_match_features`) ; le protocole et les modèles du MVP sont dans `modeling/protocol.py`, `experiment.py` et `modeling/models/`.
+
+Modèle A -- régression de Poisson indépendante (section 4 et 5.1 du
 document `docs/MODELE_MATHEMATIQUE.md`).
 
 `GLM(family=Poisson())` de statsmodels plutôt que sklearn : on veut les erreurs

@@ -1,4 +1,6 @@
-"""Modèle B -- Dixon-Coles hybride (section 5.2 de docs/MODELE_MATHEMATIQUE.md),
+"""> **Ancien module (partie 4, ADR-0037), consultable et réutilisable** : matière du modèle M5 (correction de Dixon-Coles), retrait en partie 5.
+
+Modèle B -- Dixon-Coles hybride (section 5.2 de docs/MODELE_MATHEMATIQUE.md),
 implémenté à la main (esprit pédagogique du projet, cf. README).
 
     lambda_home = exp(alpha_H - beta_A + gamma + x_home^T delta)

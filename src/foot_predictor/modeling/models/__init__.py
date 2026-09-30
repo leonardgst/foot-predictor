@@ -1,0 +1,12 @@
+"""Modèles du MVP, tous derrière la même interface (`base.Model` : `fit`, puis `predict`).
+
+`MODELS` associe le nom utilisé dans les fichiers d'expérience (`model: b1`) à la classe.
+Le marché (`model: market`) n'est pas un modèle ajustable : l'exécuteur le traite à part
+(`modeling/models/market.py`, référence sur l'événement plus/moins 2,5 seulement).
+"""
+
+from __future__ import annotations
+
+from foot_predictor.modeling.models.base import Model
+
+MODELS: dict[str, type[Model]] = {}

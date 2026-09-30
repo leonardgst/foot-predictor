@@ -1,4 +1,6 @@
-"""Liste explicite des features utilisées par les modèles de score exact.
+"""> **Remplacé (partie 4, ADR-0037) — retrait en partie 5.** Ancien module (modèles A et B, schéma `features.team_match_features`) ; le protocole et les modèles du MVP sont dans `modeling/protocol.py`, `experiment.py` et `modeling/models/`.
+
+Liste explicite des features utilisées par les modèles de score exact.
 
 cf. docs/MODELE_MATHEMATIQUE.md section 2.2 (vecteur z). Chaque nom doit être
 une colonne de `features.team_match_features`. z_9 (squad_avg_age), z_10

@@ -1,4 +1,6 @@
-"""Évalue si une recalibration post-hoc (Platt scaling / isotonic regression)
+"""> **Remplacé (partie 4, ADR-0037) — retrait en partie 5.** Ancien module (modèles A et B, schéma `features.team_match_features`) ; le protocole et les modèles du MVP sont dans `modeling/protocol.py`, `experiment.py` et `modeling/models/`.
+
+Évalue si une recalibration post-hoc (Platt scaling / isotonic regression)
 du Modèle A améliore mesurablement la calibration 1N2 -- cf.
 `docs/RESULTATS_MODELE.md` section 5 et `modeling/calibration.py` pour les
 fonctions réutilisables.
@@ -22,7 +24,7 @@ Simplification documentée : recalibration one-vs-rest + renormalisation
 (cf. docstring de `calibration.py`) -- pas une calibration multi-classe
 rigoureuse (Dirichlet calibration serait plus correcte, hors scope ici).
 
-Lancement : APP_ENV=dev uv run python -m foot_predictor.modeling.run_calibration_analysis
+Lancement : APP_ENV=dev uv run python -m foot_predictor.modeling.legacy.run_calibration_analysis
 """
 
 from __future__ import annotations
@@ -35,15 +37,15 @@ import numpy as np
 import pandas as pd
 
 from foot_predictor.db.session import get_session
-from foot_predictor.modeling.calibration import (
+from foot_predictor.modeling.legacy.calibration import (
     AWAY,
     DRAW,
     HOME,
     calibrate_ovr_and_renormalize,
     fit_ovr_calibrators,
 )
-from foot_predictor.modeling.dataset import build_dataset
-from foot_predictor.modeling.evaluation import (
+from foot_predictor.modeling.legacy.dataset import build_dataset
+from foot_predictor.modeling.legacy.evaluation import (
     MatchPredictions,
     brier_score_1x2,
     calibration_table_home_win,
@@ -52,8 +54,8 @@ from foot_predictor.modeling.evaluation import (
     outcome_probabilities,
     to_match_level,
 )
-from foot_predictor.modeling.poisson_model import fit_poisson_model
-from foot_predictor.modeling.split import chronological_split
+from foot_predictor.modeling.legacy.poisson_model import fit_poisson_model
+from foot_predictor.modeling.legacy.split import chronological_split
 
 CUTOFF_DATE = dt.datetime(2024, 8, 1, tzinfo=dt.UTC)
 

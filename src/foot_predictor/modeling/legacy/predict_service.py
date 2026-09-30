@@ -1,4 +1,6 @@
-"""Service d'inférence : pour un match à venir, construit sa ligne de
+"""> **Remplacé (partie 4, ADR-0037) — retrait en partie 5.** Ancien module (modèles A et B, schéma `features.team_match_features`) ; le protocole et les modèles du MVP sont dans `modeling/protocol.py`, `experiment.py` et `modeling/models/`.
+
+Service d'inférence : pour un match à venir, construit sa ligne de
 features (`live_features.py`), applique le Modèle A persisté
 (`persistence.py`) et renvoie lambda_home/away, la distribution jointe du
 score exact et le 1N2 dérivé.
@@ -27,9 +29,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from foot_predictor.db.models import Competition, Match
-from foot_predictor.modeling.evaluation import MAX_GOALS, independent_poisson_matrix, outcome_probabilities
-from foot_predictor.modeling.live_features import compute_live_z_features
-from foot_predictor.modeling.persistence import DEFAULT_MODEL_PATH, PersistedPoissonModel, load_model
+from foot_predictor.modeling.legacy.evaluation import MAX_GOALS, independent_poisson_matrix, outcome_probabilities
+from foot_predictor.modeling.legacy.live_features import compute_live_z_features
+from foot_predictor.modeling.legacy.persistence import DEFAULT_MODEL_PATH, PersistedPoissonModel, load_model
 
 
 class InsufficientFeatureHistoryError(ValueError):

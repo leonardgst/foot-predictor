@@ -158,8 +158,14 @@ def calibration_slope_intercept(p, outcome) -> tuple[float, float]:
     import statsmodels.api as sm
 
     p = np.clip(np.asarray(p, dtype=float), 1e-12, 1 - 1e-12)
+    outcome = np.asarray(outcome, dtype=float)
     logit = np.log(p / (1 - p))
-    result = sm.GLM(np.asarray(outcome, dtype=float), sm.add_constant(logit), family=sm.families.Binomial()).fit()
+    if np.ptp(logit) < 1e-9:
+        # Prévision constante (B0) : pente indéfinie ; l'ordonnée est l'écart global en log-odds.
+        rate = np.clip(outcome.mean(), 1e-12, 1 - 1e-12)
+        return float(np.log(rate / (1 - rate)) - logit[0]), float("nan")
+    design = sm.add_constant(logit, has_constant="add")
+    result = sm.GLM(outcome, design, family=sm.families.Binomial()).fit()
     intercept, slope = result.params
     return float(intercept), float(slope)
 

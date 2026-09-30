@@ -13,9 +13,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from foot_predictor.modeling.persistence import PersistedPoissonModel
-from foot_predictor.modeling.poisson_model import fit_poisson_model
-from foot_predictor.modeling.predict_service import (
+from foot_predictor.modeling.legacy.persistence import PersistedPoissonModel
+from foot_predictor.modeling.legacy.poisson_model import fit_poisson_model
+from foot_predictor.modeling.legacy.predict_service import (
     InsufficientFeatureHistoryError,
     predict_match,
     predict_scheduled_match,

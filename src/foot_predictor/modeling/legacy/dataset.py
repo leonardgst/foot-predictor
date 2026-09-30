@@ -1,4 +1,6 @@
-"""Construction de la matrice (X, y) pour la prédiction du score exact.
+"""> **Remplacé (partie 4, ADR-0037) — retrait en partie 5.** Ancien module (modèles A et B, schéma `features.team_match_features`) ; le protocole et les modèles du MVP sont dans `modeling/protocol.py`, `experiment.py` et `modeling/models/`.
+
+Construction de la matrice (X, y) pour la prédiction du score exact.
 
 Traduction directe de docs/MODELE_MATHEMATIQUE.md section 2 : pour chaque match
 joué, on produit DEUX observations (une par équipe), chacune portant le bloc de
@@ -24,7 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from foot_predictor.db.models import Competition, Match, TeamMatch, TeamMatchFeatures
-from foot_predictor.modeling.features_config import DEFAULT_FEATURE_COLUMNS
+from foot_predictor.modeling.legacy.features_config import DEFAULT_FEATURE_COLUMNS
 
 OWN_PREFIX = "own_"
 OPP_PREFIX = "opp_"

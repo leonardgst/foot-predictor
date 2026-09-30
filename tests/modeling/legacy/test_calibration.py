@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from foot_predictor.modeling.calibration import (
+from foot_predictor.modeling.legacy.calibration import (
     AWAY,
     DRAW,
     HOME,

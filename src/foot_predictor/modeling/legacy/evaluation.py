@@ -1,4 +1,6 @@
-"""Métriques d'évaluation communes aux modèles A et B, sur la distribution
+"""> **Remplacé (partie 4, ADR-0037) — retrait en partie 5.** Ancien module (modèles A et B, schéma `features.team_match_features`) ; le protocole et les modèles du MVP sont dans `modeling/protocol.py`, `experiment.py` et `modeling/models/`.
+
+Métriques d'évaluation communes aux modèles A et B, sur la distribution
 jointe du score exact -- cf. docs/MODELE_MATHEMATIQUE.md section 4.3 (produit
 de deux Poisson) et 5.2 (correction Dixon-Coles).
 

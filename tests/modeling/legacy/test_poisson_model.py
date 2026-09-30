@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from foot_predictor.modeling.poisson_model import fit_poisson_model
+from foot_predictor.modeling.legacy.poisson_model import fit_poisson_model
 
 
 def test_fitted_coefficients_recover_known_signs_on_synthetic_data():

@@ -11,7 +11,7 @@ import datetime as dt
 
 import pytest
 
-from foot_predictor.modeling.dataset import build_dataset
+from foot_predictor.modeling.legacy.dataset import build_dataset
 
 pytestmark = pytest.mark.db
 

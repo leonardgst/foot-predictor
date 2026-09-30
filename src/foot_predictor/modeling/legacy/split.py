@@ -1,4 +1,6 @@
-"""Split d'évaluation chronologique (jamais aléatoire).
+"""> **Remplacé (partie 4, ADR-0037) — retrait en partie 5.** Ancien module (modèles A et B, schéma `features.team_match_features`) ; le protocole et les modèles du MVP sont dans `modeling/protocol.py`, `experiment.py` et `modeling/models/`.
+
+Split d'évaluation chronologique (jamais aléatoire).
 
 Un split aléatoire laisserait fuir de l'information future : deux lignes du
 même match (domicile/extérieur), ou deux matchs proches dans le temps d'une
@@ -15,7 +17,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from foot_predictor.modeling.dataset import DatasetResult
+from foot_predictor.modeling.legacy.dataset import DatasetResult
 
 
 @dataclass(frozen=True)

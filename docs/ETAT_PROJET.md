@@ -3,7 +3,7 @@
 **Dernière mise à jour** : 2026-09-30 (partie 4, lot 1 en cours)
 **Partie courante** : 4/6, protocole, références et modèle MVP (J5, J6), phase A, lot 1. Les phases B des parties 2 et 3 reprennent après la session de gel du **lundi 19 octobre**, sur demande.
 
-**Reprise de la partie 4 au lot 1, sous-étape 4.5** (4.4 : ADR-0037, protocole et règle de décision figés, tag `protocole-v1` ; 4.3 : protocole, bootstrap, exécuteur, anciens modules dans `modeling/legacy/` ; 4.2 : `modeling/metrics.py` et `distributions.py` ; 4.0 : tirs d'API-FOOTBALL, ADR-0035, jeu `ds-2026-09-30-ba2b91f7` ; 4.1 : cotes dans `staging.match_odds`, migration 0007, ADR-0036, `ops.load_run` n° 5).
+**Reprise de la partie 4 au lot 1, sous-étape 4.6** (4.5 : références, `docs/resultats/references.md` ; 4.4 : ADR-0037, protocole et règle de décision figés, tag `protocole-v1` ; 4.3 : protocole, bootstrap, exécuteur, anciens modules dans `modeling/legacy/` ; 4.2 : `modeling/metrics.py` et `distributions.py` ; 4.0 : tirs d'API-FOOTBALL, ADR-0035, jeu `ds-2026-09-30-ba2b91f7` ; 4.1 : cotes dans `staging.match_odds`, migration 0007, ADR-0036, `ops.load_run` n° 5).
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé

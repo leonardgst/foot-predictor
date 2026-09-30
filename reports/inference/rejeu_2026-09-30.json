@@ -1,0 +1,52 @@
+{
+  "reference": "ablations-20260930T110352 (A2_G0G2)",
+  "tolerance": 1e-09,
+  "seasons": [
+    {
+      "season": 2021,
+      "model": "rejeu-2021-m3_g0g2",
+      "half_life": 240,
+      "last_training_season": 2020,
+      "matches": 1826,
+      "reference_matches": 1826,
+      "max_abs_lambda": 0.0,
+      "max_abs_probability": 0.0,
+      "seconds": 0.62
+    },
+    {
+      "season": 2022,
+      "model": "rejeu-2022-m3_g0g2",
+      "half_life": 120,
+      "last_training_season": 2021,
+      "matches": 1826,
+      "reference_matches": 1826,
+      "max_abs_lambda": 0.0,
+      "max_abs_probability": 0.0,
+      "seconds": 1.0
+    },
+    {
+      "season": 2023,
+      "model": "rejeu-2023-m3_g0g2",
+      "half_life": 240,
+      "last_training_season": 2022,
+      "matches": 1752,
+      "reference_matches": 1752,
+      "max_abs_lambda": 0.0,
+      "max_abs_probability": 0.0,
+      "seconds": 1.67
+    },
+    {
+      "season": 2024,
+      "model": "rejeu-2024-m3_g0g2",
+      "half_life": 240,
+      "last_training_season": 2023,
+      "matches": 1752,
+      "reference_matches": 1752,
+      "max_abs_lambda": 0.0,
+      "max_abs_probability": 0.0,
+      "seconds": 1.66
+    }
+  ],
+  "all_reproduced": true,
+  "date": "2026-09-30"
+}

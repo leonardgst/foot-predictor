@@ -1,0 +1,31 @@
+# Ablations cumulatives sur la structure retenue M3 (ADR-0038), population top 5 (sous-étape 4.12).
+# G0, puis + G1, puis + G2 (demi-vie 60, 120 ou 240 jours choisie par validation interne dans le pli),
+# puis + G3. Courbe d'apport : gain de chaque étape sur B0 ; chaque ajout est jugé par la règle de
+# l'ADR-0037 contre l'étape précédente. G3 est indisponible en live (ADR-0011) : A2 est le meilleur
+# modèle sans G3.
+name: ablations
+dataset: ds-2026-09-30-ba2b91f7
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  - {id: B0, model: b0}
+  - {id: B1, model: b1, grid: {window: [1, 2, 3, 6]}}
+  - {id: A0_G0, model: m3, params: {groups: [G0]}}
+  - {id: A1_G0G1, model: m3, params: {groups: [G0, G1]}}
+  - {id: A2_G0G2, model: m3, params: {groups: [G0, G1, G2]}, grid: {half_life: [60, 120, 240]}}
+  - {id: A3_G0G3, model: m3, params: {groups: [G0, G1, G2, G3]}, grid: {half_life: [60, 120, 240]}}
+comparisons:
+  # courbe d'apport (gain cumulé sur B0)
+  - [B0, A0_G0]
+  - [B0, A1_G0G1]
+  - [B0, A2_G0G2]
+  - [B0, A3_G0G3]
+  # apport de chaque groupe (règle de décision)
+  - [A0_G0, A1_G0G1]
+  - [A1_G0G1, A2_G0G2]
+  - [A2_G0G2, A3_G0G3]
+  # objectif du MVP
+  - [B1, A2_G0G2]
+  - [B1, A3_G0G3]

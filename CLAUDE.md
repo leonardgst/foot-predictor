@@ -37,16 +37,25 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Toute commande qui écrit dans `data/raw/` prend le verrou `data/raw/_lock/collecte.lock` ; une nouvelle commande de ce type doit le prendre aussi. Ne jamais supprimer ce fichier à la main : un verrou périmé est remplacé automatiquement.
 - Des tâches planifiées Windows `FootPredictor_*` lancent `refresh`, `run` et `t60` (liste dans `docs/realisation/03_collecte/README.md`). Ne pas les modifier ni les supprimer hors de la session prévue ; voir leurs journaux dans `data/logs/`.
 - Toute commande qui consomme du quota porte `--max-requests`.
-- **Jamais de `load` pendant une tâche planifiée** (lundis de `refresh`, de 07:45 à 11:00) ni quand `lock-status` répond « occupé » : il lit tout le brut pendant 6 à 10 minutes.
+- **Jamais de `load` pendant une tâche planifiée** (lundis de `refresh`, de 07:45 à 11:00) ni quand `lock-status` répond « occupé » : il lit tout le brut pendant environ 13 minutes (778 s depuis la migration 0007).
 
 ## Architecture (résumé)
 
 - Couches : brut en fichiers `data/raw/**.json.gz` + journal de requêtes (ADR-0003) → Postgres `staging` (référentiel, reconstruit par `load`, identifiants API ; ADR-0008) → `features` → modèles → prédictions.
 - Bruts externes (CSV football-data) : dossier racine séparé jusqu'à leur recopie après le gel (ADR-0024). Understat écarté (ADR-0023).
-- Code : `src/foot_predictor/` (`config.py`, `db/`, `ingestion/`, `features/`, `modeling/`, `market_value/` gelé), tests dans `tests/` (même organisation), migrations dans `migrations/versions/`.
+- Code : `src/foot_predictor/` (`config.py`, `db/`, `ingestion/`, `features/`, `modeling/` avec ses anciens modules dans `modeling/legacy/`, `market_value/` gelé), tests dans `tests/` (même organisation), migrations dans `migrations/versions/`.
 - Règle temporelle : toute variable d'un match est calculée à partir de données **strictement antérieures** au match et disponibles à l'horizon de prédiction.
-- **Porte unique des données** (ADR-0028) : toute lecture des matchs pour les variables, les notebooks et les modèles passe par `features/sources.py` (`load_matches`, `load_dataset`), qui filtre le scellé en SQL. Aucun autre module de `features/` ne lit `staging.match` (test d'architecture).
+- **Porte unique des données** (ADR-0028) : toute lecture des matchs pour les variables, les notebooks et les modèles passe par `features/sources.py` (`load_matches`, `load_dataset`, `load_odds`), qui filtre le scellé en SQL. Aucun autre module de `features/` ne lit `staging.match`, et aucun module de `modeling/` (hors `legacy/`) ne lit la base (tests d'architecture).
 - **Variables** : fonctions pures (historique → valeurs, sans base), une fiche par colonne dans `features/registry.yaml` (horizon obligatoire), catalogue régénéré par `features catalogue`. Jeu de données : instantané Parquet versionné dans `data/datasets/` + `features.dataset_version` (ADR-0030). Aucun remplissage silencieux : une valeur incalculable reste vide.
+
+## Protocole et modèles (partie 4)
+
+- **Protocole figé** par l'ADR-0037 (tag `protocole-v1`) : plis, métriques, blocs, 10 000 rééchantillonnages, graine 20260930, règle de décision. On ne le modifie jamais après coup ; un changement passe par une nouvelle ADR qui dit ce qui avait déjà été évalué.
+- Une expérience = `experiments/<nom>.yaml` → `reports/experiments/<id>.json` ; **tous les essais sont conservés**, échecs compris (`INDEX.md` en donne le nombre). Mesurer d'abord avec peu de rééchantillonnages. Les chiffres de `docs/resultats/` sont générés (`modeling summary`), jamais recopiés à la main.
+- Tout modèle : `fit(lignes d'apprentissage)` puis `predict(lignes sans cible)` ; ajustements dans le pli ; lignes à valeur manquante exclues et comptées ; comparaisons sur l'intersection des matchs.
+- Les cotes sont une **référence**, jamais une variable ; la clôture n'est jamais une référence de l'horizon H1 (ADR-0036).
+- **Test scellé** (`--sealed-test`, `sealed_test=True`) : **une seule fois par version**, en phase B, sur la liste figée par le tag `pre-scelle-h1` ; résultat publié tel quel.
+- **Un lot par session** : finir le lot, écrire son retour, mettre à jour la ligne « Reprise » d'`ETAT_PROJET.md` (dernière modification de chaque PR), puis s'arrêter.
 
 ## Commandes principales
 
@@ -61,6 +70,7 @@ uv run python -m foot_predictor.ingestion load --raw-dir <brut API> --external-r
 uv run python -m foot_predictor.ingestion check-referentiel   # rapport chiffré du référentiel (J3)
 uv run python -m foot_predictor.features build                 # jeu de données versionné (J4)
 uv run python -m foot_predictor.features check --invariance    # contrôle du jeu, anti-fuite sur données réelles
+uv run python -m foot_predictor.modeling evaluate experiments/<nom>.yaml   # expérience sur les 4 plis (J5)
 pre-commit run --all-files                # hooks : secrets, ruff, caractères de contrôle
 ```
 

@@ -1,22 +1,21 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-09-30 (partie 4, lot 1 en cours)
-**Partie courante** : 4/6, protocole, références et modèle MVP (J5, J6), phase A, lot 1. Les phases B des parties 2 et 3 reprennent après la session de gel du **lundi 19 octobre**, sur demande.
+**Dernière mise à jour** : 2026-09-30 (fin du lot 1 de la partie 4)
+**Partie courante** : 4/6, protocole, références et modèle MVP (J5, J6), phase A. **Lot 1 fait** (protocole et références) ; lot 2 (modèles M1 à M6) à la prochaine session. Les phases B des parties 2, 3 et 4 reprennent après la session de gel du **lundi 19 octobre**, sur demande.
 
-**Reprise de la partie 4 au lot 1, sous-étape 4.6** (4.5 : références, `docs/resultats/references.md` ; 4.4 : ADR-0037, protocole et règle de décision figés, tag `protocole-v1` ; 4.3 : protocole, bootstrap, exécuteur, anciens modules dans `modeling/legacy/` ; 4.2 : `modeling/metrics.py` et `distributions.py` ; 4.0 : tirs d'API-FOOTBALL, ADR-0035, jeu `ds-2026-09-30-ba2b91f7` ; 4.1 : cotes dans `staging.match_odds`, migration 0007, ADR-0036, `ops.load_run` n° 5).
+**Reprise de la partie 4 au lot 2, sous-étape 4.7** (M1 et M2, branche `feat/09-m1-m2`). Relancer le prompt de la partie 4 ; lire d'abord `docs/retours/partie-4-lot1_2026-09-30.md`.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé
 
 - Cadrage, collecteur v2, collecte P1 à P4 ; partie 1 (PR #15 à #21) ; partie 2, phase A (PR #22 à #31) : référentiel reconstruit par `load`.
-- **Partie 3, phase A** (2026-09-29, PR #32 à #41), retour dans `docs/retours/partie-3a_2026-09-29.md` :
-  - gel réparé : `PRE_COMMIT_ALLOW_NO_CONFIG=1` exporté dès l'étape 4 (push et push de tag compris), répété sur un clone (E-034) ;
-  - scellé technique : date unique, porte unique `features/sources.py` filtrée en SQL, journal `reports/sealed_tests.md` vide (ADR-0028) ;
-  - tirs de football-data dans `staging` (migration 0005, ADR-0029) ; rupture de série de la Serie A de 2018-19 à 2020-21 constatée ;
-  - registre des variables, migration 0006 (`features.dataset_version`), anciens modules dans `features/legacy/` (ADR-0030) ;
-  - Elo par pays, réglé sur 2005-06 à 2014-15 et figé (ADR-0031) ; glissants et `xg_proxy` (ADR-0032) ; calendrier et huis clos (ADR-0033) ;
-  - **jeu `ds-2026-09-29-83d28f3b`** : 196 098 lignes, 5 s par `build`, déterministe, invariance à la date de coupe exacte sur données réelles ;
-  - 4 notebooks descriptifs, catalogue généré, chapitre LaTeX « Données et variables » (ADR-0034).
+- **Partie 3, phase A** (PR #32 à #42, `docs/retours/partie-3a_2026-09-29.md`) : scellé technique et porte unique (ADR-0028), tirs de football-data (ADR-0029), registre et jeu versionné (ADR-0030), Elo (ADR-0031), glissants et `xg_proxy` (ADR-0032), calendrier et huis clos (ADR-0033), notebooks et LaTeX (ADR-0034).
+- **Partie 4, lot 1** (2026-09-30, PR #43 à #49, `docs/retours/partie-4-lot1_2026-09-30.md`) :
+  - tirs d'API-FOOTBALL depuis 2015-16 quand elle est complète, `xg_proxy` = 0,3076 · tirs cadrés, jeu **`ds-2026-09-30-ba2b91f7`** (ADR-0035) ;
+  - cotes plus/moins 2,5 dans `staging.match_odds` (migration 0007, `ops.load_run` n° 5), référence de marché (ADR-0036) ;
+  - `modeling/` : métriques, protocole, bootstrap par blocs, exécuteur d'expériences, anciens modules dans `modeling/legacy/` ;
+  - **protocole et règle de décision figés** (ADR-0037, tag `protocole-v1`) ;
+  - références : B1 bat B0 de +0,0046 [+0,0010 ; +0,0080] en log-loss du total ; le marché bat B1 de +0,0091 en Brier de P(T > 2,5) (`docs/resultats/references.md`).
 
 ## En cours
 
@@ -43,6 +42,16 @@
 **Session de gel, lundi 19 octobre** : suivre `docs/realisation/03_collecte/gel.md` (code du tag `v0.2.0`).
 
 **Reprise de la partie 2 à la phase B après la session de gel** : 2.10 (`load` sur le brut définitif, recopie des CSV), 2.11 (chemins gelés, dont E-036), 2.12 (tag `v0.3.0`). Commandes : `docs/realisation/04_referentiel/README.md`, section « Phase B ».
+
+**Reprise de la partie 4, lot 2, à la prochaine session** (commandes de départ) :
+
+```bash
+cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
+uv run alembic current                        # 0007_cotes_football_data
+uv run python -m foot_predictor.collect.api_football lock-status
+uv run pytest -q                              # 541 réussis, 2 sautés au 2026-09-30
+git switch --no-track -c feat/09-m1-m2 origin/main
+```
 
 **Reprise de la partie 3 à la phase B après la session de gel et la phase B de la partie 2** (3.11, sur demande) :
 

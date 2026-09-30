@@ -15,6 +15,43 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-044 — Pente de calibration impossible à estimer pour une prévision constante (2026-09-30)
+
+- **Contexte** : premier essai de l'exécuteur d'expériences sur un modèle « moyenne » (même loi pour tous les matchs, comme B0), partie 4, sous-étape 4.3.
+- **Message d'erreur** : `ValueError: not enough values to unpack (expected 2, got 1)` dans `calibration_slope_intercept`.
+- **Cause** : `sm.add_constant` n'ajoute pas de constante quand la seule variable (logit(p)) est déjà constante ; la régression n'a qu'un coefficient.
+- **Solution** : prévision constante détectée ; pente `NaN` (« n. d. » dans les rapports), ordonnée = écart global en log-odds.
+- **Fichiers concernés** : `src/foot_predictor/modeling/metrics.py`.
+- **Prévention** : tester chaque métrique sur un cas dégénéré (constante, loi parfaite).
+- **Test de non-régression** : `tests/modeling/test_metrics.py::test_constant_forecast_has_an_undefined_slope_and_the_global_gap_as_intercept`.
+
+## E-043 — Le paquet `modeling/models/` ignoré par Git (2026-09-30)
+
+- **Contexte** : création de `src/foot_predictor/modeling/models/` (sous-étape 4.3).
+- **Message d'erreur** : aucun ; le dossier n'apparaît pas dans `git status`.
+- **Cause** : la règle `models/` de `.gitignore`, prévue pour les modèles entraînés à la racine, s'applique à tout dossier de ce nom.
+- **Solution** : règle ancrée à la racine (`/models/`), vérifiée par `git check-ignore -v`.
+- **Fichiers concernés** : `.gitignore`.
+- **Prévention** : `git check-ignore -v <chemin>` quand un nouveau dossier n'apparaît pas dans `git status`.
+
+## E-042 — `git push` coupé par le réseau (`curl 55`) sur une branche de 65 Ko (2026-09-30)
+
+- **Contexte** : premier push de `feat/08-protocole` (4 commits).
+- **Message d'erreur** : `error: RPC failed; curl 55 Failed sending data to the peer`, puis `Everything up-to-date` alors que la branche distante n'existait pas.
+- **Cause** : envoi HTTP interrompu (réseau), reproductible sur le paquet complet ; l'API GitHub répondait normalement.
+- **Solution** : push commit par commit (`git push origin <sha>:refs/heads/<branche>`), puis `git push -u` ; branche distante vérifiée par `git ls-remote --heads`.
+- **Fichiers concernés** : aucun.
+- **Prévention** : après un push, vérifier `git ls-remote --heads origin <branche>` ; ne pas se fier à « Everything up-to-date ». Jamais de `--force` ni de changement de configuration globale.
+
+## E-041 — Test de `build` figé sur la révision Alembic 0006 (2026-09-30)
+
+- **Contexte** : migration 0007 (sous-étape 4.1).
+- **Message d'erreur** : `test_build_writes_snapshot_and_trace_deterministically` attend `0006_dataset_version`.
+- **Cause** : révision écrite en dur dans le test.
+- **Solution** : le test lit `ALEMBIC_HEAD` (`ingestion/load.py`).
+- **Fichiers concernés** : `tests/features/test_build.py`.
+- **Prévention** : une constante du code plutôt qu'un littéral dans les tests qui dépendent de la révision.
+
 ## E-040 — Décompte faux des matchs de barrage dans le message de l'étape 0 et l'ADR-0030 (2026-09-29)
 
 - **Contexte** : mesures de l'étape 0 de la partie 3.

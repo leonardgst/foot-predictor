@@ -27,7 +27,13 @@ def build_parser() -> argparse.ArgumentParser:
     predict.add_argument("--competition", type=int, action="append", help="identifiant interne de championnat")
     predict.add_argument("--match", type=int, action="append", help="identifiant interne de match")
     predict.add_argument("--json", action="store_true", help="sortie JSON complète")
-    sub.add_parser("models", help="modèle actif et modèles de rejeu en cache")
+    predict.add_argument("--save", action="store_true", help="écrit les réponses dans ops.prediction (idempotent)")
+    predict.add_argument("--force", action="store_true", help="avec --save : nouvelle ligne même si elle existe déjà")
+    models = sub.add_parser("models", help="modèle actif et modèles de rejeu en cache")
+    models.add_argument(
+        "--register", action="store_true",
+        help="inscrit dans ops.model_registry le modèle actif (actif s'il n'y en a pas) et les modèles de rejeu en cache",
+    )  # fmt: skip
     check = sub.add_parser("check", help="contrôles sur données réelles (période de développement)")
     check.add_argument("--only", choices=["rows", "replay", "predictions"], help="un seul contrôle")
     return parser
@@ -58,6 +64,26 @@ def cmd_predict(args) -> int:
     except ReferenceDateRefused as error:
         print(str(error), file=sys.stderr)
         return 3
+    if args.save:
+        from sqlalchemy.orm import Session
+
+        from foot_predictor.db.session import get_engine
+        from foot_predictor.inference.store import LivePredictionTooLate, save_prediction
+
+        reference = args.date if args.mode == "replay" else context.today
+        created = kept = refused = 0
+        with Session(get_engine()) as session:
+            for result in results:
+                try:
+                    saved = save_prediction(session, result, reference, force=args.force)
+                except LivePredictionTooLate as error:
+                    refused += 1
+                    print(str(error), file=sys.stderr)
+                    continue
+                created += saved.created
+                kept += not saved.created
+            session.commit()
+        print(f"ops.prediction : {created} écrite(s), {kept} déjà présente(s), {refused} refusée(s)")
     if args.json:
         print(json.dumps(results, indent=2, ensure_ascii=False))
     else:
@@ -68,8 +94,25 @@ def cmd_predict(args) -> int:
     return 0
 
 
-def cmd_models() -> int:
+def cmd_models(register: bool = False) -> int:
     from foot_predictor.inference import models
+
+    if register:
+        from sqlalchemy.orm import Session
+
+        from foot_predictor.db.session import get_engine
+        from foot_predictor.inference.store import active_version, register_model
+
+        with Session(get_engine()) as session:
+            active = models.load_active()
+            make_active = active_version(session) is None
+            register_model(session, active.version, active.card, str(active.path.relative_to(models.REPO_ROOT)),
+                           activate=make_active)  # fmt: skip
+            for folder in sorted(models.REPLAY_ROOT.glob("*")) if models.REPLAY_ROOT.exists() else []:
+                replay = models.load_model(folder)
+                register_model(session, replay.version, replay.card, str(folder.relative_to(models.REPO_ROOT)))
+            session.commit()
+            print(f"ops.model_registry : actif = {active_version(session)}")
 
     try:
         active = models.load_active()
@@ -119,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "predict":
         return cmd_predict(args)
     if args.command == "models":
-        return cmd_models()
+        return cmd_models(args.register)
     return cmd_check(args)
 
 

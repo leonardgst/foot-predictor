@@ -48,6 +48,20 @@ def names(engine) -> tuple[dict[int, str], dict[int, str]]:
     return teams, competitions
 
 
+def registry_active_version(engine) -> str | None:
+    """Modèle actif désigné par `ops.model_registry` (migration 0008), sinon None (version par défaut)."""
+    from sqlalchemy.exc import ProgrammingError
+    from sqlalchemy.orm import Session
+
+    from foot_predictor.inference.store import active_version
+
+    try:
+        with Session(engine) as session:
+            return active_version(session)
+    except ProgrammingError:  # base pas encore en 0008
+        return None
+
+
 def build_context(engine=None, with_odds: bool = True, today: dt.date | None = None) -> InferenceContext:
     from foot_predictor.features.sources import load_dataset, load_matches
 
@@ -73,4 +87,5 @@ def build_context(engine=None, with_odds: bool = True, today: dt.date | None = N
         odds=odds,
         dataset=dataset,
         today=today or dt.datetime.now(dt.UTC).date(),
+        active_version=registry_active_version(engine),
     )

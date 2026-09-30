@@ -27,6 +27,15 @@ build-backend = "hatchling.build"
 packages = ["src/foot_predictor"]
 
 [dependency-groups]
+# API locale (partie 5, ADR-0040 ; rapport F.6, décision M21) :
+#   fastapi : routes, validation des entrées et des réponses par Pydantic, documentation OpenAPI automatique ;
+#   uvicorn : serveur ASGI qui fait tourner l'application (liaison 127.0.0.1 seulement) ;
+#   httpx   : client HTTP, pour l'interface (qui ne parle qu'à l'API) et pour TestClient dans les tests.
+api = [
+    "fastapi>=0.142.2",
+    "httpx>=0.28.1",
+    "uvicorn>=0.54.0",
+]
 dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
@@ -43,6 +52,11 @@ explo = [
     "matplotlib>=3.11.2",
     "nbclient>=0.11.0",
     "nbformat>=5.11.1",
+]
+# Interface locale (partie 5, ADR-0040 ; rapport F.7, décision M21) :
+#   streamlit : pages web en Python pur (écrans « Matchs », « Détail », « Modèle ») ; AppTest pour les tests.
+ui = [
+    "streamlit>=1.64.0",
 ]
 
 [tool.pytest.ini_options]

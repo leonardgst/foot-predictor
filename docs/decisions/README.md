@@ -44,6 +44,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0036](ADR-0036-cotes-reference-marche.md) | Cotes plus/moins 2,5 de football-data : référence de marché (avant clôture pour H1, clôture en borne haute), jamais une variable ; migration 0007 et ordre de priorité des colonnes | acceptée | 2026-09-30 | M18, I.6 (révise en partie 0027) |
 | [0037](ADR-0037-protocole-evaluation.md) | Protocole d'évaluation et règle de décision, pré-enregistrés avant toute évaluation de modèle (tag `protocole-v1`) | acceptée | 2026-09-30 | I.5 à I.8, E.1 (complète 0009 et 0012) |
 | [0038](ADR-0038-structure-poisson-par-equipe.md) | Structure du modèle MVP : Poisson par équipe (M3), sans binomiale négative, sans Dixon-Coles, sans régularisation | acceptée | 2026-09-30 | I.2, I.4 (applique 0037) |
+| [0039](ADR-0039-modele-mvp-h1.md) | Modèle MVP H1 : Poisson par équipe sur G0 + G1 + G2, appris sur le top 5, même modèle en live ; liste du test scellé (`experiments/scelle_h1.yaml`) | acceptée | 2026-09-30 | I.7, E.1 (applique 0037, 0038 ; 0012 règle 5) |
 
 **Décisions encore ouvertes** :
 

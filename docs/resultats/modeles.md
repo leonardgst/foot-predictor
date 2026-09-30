@@ -2,6 +2,33 @@
 
 *Partie 4, lot 2. Protocole figé par l'ADR-0037 (tag `protocole-v1`). Jeu `ds-2026-09-30-ba2b91f7`, 4 plis (2021-22 à 2024-25), matchs de championnat du top 5. Structures comparées avec les variables **G0 + G1** (décision 5). Chaque section donne le concept, les hypothèses, ce que le modèle apporte et ce qu'il rate ; les tableaux sont générés depuis les rapports (`modeling summary`). Équations : chapitre « Modèles » de `docs/latex/mathematiques/`.*
 
+## Tableau des structures (4 plis poolés, 7 156 matchs)
+
+| Modèle | Variables | Log-loss du total | RPS | Brier P(T > 2,5) | Pente de calibration poolée | Rôle |
+|---|---|---|---|---|---|---|
+| B0 | aucune | 1,9029 | 0,1320 | 0,2491 | n. d. | référence |
+| B1 | championnat × côté | 1,8984 | 0,1313 | 0,2478 | 0,69 | référence (objectif du MVP : la battre) |
+| M1 | G0 + G1 | 1,9092 | 0,1309 | 0,2471 | 0,95 | pédagogique |
+| M2 | G0 + G1 | 1,8930 | 0,1305 | 0,2460 | 0,97 | pédagogique |
+| **M3** | G0 + G1 | **1,8897** | 0,1301 | 0,2450 | 1,01 | **structure retenue** (ADR-0038) |
+| M4 | G0 + G1 | non évalué | | | | binomiale négative non justifiée |
+| M5 | G0 + G1 | 1,8897 | 0,1301 | 0,2450 | 1,01 | sans gain |
+| M3 | G0 à G3 | 1,8806 | 0,1287 | 0,2416 | 0,95 | préfigure les ablations du lot 3 |
+| M6 ridge | G0 à G3 | 1,8804 | 0,1287 | 0,2416 | 1,01 | sans gain sur M3 à variables égales |
+| M6 élastique net | G0 à G3 | 1,8805 | 0,1287 | 0,2416 | 0,96 | idem |
+
+| Question (rapport I.4) | Comparaison A − B (log-loss) | Écart [IC 95 %] | Plis où B gagne | Réponse |
+|---|---|---|---|---|
+| La linéaire suffit-elle ? | B1 − M1 | −0,0108 [−0,0166 ; −0,0049] | 0 sur 4 | non : la forme de la loi est fausse |
+| Une loi de comptage fait-elle mieux ? | M1 − M2 | +0,0162 [+0,0115 ; +0,0208] | 4 sur 4 | oui |
+| Faut-il décomposer par équipe ? | M2 − M3 | +0,0033 [+0,0014 ; +0,0052] | 4 sur 4 | oui : **M3 remplace M2** |
+| La loi de Poisson est-elle adéquate ? | diagnostic M3 → M4 | φ ≈ 0,98, LR = 0 | — | oui (légère sous-dispersion) : pas de NB |
+| La corrélation change-t-elle la loi du total ? | M3 − M5 | +0,00002 [−0,0009 ; +0,0010] | 2 sur 4 | la forme sur 0 et 1 but, pas le log-loss |
+| Plus de variables sans surapprendre ? | M3 (G0 à G3) − M6 ridge | +0,0002 [−0,0004 ; +0,0008] | 3 sur 4 | la régularisation n'apporte rien ; les variables, si (+0,0091) |
+| M3 bat-il la référence ? | B1 − M3 | +0,0087 [+0,0048 ; +0,0126] | 4 sur 4 | oui : objectif du MVP atteint dès G0 + G1 |
+
+**Ce que le parcours enseigne** : la forme de la loi compte (M1 → M2), la structure attaque × défense aussi (M2 → M3) ; ni la dispersion, ni la dépendance, ni la régularisation ne changent la loi du total de façon mesurable. Le gain suivant viendra des **variables** (G2, G3 : lot 3). Essais à cette date : **7**, dont 2 mesures de durée, 0 échec (`reports/experiments/INDEX.md`).
+
 ## M1 et M2 : modèles du total (étapes pédagogiques)
 
 Rapport `reports/experiments/m1-m2-20260930T083847.json`, expérience `experiments/m1_m2.yaml`.

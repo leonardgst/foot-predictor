@@ -2,7 +2,7 @@
 
 Généré par `python -m foot_predictor.modeling evaluate` (ou `index`). **Tous les essais sont conservés**, y compris ceux qui échouent : leur nombre aide à se méfier des comparaisons multiples.
 
-**5 essai(s)**, dont 0 en échec.
+**7 essai(s)**, dont 0 en échec.
 
 | Date (UTC) | Identifiant | Statut | Modèles | Première comparaison (log-loss du total, A − B, poolée) |
 |---|---|---|---|---|
@@ -11,3 +11,5 @@ Généré par `python -m foot_predictor.modeling evaluate` (ou `index`). **Tous 
 | 2026-09-30T08:38:47+00:00 | `m1-m2-20260930T083847` | ok | B1, M1, M2 | B1 − M1 : -0.0108 [-0.0166 ; -0.0049] |
 | 2026-09-30T08:46:58+00:00 | `m3-20260930T084658` | ok | B1, M2, M3 | B1 − M3 : +0.0087 [+0.0048 ; +0.0126] |
 | 2026-09-30T08:53:37+00:00 | `m5-20260930T085337` | ok | M3, M5 | M3 − M5 : +0.0000 [-0.0009 ; +0.0010] |
+| 2026-09-30T09:01:47+00:00 | `m6-mesure-duree-20260930T090147` | ok | M3, M3_G0G3, M6_ridge, M6_en | M3 − M6_ridge : +0.0084 [-0.0004 ; +0.0152] |
+| 2026-09-30T09:07:47+00:00 | `m6-20260930T090747` | ok | M3, M3_G0G3, M6_ridge, M6_en | M3 − M6_ridge : +0.0093 [+0.0061 ; +0.0125] |

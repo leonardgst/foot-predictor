@@ -3,7 +3,7 @@
 **Dernière mise à jour** : 2026-09-30 (fin du lot 1 de la partie 4)
 **Partie courante** : 4/6, protocole, références et modèle MVP (J5, J6), phase A. **Lot 1 fait** (protocole et références) ; lot 2 (modèles M1 à M6) à la prochaine session. Les phases B des parties 2, 3 et 4 reprennent après la session de gel du **lundi 19 octobre**, sur demande.
 
-**Reprise de la partie 4 au lot 2, sous-étape 4.10** (M6, branche `feat/09-m6` ; faits : 4.7 M1 et M2, 4.8 M3 retenu et M4 non justifié, 4.9 M5 sans gain, `docs/resultats/modeles.md`). Relancer le prompt de la partie 4 ; lire d'abord `docs/retours/partie-4-lot1_2026-09-30.md`.
+**Reprise de la partie 4 au lot 2, sous-étape 4.11** (clôture du lot 2, branche `docs/09-cloture-lot-2` ; faits : 4.7 M1 et M2, 4.8 M3 retenu et M4 non justifié, 4.9 M5 sans gain, 4.10 M6 sans gain de la régularisation, `docs/resultats/modeles.md`). Relancer le prompt de la partie 4 ; lire d'abord `docs/retours/partie-4-lot1_2026-09-30.md`.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé

@@ -185,3 +185,97 @@ Petits totaux, calibration poolée sur les 4 plis :
 - **Décision** (règle de l'ADR-0037) : (i) non, (ii) non, (iii) oui : **M5 ne remplace pas M3**. On garde le plus simple.
 - Le score exact gagne un peu (log-loss de 2,9443 contre 2,9461 en 2023-24, par exemple) : c'est ce que visait Dixon-Coles, pas notre métrique.
 - Le Poisson bivarié (option facultative) n'est pas estimé : sa covariance commune positive va dans le même sens que ρ < 0 (dépendance positive sur les petits scores), dont on vient de voir qu'elle n'apporte rien au total. Les forces latentes et le Dixon-Coles dynamique (M8) restent hors périmètre.
+
+## M6 : Poisson régularisé, variables G0 à G3
+
+Rapport `reports/experiments/m6-20260930T090747.json`, expérience `experiments/m6.yaml` (durée : 12 min, dont l'essentiel pour l'élastique net ; mesure préalable sur un pli : `reports/experiments/m6-mesure-duree-20260930T090147.json`).
+
+- **Concept** : Poisson par équipe avec toutes les variables candidates (G0 à G3 : une trentaine de coefficients, dont beaucoup corrélés), coefficients rétrécis par une pénalité. **Ridge** (L2, `PoissonRegressor`) et **élastique net** (L1 + L2, `statsmodels`), variables standardisées dans le pli, constante non pénalisée. α et la demi-vie (60, 120, 240 jours) choisis par validation interne.
+- **Comparaisons** : contre M3 avec G0 + G1 (gain de l'ensemble), et contre **M3 non régularisé avec les mêmes variables G0 à G3** (`M3_G0G3`), qui isole l'apport de la régularisation.
+- 26 lignes d'apprentissage exclues par pli (`xg_proxy` vide), aucun match de test perdu.
+
+| Pli | Matchs d'évaluation | Intersection | Écartés | Avec cote | Hyperparamètres retenus |
+|---|---|---|---|---|---|
+| 2021-22 | 1826 | 1826 | 0 | n. d. | M3 : {'groups': ['G0', 'G1']}; M3_G0G3 : {'groups': ['G0', 'G1', 'G2', 'G3'], 'half_life': 240}; M6_ridge : {'groups': ['G0', 'G1', 'G2', 'G3'], 'penalty': 'l2', 'alpha': 0.1, 'half_life': 240}; M6_en : {'groups': ['G0', 'G1', 'G2', 'G3'], 'penalty': 'elasticnet', 'l1_ratio': 0.5, 'alpha': 0.0001, 'half_life': 240} |
+| 2022-23 | 1826 | 1826 | 0 | n. d. | M3 : {'groups': ['G0', 'G1']}; M3_G0G3 : {'groups': ['G0', 'G1', 'G2', 'G3'], 'half_life': 120}; M6_ridge : {'groups': ['G0', 'G1', 'G2', 'G3'], 'penalty': 'l2', 'alpha': 0.1, 'half_life': 120}; M6_en : {'groups': ['G0', 'G1', 'G2', 'G3'], 'penalty': 'elasticnet', 'l1_ratio': 0.5, 'alpha': 0.001, 'half_life': 120} |
+| 2023-24 | 1752 | 1752 | 0 | n. d. | M3 : {'groups': ['G0', 'G1']}; M3_G0G3 : {'groups': ['G0', 'G1', 'G2', 'G3'], 'half_life': 240}; M6_ridge : {'groups': ['G0', 'G1', 'G2', 'G3'], 'penalty': 'l2', 'alpha': 0.0001, 'half_life': 240}; M6_en : {'groups': ['G0', 'G1', 'G2', 'G3'], 'penalty': 'elasticnet', 'l1_ratio': 0.5, 'alpha': 0.001, 'half_life': 240} |
+| 2024-25 | 1752 | 1752 | 0 | n. d. | M3 : {'groups': ['G0', 'G1']}; M3_G0G3 : {'groups': ['G0', 'G1', 'G2', 'G3'], 'half_life': 240}; M6_ridge : {'groups': ['G0', 'G1', 'G2', 'G3'], 'penalty': 'l2', 'alpha': 0.1, 'half_life': 240}; M6_en : {'groups': ['G0', 'G1', 'G2', 'G3'], 'penalty': 'elasticnet', 'l1_ratio': 0.5, 'alpha': 0.0001, 'half_life': 240} |
+
+| Modèle | Matchs | Log-loss | RPS | Brier P(T > 2,5) | Calibration poolée : écart moyen | Pente | Ordonnée |
+|---|---|---|---|---|---|---|---|
+| M3 | 7156 | 1.8897 | 0.1301 | 0.2450 | 0.0143 | 1.01 | +0.047 |
+| M3_G0G3 | 7156 | 1.8806 | 0.1287 | 0.2416 | 0.0110 | 0.95 | +0.029 |
+| M6_ridge | 7156 | 1.8804 | 0.1287 | 0.2416 | 0.0112 | 1.01 | +0.019 |
+| M6_en | 7156 | 1.8805 | 0.1287 | 0.2416 | 0.0106 | 0.96 | +0.021 |
+
+Petits totaux, calibration poolée sur les 4 plis :
+
+| Modèle | k | P(T = k) prédite | observée | Brier | Écart moyen par décile | Pente |
+|---|---|---|---|---|---|---|
+| M3 | 0 | 6.5 % | 6.3 % | 0.0587 | 0.0047 | 0.93 |
+| M3 | 1 | 17.6 % | 16.3 % | 0.1362 | 0.0129 | 0.94 |
+| M3 | 2 | 23.9 % | 24.2 % | 0.1829 | 0.0102 | 1.17 |
+| M3_G0G3 | 0 | 6.5 % | 6.3 % | 0.0586 | 0.0075 | 0.81 |
+| M3_G0G3 | 1 | 17.4 % | 16.3 % | 0.1353 | 0.0129 | 0.97 |
+| M3_G0G3 | 2 | 23.5 % | 24.2 % | 0.1826 | 0.0159 | 1.06 |
+| M6_ridge | 0 | 6.5 % | 6.3 % | 0.0586 | 0.0081 | 0.85 |
+| M6_ridge | 1 | 17.3 % | 16.3 % | 0.1353 | 0.0132 | 1.03 |
+| M6_ridge | 2 | 23.5 % | 24.2 % | 0.1826 | 0.0141 | 1.14 |
+| M6_en | 0 | 6.5 % | 6.3 % | 0.0586 | 0.0076 | 0.83 |
+| M6_en | 1 | 17.3 % | 16.3 % | 0.1353 | 0.0115 | 0.97 |
+| M6_en | 2 | 23.5 % | 24.2 % | 0.1826 | 0.0146 | 1.05 |
+
+Écarts appariés A − B (positif : B meilleur), intervalle à 95 % par bootstrap par blocs :
+
+| A | B | Métrique | Écart poolé | IC 95 % | Plis où B gagne | DM (p) | Par pli |
+|---|---|---|---|---|---|---|---|
+| M3 | M6_ridge | log-loss du total | +0.00926 | [+0.00606 ; +0.01247] | 4 sur 4 | 0.0000 | 2021 : +0.0081 ; 2022 : +0.0058 ; 2023 : +0.0150 ; 2024 : +0.0084 |
+| M3 | M6_ridge | RPS | +0.00138 | [+0.00092 ; +0.00185] | 4 sur 4 | 0.0000 | 2021 : +0.0012 ; 2022 : +0.0009 ; 2023 : +0.0022 ; 2024 : +0.0012 |
+| M3 | M6_ridge | Brier P(T = 0) | +0.00015 | [-0.00003 ; +0.00033] | 3 sur 4 | 0.1068 | 2021 : +0.0002 ; 2022 : -0.0002 ; 2023 : +0.0002 ; 2024 : +0.0004 |
+| M3 | M6_ridge | Brier P(T = 1) | +0.00085 | [+0.00043 ; +0.00128] | 4 sur 4 | 0.0001 | 2021 : +0.0007 ; 2022 : +0.0009 ; 2023 : +0.0013 ; 2024 : +0.0006 |
+| M3 | M6_ridge | Brier P(T = 2) | +0.00030 | [+0.00000 ; +0.00060] | 3 sur 4 | 0.0559 | 2021 : +0.0001 ; 2022 : +0.0005 ; 2023 : +0.0006 ; 2024 : -0.0000 |
+| | | règle de décision | (i) oui, (ii) oui, (iii) oui | **M6_ridge remplace M3** | | | |
+| M3_G0G3 | M6_ridge | log-loss du total | +0.00019 | [-0.00044 ; +0.00080] | 3 sur 4 | 0.5501 | 2021 : +0.0008 ; 2022 : -0.0010 ; 2023 : +0.0000 ; 2024 : +0.0010 |
+| M3_G0G3 | M6_ridge | RPS | +0.00003 | [-0.00006 ; +0.00013] | 3 sur 4 | 0.4867 | 2021 : +0.0001 ; 2022 : -0.0002 ; 2023 : +0.0000 ; 2024 : +0.0002 |
+| M3_G0G3 | M6_ridge | Brier P(T = 0) | +0.00000 | [-0.00003 ; +0.00003] | 2 sur 4 | 0.9667 | 2021 : -0.0000 ; 2022 : +0.0000 ; 2023 : +0.0000 ; 2024 : -0.0000 |
+| M3_G0G3 | M6_ridge | Brier P(T = 1) | +0.00002 | [-0.00007 ; +0.00010] | 3 sur 4 | 0.6775 | 2021 : +0.0001 ; 2022 : -0.0001 ; 2023 : +0.0000 ; 2024 : +0.0001 |
+| M3_G0G3 | M6_ridge | Brier P(T = 2) | +0.00001 | [-0.00005 ; +0.00006] | 3 sur 4 | 0.7779 | 2021 : +0.0000 ; 2022 : -0.0000 ; 2023 : +0.0000 ; 2024 : +0.0000 |
+| | | règle de décision | (i) non, (ii) oui, (iii) oui | **M6_ridge ne remplace pas M3_G0G3** | | | |
+| M3_G0G3 | M6_en | log-loss du total | +0.00014 | [-0.00011 ; +0.00040] | 2 sur 4 | 0.2812 | 2021 : -0.0000 ; 2022 : -0.0005 ; 2023 : +0.0011 ; 2024 : +0.0000 |
+| M3_G0G3 | M6_en | RPS | +0.00002 | [-0.00002 ; +0.00006] | 2 sur 4 | 0.3115 | 2021 : -0.0000 ; 2022 : -0.0001 ; 2023 : +0.0002 ; 2024 : +0.0000 |
+| M3_G0G3 | M6_en | Brier P(T = 0) | +0.00002 | [+0.00000 ; +0.00003] | 2 sur 4 | 0.0106 | 2021 : -0.0000 ; 2022 : +0.0000 ; 2023 : +0.0000 ; 2024 : -0.0000 |
+| M3_G0G3 | M6_en | Brier P(T = 1) | +0.00002 | [-0.00002 ; +0.00005] | 3 sur 4 | 0.2801 | 2021 : +0.0000 ; 2022 : -0.0001 ; 2023 : +0.0001 ; 2024 : +0.0000 |
+| M3_G0G3 | M6_en | Brier P(T = 2) | -0.00002 | [-0.00004 ; +0.00001] | 1 sur 4 | 0.1890 | 2021 : -0.0000 ; 2022 : -0.0000 ; 2023 : -0.0000 ; 2024 : +0.0000 |
+| | | règle de décision | (i) non, (ii) non, (iii) oui | **M6_en ne remplace pas M3_G0G3** | | | |
+| M3 | M3_G0G3 | log-loss du total | +0.00907 | [+0.00558 ; +0.01256] | 4 sur 4 | 0.0000 | 2021 : +0.0072 ; 2022 : +0.0068 ; 2023 : +0.0150 ; 2024 : +0.0074 |
+| M3 | M3_G0G3 | RPS | +0.00135 | [+0.00084 ; +0.00186] | 4 sur 4 | 0.0000 | 2021 : +0.0011 ; 2022 : +0.0011 ; 2023 : +0.0022 ; 2024 : +0.0010 |
+| M3 | M3_G0G3 | Brier P(T = 0) | +0.00015 | [-0.00005 ; +0.00034] | 3 sur 4 | 0.1463 | 2021 : +0.0003 ; 2022 : -0.0002 ; 2023 : +0.0002 ; 2024 : +0.0004 |
+| M3 | M3_G0G3 | Brier P(T = 1) | +0.00084 | [+0.00036 ; +0.00131] | 4 sur 4 | 0.0005 | 2021 : +0.0005 ; 2022 : +0.0010 ; 2023 : +0.0013 ; 2024 : +0.0005 |
+| M3 | M3_G0G3 | Brier P(T = 2) | +0.00029 | [-0.00003 ; +0.00061] | 3 sur 4 | 0.0821 | 2021 : +0.0001 ; 2022 : +0.0005 ; 2023 : +0.0006 ; 2024 : -0.0001 |
+| | | règle de décision | (i) oui, (ii) oui, (iii) oui | **M3_G0G3 remplace M3** | | | |
+
+### Ce que M6 enseigne
+
+- **Les variables G2 et G3 apportent beaucoup** : M3 sur G0 à G3 bat M3 sur G0 + G1 de +0,0091 [+0,0056 ; +0,0126], 4 plis sur 4, autant que tout le chemin de B1 à M3. Le détail (G2 d'abord, puis G3) est l'objet des ablations du lot 3.
+- **La régularisation n'apporte rien de plus** : ridge contre Poisson non régularisé, mêmes variables : +0,0002 [−0,0004 ; +0,0008] ; élastique net : +0,0001 [−0,0001 ; +0,0004]. Avec environ 33 000 lignes pour une trentaine de coefficients, l'estimation est déjà stable : il y a peu de surapprentissage à corriger. Par la règle, **M6 ne remplace pas M3** ; M6 bat bien M3 (G0 + G1), mais par ses variables, pas par sa pénalité.
+- **α au bord de la grille** : le ridge retient α = 0,1, la plus forte valeur de la grille, dans 3 plis sur 4. La grille n'est pas étendue après coup (pas d'essais supplémentaires) : le gain de la régularisation est nul de toute façon. Effet secondaire : la pénalité frappe aussi les indicatrices non standardisées (domicile, championnat), et le coefficient du domicile tombe de 0,25 à 0,18 à log-loss égal.
+- **Élastique net** : un seul coefficient sur 23 annulé (2024-25) ; aucune variable n'est franchement inutile une fois toutes présentes, mais leurs coefficients se partagent l'information (buts et `xg_proxy` corrélés) et ne s'interprètent pas un par un.
+- **Demi-vie** : 240 jours retenus dans 3 plis sur 4 (120 jours en 2022-23), pour M3 comme pour M6 : la mémoire longue l'emporte.
+- **Splines** : non justifiées. Diagnostic sur 2015-16 à 2020-21 (jamais une saison de test), buts observés contre attendus de M3 par décile de l'écart d'Elo :
+
+| Décile de l'écart d'Elo | Lignes | Écart d'Elo moyen | Buts observés | Buts attendus (M3) | O/E | z |
+|---|---|---|---|---|---|---|
+| 1 | 2171 | -320 | 1770 | 1753.1 | 1.010 | +0.40 |
+| 2 | 2171 | -181 | 2207 | 2145.5 | 1.029 | +1.33 |
+| 3 | 2171 | -111 | 2288 | 2359.4 | 0.970 | -1.47 |
+| 4 | 2171 | -61 | 2547 | 2559.2 | 0.995 | -0.24 |
+| 5 | 2171 | -20 | 2676 | 2715.6 | 0.985 | -0.76 |
+| 6 | 2171 | +20 | 2967 | 2906.1 | 1.021 | +1.13 |
+| 7 | 2171 | +61 | 3064 | 3118.3 | 0.983 | -0.97 |
+| 8 | 2171 | +111 | 3363 | 3418.1 | 0.984 | -0.94 |
+| 9 | 2171 | +181 | 3990 | 3901.3 | 1.023 | +1.42 |
+| 10 | 2171 | +320 | 5074 | 5069.3 | 1.001 | +0.07 |
+
+Σ z² = 9.86, 9 degrés de liberté, p = 0.362.
+
+  Rapports O/E entre 0,97 et 1,03, sans forme (ni courbure aux extrémités) : la relation log-linéaire à l'Elo suffit.

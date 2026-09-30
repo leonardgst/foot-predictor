@@ -83,3 +83,18 @@ def test_market_is_compared_on_the_over_2_5_event_only(tmp_path):
     assert set(report["metrics"]["marche"]["2021-22"]) == {"over_2_5_subset"}  # jamais de log-loss du total
     assert report["metrics"]["marche"]["2021-22"]["over_2_5_subset"]["brier"] == pytest.approx(0.25)  # p = 0,5
     assert "brier_over_2_5_subset" in report["comparisons"][1] and "log_loss" not in report["comparisons"][1]
+
+
+def test_summary_renders_every_table(tmp_path):
+    from foot_predictor.modeling.summary import render
+
+    data = synthetic_rows(matches_per_season=60)
+    ids = np.sort(data["match_id"].unique())
+    odds = market.market_probabilities(
+        pd.DataFrame({"match_id": ids, "version": "avant_cloture", "odds_over_2_5": 1.9, "odds_under_2_5": 1.9})
+    )
+    path = tmp_path / "marche.yaml"
+    path.write_text(SPEC, encoding="utf-8")
+    report = experiment.run_experiment(path, reports_dir=tmp_path, predictions_dir=tmp_path, data=data, odds=odds)
+    text = render(report)
+    assert "| B1 | 2021-22 |" in text and "Brier plus/moins 2,5" in text and "règle de décision" in text

@@ -1,0 +1,30 @@
+# Test scellé du MVP, horizon H1 (ADR-0012, règle 5 ; ADR-0039). Liste FIGÉE par le tag pre-scelle-h1 :
+# ce fichier ne change plus après le tag. Lancé UNE SEULE FOIS, en phase B (sous-étape 4.16), par
+#   uv run python -m foot_predictor.modeling evaluate experiments/scelle_h1.yaml --sealed-test
+# sur un jeu de données construit avec `features build --sealed-test`.
+#
+# Procédure d'entraînement (identique pour chaque modèle) : apprentissage sur toutes les saisons de
+# développement, 2015-16 à 2024-25 (matchs joués avant le 1er juillet 2025), population top 5 ;
+# hyperparamètres par validation interne (apprentissage 2015-16 à 2023-24, mesure sur 2024-25),
+# puis réajustement sur 2015-16 à 2024-25. Évaluation une fois, sur les matchs de championnat du
+# top 5 joués à partir du 1er juillet 2025 (saison 2025-26 et début de 2026-27, jusqu'au gel).
+name: scelle-h1
+dataset: null            # la version construite avec --sealed-test, donnée en option à la phase B
+sealed_test: true
+train_seasons: [2015, 2024]
+test_from: 2025-07-01
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  # Modèle retenu (ADR-0039) : M3, Poisson par équipe, G0 + G1 + G2 ; même modèle en rejeu et en live.
+  - {id: M3_G0G2, model: m3, params: {groups: [G0, G1, G2]}, grid: {half_life: [60, 120, 240]}}
+  - {id: B0, model: b0}
+  - {id: B1, model: b1, grid: {window: [1, 2, 3, 6]}}
+  - {id: marche_avant_cloture, model: market, params: {version: avant_cloture}}
+  - {id: marche_cloture, model: market, params: {version: cloture}}
+comparisons:
+  - [B1, M3_G0G2]
+  - [B0, M3_G0G2]
+  - [M3_G0G2, marche_avant_cloture]
+  - [marche_avant_cloture, marche_cloture]

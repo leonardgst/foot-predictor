@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from foot_predictor.db.models import Competition, Match, Season, Team, TeamMatch
 from foot_predictor.features.build import run_build
 from foot_predictor.features.sources import load_dataset
+from foot_predictor.ingestion.load import ALEMBIC_HEAD
 
 pytestmark = pytest.mark.db
 
@@ -66,7 +67,7 @@ def test_build_writes_snapshot_and_trace_deterministically(seeded, tmp_path):
     assert first["rows"] == 24
     with seeded.connect() as connection:
         rows = connection.execute(text("SELECT version, alembic_revision FROM features.dataset_version")).all()
-    assert [tuple(r) for r in rows] == [(first["version"], "0006_dataset_version")]
+    assert [tuple(r) for r in rows] == [(first["version"], ALEMBIC_HEAD)]  # révision de la base au build
     frame, manifest = load_dataset(first["version"], tmp_path)
     assert len(frame) == 24 and manifest["counts"]["rows_by_phase"] == {"apprentissage": 24}
     assert manifest["parameters"]["seal_date"] == "2025-07-01"

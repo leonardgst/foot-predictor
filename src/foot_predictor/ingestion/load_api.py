@@ -221,6 +221,8 @@ COLUMNS = {
     "match_source_mapping": ("id", "match_id", "source_name", "source_ref"),
     # Remplie par load_external : tirs de football-data par équipe et par match (migration 0005, ADR-0029).
     "team_match_stats_external": ("id", "source", "team_match_id", "shots", "shots_on_target"),
+    # Remplie par load_external : cotes plus/moins 2,5 de football-data (migration 0007, ADR-0036).
+    "match_odds": ("id", "match_id", "source", "version", "odds_over_2_5", "odds_under_2_5", "odds_column", "n_odds"),
     "lineup": (
         "id",
         "match_id",

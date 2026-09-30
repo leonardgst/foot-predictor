@@ -311,6 +311,33 @@ class TeamMatchStatsExternal(Base):
     created_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class MatchOdds(Base):
+    """Cotes plus/moins 2,5 d'un match selon une source externe (football-data), migration 0007.
+
+    Référence de marché du protocole, jamais une variable (ADR-0036). `version` :
+    `avant_cloture` (référence de l'horizon H1) ou `cloture` (borne haute).
+    """
+
+    __tablename__ = "match_odds"
+    __table_args__ = (
+        UniqueConstraint("match_id", "source", "version", name="uq_match_odds"),
+        CheckConstraint("source IN ('football_data')", name="ck_match_odds_source"),
+        CheckConstraint("version IN ('avant_cloture', 'cloture')", name="ck_match_odds_version"),
+        CheckConstraint("odds_over_2_5 > 1 AND odds_under_2_5 > 1", name="ck_match_odds_decimal"),
+        {"schema": "staging"},
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("staging.match.id"), nullable=False, index=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    version: Mapped[str] = mapped_column(Text, nullable=False)
+    odds_over_2_5: Mapped[float] = mapped_column(Numeric(7, 3), nullable=False)
+    odds_under_2_5: Mapped[float] = mapped_column(Numeric(7, 3), nullable=False)
+    odds_column: Mapped[str] = mapped_column(Text, nullable=False)
+    n_odds: Mapped[int | None] = mapped_column(SmallInteger)
+    created_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Lineup(Base):
     __tablename__ = "lineup"
     __table_args__ = (

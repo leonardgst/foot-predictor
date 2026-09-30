@@ -32,7 +32,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0024](ADR-0024-bruts-externes.md) | Bruts externes : dossier racine séparé jusqu'au gel, CSV octet pour octet, même journal que l'API | acceptée | 2026-09-29 | M3 (ADR-0003) |
 | [0025](ADR-0025-bases-de-donnees.md) | Bases : base de travail reconstructible, base de test éphémère, ancienne base dev intacte, rôle dédié au worktree | acceptée | 2026-09-29 | M14 |
 | [0026](ADR-0026-environnement-windows.md) | Environnement : Windows natif et Git Bash ; WSL2 étudié après le gel | acceptée | 2026-09-29 | M13 |
-| [0027](ADR-0027-perimetre-chargeurs.md) | Périmètre des chargeurs du référentiel : MVP et H2 ; transferts, classements, indisponibilités, cotes reportés | acceptée, révisée en partie par 0029 | 2026-09-29 | M7 (ADR-0008) |
+| [0027](ADR-0027-perimetre-chargeurs.md) | Périmètre des chargeurs du référentiel : MVP et H2 ; transferts, classements, indisponibilités, cotes reportés | acceptée, révisée en partie par 0029 et 0036 | 2026-09-29 | M7 (ADR-0008) |
 | [0028](ADR-0028-scelle-technique.md) | Scellé technique : date unique, porte unique de lecture des matchs (`features/sources.py`), journal des tests scellés | acceptée | 2026-09-29 | M11 (ADR-0012) |
 | [0029](ADR-0029-tirs-football-data.md) | Tirs et tirs cadrés chargés depuis football-data (révision partielle de l'ADR-0027) ; rupture de série de la Serie A 2018-19 à 2020-21 constatée | acceptée, complétée par 0035 | 2026-09-29 | M7 (ADR-0027) |
 | [0030](ADR-0030-jeu-de-donnees.md) | Jeu de données : instantané Parquet versionné, traçabilité en base (`features.dataset_version`), une ligne par (match, équipe), registre des variables | acceptée | 2026-09-29 | F.2, I.3 |
@@ -41,6 +41,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0033](ADR-0033-calendrier-huis-clos.md) | Calendrier (G3) rétrospectif avec indicateur de fiabilité par pays ; huis clos (G0) par périodes sourcées, `incertain` exclu | acceptée | 2026-09-29 | I.3, I.5 (ADR-0011) |
 | [0034](ADR-0034-notebooks-latex.md) | Notebooks d'exploration sans sorties (`nbstripout`, groupe `explo`, porte unique) ; chapitres LaTeX versionnés, compilés sur Overleaf | acceptée | 2026-09-29 | L (J4), M26 |
 | [0035](ADR-0035-source-des-tirs.md) | Source des tirs de l'`xg_proxy` : API-FOOTBALL depuis 2015-16 quand elle est complète, sinon football-data ; `xg_proxy` réestimé ; `round` et `shots_source` au jeu | acceptée | 2026-09-30 | M7, I.3 (complète 0029 et 0032) |
+| [0036](ADR-0036-cotes-reference-marche.md) | Cotes plus/moins 2,5 de football-data : référence de marché (avant clôture pour H1, clôture en borne haute), jamais une variable ; migration 0007 et ordre de priorité des colonnes | acceptée | 2026-09-30 | M18, I.6 (révise en partie 0027) |
 
 **Décisions encore ouvertes** :
 

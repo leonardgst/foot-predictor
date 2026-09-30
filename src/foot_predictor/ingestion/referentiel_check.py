@@ -93,6 +93,7 @@ def collect(connection) -> dict:
     ).all())  # fmt: skip
     data["teams_by_origin"] = dict(q("SELECT origin, count(*) FROM staging.team GROUP BY 1 ORDER BY 1").all())
     data["shots"] = collect_shots(connection)
+    data["odds"] = collect_odds(connection)
     return data
 
 
@@ -192,6 +193,70 @@ def render_shots(rows: list[dict]) -> list[str]:
         "Première saison avec des tirs football-data : "
         + ", ".join(f"{name} {year}-{(year + 1) % 100:02d}" for (_, name), year in sorted(first.items()))
         + ".",
+    ]
+    return lines
+
+
+# Présence des cotes plus/moins 2,5 (ADR-0036), matchs de championnat du top 5 terminés et non
+# exclus, par saison. **Décomptes de présence seulement**, avant comme après le scellé : aucune
+# valeur de cote n'est lue (ADR-0012, ADR-0028).
+ODDS_SQL = """
+SELECT c.api_league_id AS league, c.name, s.year, (m.match_date >= :seal) AS sealed,
+       count(*) AS matches,
+       count(pre.id) AS pre_matches,
+       count(clo.id) AS close_matches,
+       count(*) FILTER (WHERE pre.odds_column = 'Avg') AS pre_avg,
+       count(*) FILTER (WHERE pre.odds_column = 'BbAv') AS pre_bbav,
+       count(*) FILTER (WHERE pre.odds_column NOT IN ('Avg', 'BbAv')) AS pre_bookmaker
+FROM staging.match m
+JOIN staging.competition c ON c.id = m.competition_id AND c.kind = 'league'
+JOIN staging.season s ON s.id = m.season_id
+LEFT JOIN staging.match_odds pre ON pre.match_id = m.id AND pre.source = 'football_data' AND pre.version = 'avant_cloture'
+LEFT JOIN staging.match_odds clo ON clo.match_id = m.id AND clo.source = 'football_data' AND clo.version = 'cloture'
+WHERE c.api_league_id IN :top5 AND m.status = 'played' AND NOT m.excluded
+GROUP BY 1, 2, 3, 4 ORDER BY 1, 3, 4
+"""
+
+
+def collect_odds(connection) -> list[dict]:
+    """Présence des cotes par championnat du top 5, saison et côté du scellé (décomptes seulement)."""
+    from sqlalchemy import bindparam
+
+    connection.execute(text("SET max_parallel_workers_per_gather = 0"))  # /dev/shm du conteneur (E-035)
+    query = text(ODDS_SQL).bindparams(bindparam("top5", expanding=True))
+    return [dict(r) for r in connection.execute(query, {"seal": SEAL_DATE, "top5": list(TOP5)}).mappings()]
+
+
+def render_odds(rows: list[dict]) -> list[str]:
+    """Section « cotes » : présence des cotes plus/moins 2,5 par championnat et par saison (ADR-0036)."""
+    lines = [
+        "",
+        "## 7. Cotes plus/moins 2,5 de football-data (ADR-0036)",
+        "",
+        "Matchs de championnat du top 5 terminés et non exclus. Part des matchs avec une cote « avant clôture » "
+        "(et, parmi eux, colonne retenue : moyenne de marché `Avg`, agrégat BetBrain `BbAv`, un bookmaker) et "
+        f"avec une cote de clôture. Après le {SEAL_DATE:%d/%m/%Y} : **présence seulement** (scellé, ADR-0012).",
+        "",
+    ]
+    if not rows:
+        return lines + ["- Aucune cote chargée."]
+    headers = ["Championnat", "Saison", "Matchs", "Avant clôture", "dont Avg", "dont BbAv", "dont un bookmaker",
+               "Clôture"]  # fmt: skip
+    table = []
+    for r in rows:
+        season = f"{r['year']}-{(r['year'] + 1) % 100:02d}" + (" (scellé)" if r["sealed"] else "")
+        table.append(
+            [f"{r['name']} ({r['league']})", season, r["matches"], _pct(r["pre_matches"], r["matches"]),
+             r["pre_avg"], r["pre_bbav"], r["pre_bookmaker"], _pct(r["close_matches"], r["matches"])]
+        )  # fmt: skip
+    lines += _table(headers, table)
+    dev = [r for r in rows if not r["sealed"] and 2015 <= r["year"] <= 2024]
+    matches = sum(r["matches"] for r in dev)
+    lines += [
+        "",
+        f"Période d'apprentissage et de validation (2015-16 à 2024-25) : {matches} matchs ; avant clôture "
+        f"{_pct(sum(r['pre_matches'] for r in dev), matches)}, clôture {_pct(sum(r['close_matches'] for r in dev), matches)}. "
+        "Aucune cote de clôture avant 2019-20 dans les fichiers.",
     ]
     return lines
 
@@ -371,6 +436,7 @@ def render(data: dict, today: dt.date) -> str:
         "",
     ]
     lines += render_shots(data.get("shots") or [])
+    lines += render_odds(data.get("odds") or [])
     lines.append("")
     return "\n".join(lines)
 

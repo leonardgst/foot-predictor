@@ -161,3 +161,46 @@ def test_hors_api_match_gets_its_shots(loaded_with_shots):
     api, _ = loaded_with_shots
     (created,) = [m for m in table(api, "match") if m["origin"] == "hors_api"]
     assert shots_by_match(api)[created["id"]] == {True: (7, 4), False: (5, 0)}
+
+
+# --- Cotes plus/moins 2,5 (ADR-0036) : sans réseau et sans base ----------------------------------
+
+ODDS_HEADER = "Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,Avg>2.5,Avg<2.5,AvgC>2.5,AvgC<2.5,B365>2.5,B365<2.5\r\n"
+
+
+@pytest.fixture
+def loaded_with_odds(tmp_path, multi_config):
+    raw = tmp_path / "raw"
+    p1 = [synthetic(1001, "2015-08-15", 1, 2, [11], [21]), synthetic(1002, "2015-08-22", 2, 1, [21], [11])]
+    build_multi(raw, p1, []).queue.close()
+    external = tmp_path / "externe"
+    rows = [
+        "E0,15/08/2015,Club Un,Club Deux,0,0,1.90,1.95,1.85,2.00,1.8,2.0\r\n",  # moyenne et clôture
+        "E0,22/08/2015,Club Deux,Club Un,1,0,,,,,1.7,2.1\r\n",  # un bookmaker, pas de clôture
+    ]
+    raw_bytes.write_bytes(external, season_dir(2015), "E0", ".csv", (ODDS_HEADER + "".join(rows)).encode(), STAMP)
+    raw_bytes.write_bytes(
+        external, season_dir(2014), "E0", ".csv", (HEADER + "E0,16/08/2014,Club Un,Ancien Club,3,1\r\n").encode(), STAMP
+    )  # ancien fichier sans cotes
+    api = ApiLoad(raw, multi_config)
+    api.run()
+    external_load = ExternalLoad(
+        api, external, {"E0": 39}, teams={"Club Un": 1, "Club Deux": 2}, hors_api={"Ancien Club"},
+        seasons=range(2014, 2016),
+    )  # fmt: skip
+    external_load.run()
+    return api, external_load
+
+
+def test_odds_rows_by_version_with_the_chosen_column(loaded_with_odds):
+    api, external = loaded_with_odds
+    fixture_match = {m["api_fixture_id"]: m["id"] for m in table(api, "match") if m["api_fixture_id"]}
+    odds = {(o["match_id"], o["version"]): o for o in table(api, "match_odds")}
+    first = fixture_match[1001]
+    assert (odds[first, "avant_cloture"]["odds_over_2_5"], odds[first, "avant_cloture"]["odds_column"]) == (1.9, "Avg")
+    assert odds[first, "cloture"]["odds_column"] == "AvgC"
+    second = fixture_match[1002]
+    assert odds[second, "avant_cloture"]["odds_column"] == "B365" and odds[second, "avant_cloture"]["n_odds"] == 1
+    assert (second, "cloture") not in odds  # aucune clôture inventée
+    assert len(odds) == 3  # le match hors API (ancien fichier) n'a aucune cote
+    assert external.counts["fd_odds_rows_avant_cloture"] == 2 and external.counts["fd_odds_missing_cloture"] == 2

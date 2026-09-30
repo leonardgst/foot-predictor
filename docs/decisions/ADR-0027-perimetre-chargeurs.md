@@ -1,6 +1,6 @@
 # ADR-0027 — Périmètre des chargeurs du référentiel (jalon J3)
 
-- **Statut** : acceptée ; révisée en partie par l'ADR-0029 (tirs de football-data chargés)
+- **Statut** : acceptée ; révisée en partie par l'ADR-0029 (tirs de football-data chargés) et l'ADR-0036 (cotes plus/moins 2,5 chargées)
 - **Date** : 2026-09-29
 - **Référence** : ADR-0008 (référentiel), ADR-0009 (cible), ADR-0013 (MVP et H2), ADR-0016 (profils), ADR-0019 (P4), ADR-0023 (sources) ; décision d.6 de la session « partie 2 » du 2026-09-29
 

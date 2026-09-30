@@ -4,7 +4,7 @@ Mode d'emploi de la construction du jeu de données, de son contrôle, du regist
 
 ## En bref
 
-- Une ligne par (match, équipe) : matchs de **saison régulière** des 10 championnats (top 5 et D2), de 2000-01 à 2024-25, terminés, non exclus. 66 colonnes, dont 54 variables G0 à G3, toutes à l'horizon **H1** (avant composition).
+- Une ligne par (match, équipe) : matchs de **saison régulière** des 10 championnats (top 5 et D2), de 2000-01 à 2024-25, terminés, non exclus. 68 colonnes, dont 54 variables G0 à G3, toutes à l'horizon **H1** (avant composition).
 - Les variables sont des **fonctions pures** (`features/elo.py`, `rolling.py`, `rest.py`, `huis_clos.py`, `dataset.build_frame`) : historique des matchs → valeurs, sans accès à la base. La partie 5 les réutilisera telles quelles pour l'inférence.
 - **Règle temporelle** : la variable d'un match du jour J n'utilise que des matchs terminés **avant le jour J**. Les tests le vérifient (modifier le match m ne change pas sa ligne ; invariance à la date de coupe ; matchs du même jour).
 - Le jeu est un **instantané Parquet** dans `data/datasets/<version>/` (ignoré par Git), avec son manifeste ; la base n'en garde que la trace (`features.dataset_version`).
@@ -33,7 +33,7 @@ uv run python -m foot_predictor.features.xg_proxy_estimation # estimation de l'x
 
 - Nom : `ds-<AAAA-MM-JJ>-<8 premiers caractères du sha256 du manifeste>`. Même contenu, même version : deux `build` de suite donnent les mêmes sha256.
 - `manifest.json` : révision Alembic, `ops.load_run.id` lu, commit Git et `git_dirty` (vrai si du code suivi n'était pas committé : à reconstruire), sha256 du registre, paramètres figés (Elo, `xg_proxy`, glissants, empreinte du YAML de huis clos, date du scellé), périmètre, décomptes, sha256 de chaque fichier.
-- Premier jeu : `ds-2026-09-29-83d28f3b` (196 098 lignes).
+- Premier jeu : `ds-2026-09-29-83d28f3b` (196 098 lignes). Jeu en vigueur : **`ds-2026-09-30-ba2b91f7`** (tirs d'API-FOOTBALL depuis 2015-16, ADR-0035 ; mêmes lignes, 68 colonnes).
 
 ## Registre des variables
 
@@ -50,7 +50,7 @@ uv run python -m foot_predictor.features.xg_proxy_estimation # estimation de l'x
 
 ## Limites connues
 
-- Rupture de série des tirs de football-data en Serie A, de 2018-19 à 2020-21 : `xg_proxy` surestimé d'environ 0,27 par équipe et par match (ADR-0029, ADR-0032). Décision de l'utilisateur en attente.
-- Quatre D2 sans tirs avant 2017-18 : `xg_proxy` vide sur cette période.
+- Source des tirs (ADR-0035) : API-FOOTBALL pour un match joué depuis 2015-16 quand elle a les quatre valeurs, sinon football-data ; cela corrige la rupture de série de la Serie A (2018-19 à 2020-21). **Après le gel**, seuls les tirs de football-data existeront : écart d'`xg_proxy` de +0,02 en moyenne (+0,08 en Serie A), à contrôler en partie 5.
+- D2 sans tirs avant 2015-16, et en partie en 2015-16 et 2016-17 : `xg_proxy` vide sur ces périodes.
 - Repos fiable seulement depuis 2015-16 (2016-17 pour l'Italie, 2018-19 pour l'Espagne) ; G3 indisponible en live.
 - Quelques matchs de D2 absents de l'API ne sont pas appariés (Ligue 2 2010-11 : 10 ; 2. Bundesliga 2012-13 : 4).

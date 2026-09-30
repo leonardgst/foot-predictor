@@ -2,7 +2,7 @@
 
 > **Fichier généré** par `python -m foot_predictor.features catalogue` depuis `src/foot_predictor/features/registry.yaml`. Ne pas le modifier à la main : modifier le registre, puis régénérer (un test vérifie qu'il est à jour).
 
-66 colonnes au jeu de données, dont 54 variables (G0 à G3), toutes à l'horizon H1 (avant composition, ADR-0010). Une colonne `opp_…` est la même variable pour l'adversaire, lue sur sa ligne du même match. Règle temporelle : une variable du jour J n'utilise que des matchs terminés avant le jour J.
+68 colonnes au jeu de données, dont 54 variables (G0 à G3), toutes à l'horizon H1 (avant composition, ADR-0010). Une colonne `opp_…` est la même variable pour l'adversaire, lue sur sa ligne du même match. Règle temporelle : une variable du jour J n'utilise que des matchs terminés avant le jour J.
 
 ## Identifiants et découpage
 
@@ -104,6 +104,28 @@
 - **Historique minimal** : aucun
 - **Valeur manquante** : jamais vide
 - **Risque de fuite** : nul — définie par l'ADR-0012
+
+### `round`
+
+- **Colonnes** : `round`
+- **Définition** : journée du match selon API-FOOTBALL (« Regular Season - 12 ») ; bloc du bootstrap par (championnat, saison, journée)
+- **Source** : staging.match.round
+- **Horizon** : sans objet ; **disponible en live** : oui : calendrier API figé ; vide pour un match hors API
+- **Paramètres** : —
+- **Historique minimal** : aucun
+- **Valeur manquante** : vide pour un match hors API (le bootstrap prend alors la semaine ISO)
+- **Risque de fuite** : nul — identifiant de regroupement, jamais une variable
+
+### `shots_source`
+
+- **Colonnes** : `shots_source`
+- **Définition** : source des tirs de ce match pour l'xg_proxy de l'historique (api, football_data, vide si aucune) ; même valeur pour les deux lignes du match
+- **Source** : features/xg_proxy.py (select_shots, ADR-0035)
+- **Horizon** : sans objet ; **disponible en live** : non : décrit les statistiques du match, connues après lui
+- **Paramètres** : api_depuis = 2015
+- **Historique minimal** : aucun
+- **Valeur manquante** : vide si aucune source n'a de tirs pour ce match
+- **Risque de fuite** : élevé — jamais une variable (connue après le match) ; sert au contrôle du changement de source après le gel
 
 ## Cible (jamais une variable)
 
@@ -238,19 +260,19 @@
 
 - **Colonnes** : `xgp_for_ewm_h60`, `opp_xgp_for_ewm_h60`, `xgp_for_ewm_h120`, `opp_xgp_for_ewm_h120`, `xgp_for_ewm_h240`, `opp_xgp_for_ewm_h240`
 - **Définition** : comme goals_for_ewm_h{h}, pour l'xg_proxy de l'équipe (a · tirs cadrés + b · tirs non cadrés)
-- **Source** : staging.team_match_stats_external (football-data), features/params/xg_proxy.json
-- **Horizon** : H1 ; **disponible en live** : oui : tirs de football-data
+- **Source** : tirs de staging.team_match_stats (API, depuis 2015-16, si complets) sinon staging.team_match_stats_external (football-data), ADR-0035 ; features/params/xg_proxy.json
+- **Horizon** : H1 ; **disponible en live** : oui : tirs de football-data seulement après le gel (changement de source, ADR-0035)
 - **Paramètres** : demi_vie_jours = 60, 120, 240; anciennete_max_jours = 730; poids_a_priori = 3; fichier = features/params/xg_proxy.json
 - **Historique minimal** : un match de championnat avec les tirs des deux équipes dans les 730 jours
-- **Valeur manquante** : vide si aucun match avec tirs (4 D2 avant 2017-18) ; xgp_weight_h{h} = 0 le dit
+- **Valeur manquante** : vide si aucun match avec tirs (D2 avant 2015-16, et en partie jusqu'en 2016-17) ; xgp_weight_h{h} = 0 le dit
 - **Risque de fuite** : faible — coefficients estimés sur 2015-16 à 2020-21 seulement, avant tous les plis de validation
 
 ### `xgp_against_ewm_h{h}`
 
 - **Colonnes** : `xgp_against_ewm_h60`, `opp_xgp_against_ewm_h60`, `xgp_against_ewm_h120`, `opp_xgp_against_ewm_h120`, `xgp_against_ewm_h240`, `opp_xgp_against_ewm_h240`
 - **Définition** : comme xgp_for_ewm_h{h}, pour l'xg_proxy concédé (tirs de l'adversaire)
-- **Source** : staging.team_match_stats_external (football-data), features/params/xg_proxy.json
-- **Horizon** : H1 ; **disponible en live** : oui : tirs de football-data
+- **Source** : tirs de staging.team_match_stats (API, depuis 2015-16, si complets) sinon staging.team_match_stats_external (football-data), ADR-0035 ; features/params/xg_proxy.json
+- **Horizon** : H1 ; **disponible en live** : oui : tirs de football-data seulement après le gel (changement de source, ADR-0035)
 - **Paramètres** : demi_vie_jours = 60, 120, 240; anciennete_max_jours = 730; poids_a_priori = 3; fichier = features/params/xg_proxy.json
 - **Historique minimal** : un match de championnat avec les tirs des deux équipes dans les 730 jours
 - **Valeur manquante** : vide si aucun match avec tirs ; xgp_weight_h{h} = 0 le dit
@@ -272,7 +294,7 @@
 - **Colonnes** : `xgp_weight_h60`, `opp_xgp_weight_h60`, `xgp_weight_h120`, `opp_xgp_weight_h120`, `xgp_weight_h240`, `opp_xgp_weight_h240`
 - **Définition** : somme des poids des matchs de championnat retenus dont les tirs des deux équipes sont connus
 - **Source** : features/rolling.py
-- **Horizon** : H1 ; **disponible en live** : oui : tirs de football-data
+- **Horizon** : H1 ; **disponible en live** : oui : tirs de football-data seulement après le gel (changement de source, ADR-0035)
 - **Paramètres** : demi_vie_jours = 60, 120, 240; anciennete_max_jours = 730
 - **Historique minimal** : aucun
 - **Valeur manquante** : jamais vide (0 sans historique)

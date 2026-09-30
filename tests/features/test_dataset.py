@@ -176,3 +176,13 @@ def test_latest_dataset_is_the_most_recent_not_the_last_name(tmp_path):
         manifest.write_text(json.dumps({"date": "2026-09-29"}), encoding="utf-8")
         os.utime(manifest, (mtime, mtime))
     assert list_datasets(tmp_path)[-1] == "ds-2026-09-29-00000000"
+
+
+def test_round_and_shots_source_are_carried_as_identifiers():
+    """`round` sert aux blocs du bootstrap, `shots_source` au contrôle du changement de source (ADR-0035)."""
+    frame = build(synthetic_matches())
+    assert (frame["round"] == "Regular Season - 1").all()
+    assert (frame["shots_source"] == "football_data").all()  # pas de colonnes API dans ce jeu synthétique
+    groups = {v.name: v.group for v in registry.variables()}
+    assert groups["shots_source"] == groups["round"] == "ID"  # jamais des variables du modèle
+    assert "shots_source" not in registry.feature_columns()

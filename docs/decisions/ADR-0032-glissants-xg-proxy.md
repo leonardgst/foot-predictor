@@ -1,6 +1,6 @@
 # ADR-0032 — Glissants (G2) : moyennes à décroissance en jours, retrait vers le championnat ; `xg_proxy` à la place de l'xG avant 2022-23
 
-- **Statut** : acceptée
+- **Statut** : acceptée ; complétée par l'ADR-0035 (source des tirs, `xg_proxy` réestimé)
 - **Date** : 2026-09-29
 - **Référence** : rapport de cadrage, H.4, I.3 (G2), I.5, I.8 ; ADR-0012, ADR-0013 (xG dans le MVP), ADR-0023 (pas d'Understat), ADR-0029 (tirs de football-data) ; décisions d.1, d.3 et d.10d de la partie 3 ; `reports/variables/xg_proxy.md`
 

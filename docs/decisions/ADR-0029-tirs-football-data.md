@@ -1,6 +1,6 @@
 # ADR-0029 — Tirs et tirs cadrés chargés depuis football-data (révision partielle de l'ADR-0027)
 
-- **Statut** : acceptée
+- **Statut** : acceptée ; complétée par l'ADR-0035 (tirs d'API-FOOTBALL depuis 2015-16 quand elle est complète)
 - **Date** : 2026-09-29
 - **Référence** : ADR-0027 (critère de révision atteint) ; ADR-0023 (xG d'API-FOOTBALL seulement) ; ADR-0011 (live après l'abonnement) ; décision d.1 de la partie 3 ; `reports/data_quality/referentiel_2026-09-29.md`, section 6
 

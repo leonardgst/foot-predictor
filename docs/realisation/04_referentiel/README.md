@@ -30,7 +30,7 @@ APP_ENV=dev uv run alembic upgrade head
 ## Commandes
 
 ```bash
-# Reconstruction complète (6 à 10 minutes sur le portable)
+# Reconstruction complète (environ 13 minutes sur le portable depuis la migration 0007)
 APP_ENV=dev uv run python -m foot_predictor.ingestion load \
     --raw-dir C:/foot-predictor/data/raw --external-raw-dir data/raw --confirm-db foot_predictor_travail
 
@@ -55,6 +55,7 @@ APP_ENV=dev uv run python -m foot_predictor.ingestion check-referentiel
 3. émission : compositions, statistiques joueurs et d'équipe, compteurs par équipe et par match ;
 4. football-data : appariement (domicile, extérieur, date à ± 1 jour) dans les saisons couvertes par l'API ; création des matchs et des équipes « hors_api » ailleurs ;
    tirs et tirs cadrés de football-data (`HS`, `HST`, `AS`, `AST`) par équipe dans `staging.team_match_stats_external`, vides si absents (migration 0005, ADR-0029) ;
+   cotes plus/moins 2,5 dans `staging.match_odds`, une ligne par version (« avant clôture », « clôture ») quand une colonne est lisible, selon l'ordre de priorité de `ingestion/football_data_odds.py` (migration 0007, ADR-0036) ;
 5. `TRUNCATE` de `staging` (et, par cascade, des tables `features`), `COPY`, séquences recalées, empreintes.
 
 Règles de chargement : voir la docstring de `src/foot_predictor/ingestion/load_api.py` (identifiant 0, équipe prise dans la composition, collisions, alias, scores, exclusions, dates de naissance).

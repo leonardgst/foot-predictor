@@ -3,7 +3,7 @@
 **Dernière mise à jour** : 2026-09-30 (partie 4, lot 1 en cours)
 **Partie courante** : 4/6, protocole, références et modèle MVP (J5, J6), phase A, lot 1. Les phases B des parties 2 et 3 reprennent après la session de gel du **lundi 19 octobre**, sur demande.
 
-**Reprise de la partie 4 au lot 1, sous-étape 4.1** (4.0 faite : tirs d'API-FOOTBALL, ADR-0035, jeu `ds-2026-09-30-ba2b91f7`).
+**Reprise de la partie 4 au lot 1, sous-étape 4.2** (4.0 : tirs d'API-FOOTBALL, ADR-0035, jeu `ds-2026-09-30-ba2b91f7` ; 4.1 : cotes dans `staging.match_odds`, migration 0007, ADR-0036, `ops.load_run` n° 5).
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé
@@ -27,7 +27,7 @@
 - Rien. Points de vigilance :
   - **aucun `git pull` dans `C:/foot-predictor` avant l'étape 7 du gel** (ADR-0021) ; ensuite, `lock-status` avant chaque `git pull` ;
   - portable **allumé, branché, capot ouvert, session ouverte** aux dates des tâches ;
-  - **jamais de `load` pendant une tâche** (lundis 5 et 12 octobre de 07:45 à 11:00, ou verrou occupé) ;
+  - **jamais de `load` pendant une tâche** (lundis 5 et 12 octobre de 07:45 à 11:00, ou verrou occupé) ; `load` dure désormais environ 13 minutes (778 s, chargement n° 5) ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ;
   - copies sur le disque externe non faites (E-031) : `C:/fp_dumps/` et les CSV football-data.
 

@@ -115,3 +115,23 @@ def test_football_data_shots_are_exposed(db_session, league):
     assert (frame.loc[0, "home_shots_fd"], frame.loc[0, "home_sot_fd"]) == (13, 4)
     assert frame["away_shots_fd"].isna().all()
     assert frame.loc[1, ["home_shots_fd", "home_sot_fd"]].isna().all()
+
+
+def test_odds_are_read_only_before_the_seal(db_session, league):
+    """Les cotes passent par la porte : le filtre du scellé est dans la requête (ADR-0036)."""
+    from foot_predictor.db.models import MatchOdds
+    from foot_predictor.features.sources import load_odds
+
+    matches = db_session.query(Match).filter(Match.competition_id == league.id).order_by(Match.match_date).all()
+    for match in matches:
+        db_session.add(
+            MatchOdds(
+                match_id=match.id, source="football_data", version="avant_cloture",
+                odds_over_2_5=1.9, odds_under_2_5=1.95, odds_column="Avg",
+            )
+        )  # fmt: skip
+    db_session.flush()
+    odds = load_odds(db_session)
+    odds = odds[odds["match_id"].isin([m.id for m in matches])]
+    assert sorted(odds["match_id"]) == sorted(m.id for m in matches[:2])  # les deux matchs d'avant le 1er juillet
+    assert odds["odds_over_2_5"].tolist() == [1.9, 1.9]

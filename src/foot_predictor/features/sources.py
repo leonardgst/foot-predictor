@@ -225,3 +225,49 @@ def load_dataset(version: str | None = None, root: Path | None = None) -> tuple[
     frame = pd.read_parquet(folder / DATA_FILE)
     check_seal(frame["match_date"])
     return frame, manifest
+
+
+# Cotes plus/moins 2,5 (ADR-0036) : une ligne par (match, version), mêmes filtres du scellé que les matchs.
+_ODDS_SQL = """
+select
+    o.match_id               as match_id,
+    m.match_date             as match_date,
+    o.version                as version,
+    o.odds_over_2_5          as odds_over_2_5,
+    o.odds_under_2_5         as odds_under_2_5,
+    o.odds_column            as odds_column,
+    o.n_odds                 as n_odds
+from staging.match_odds o
+join staging.match m on m.id = o.match_id
+where m.match_date < :upper and o.source = 'football_data'
+order by o.match_id, o.version
+"""
+
+
+def load_odds(connectable=None, *, until: dt.date | None = None) -> pd.DataFrame:
+    """Cotes plus/moins 2,5 de football-data des matchs antérieurs au scellé (référence de marché, ADR-0036).
+
+    Même porte que `load_matches` : filtre du scellé dans la requête SQL, puis `check_seal`.
+    Pas d'option `sealed_test` ici : le test scellé (4.16) lira les cotes par sa propre commande,
+    journalisée. Colonnes : `match_id`, `match_date`, `version` (`avant_cloture`, `cloture`),
+    `odds_over_2_5`, `odds_under_2_5`, `odds_column`, `n_odds`.
+    """
+    if connectable is None:
+        from foot_predictor.db.session import get_engine
+
+        connectable = get_engine()
+    if isinstance(connectable, Session):
+        connectable = connectable.connection()
+    if isinstance(connectable, Engine):
+        with connectable.connect() as connection:
+            return load_odds(connection, until=until)
+    params = {"upper": _upper_bound(until, sealed_test=False).to_pydatetime()}
+    connectable.execute(text("set max_parallel_workers_per_gather = 0"))  # /dev/shm du conteneur (E-035)
+    frame = pd.read_sql(text(_ODDS_SQL), connectable, params=params)
+    frame["match_date"] = pd.to_datetime(frame["match_date"], utc=True)
+    check_seal(frame["match_date"])
+    frame["match_id"] = frame["match_id"].astype("int64")
+    for column in ("odds_over_2_5", "odds_under_2_5"):
+        frame[column] = frame[column].astype(float)
+    frame["n_odds"] = frame["n_odds"].astype("Int64")
+    return frame

@@ -186,3 +186,43 @@ et 1-1 sont un peu plus fréquents que sous l'indépendance. Sur la loi du total
 \(T = 0\). Le log-loss du total ne bouge pas (\(+0{,}00002\), \([-0{,}0009 ; +0{,}0010]\)) : la
 corrélation change la forme de la loi sur les petites valeurs, sans gain global. Par la règle de
 décision, M3 (plus simple) est conservé.
+
+% ---------------------------------------------------------------------------------------------
+\section{M6 : plus de variables, sous régularisation}
+\label{sec:m6}
+
+\paragraph{Variables.} Aux groupes G0 et G1 s'ajoutent G2 (logarithmes des moyennes glissantes de
+buts et d'\(\mathrm{xg\_proxy}\), pour et contre, de l'équipe et de l'adversaire, à la demi-vie
+\(h\)) et G3 (repos borné à 14 jours, matchs des 14 derniers jours, match européen dans les 4 jours,
+pour les deux équipes). Toutes les variables continues sont standardisées sur l'apprentissage du
+pli : sans cela, la pénalité frapperait différemment des variables d'unités différentes.
+
+\paragraph{Ridge.} Avec \(D(y, \beta) = 2\sum_i [y_i \log(y_i/\lambda_i) - (y_i - \lambda_i)]\) la
+déviance de Poisson et \(\beta_0\) la constante, non pénalisée,
+\[
+  \hat\beta(\alpha) = \operatorname*{arg\,min}_{\beta}\ \frac{1}{2n} D(y, \beta)
+  + \frac{\alpha}{2} \sum_{j \ge 1} \beta_j^2 .
+\]
+\paragraph{Élastique net.} La pénalité devient
+\(\alpha \big[\omega \sum_j |\beta_j| + \tfrac{1 - \omega}{2} \sum_j \beta_j^2\big]\), avec
+\(\omega = 0{,}5\) ; la partie \(L_1\) peut annuler des coefficients (sélection de variables).
+
+\paragraph{Compromis biais-variance.} Quand \(\alpha\) croît, les coefficients rétrécissent vers 0
+(variance plus faible, biais plus fort) ; \(\alpha \to 0\) redonne le Poisson non régularisé
+(propriété vérifiée par les tests), \(\alpha \to \infty\) une prédiction constante. \(\alpha\) et
+\(h \in \{60, 120, 240\}\) jours se choisissent par validation interne : apprentissage jusqu'à
+l'avant-dernière saison du pli, mesure du log-loss du total sur la dernière, puis réajustement.
+
+\paragraph{Non-linéarité.} Avant d'ajouter des splines, on compare, par décile de l'écart d'Elo,
+les buts observés \(O\) aux buts attendus \(E = \sum \hat\lambda\) de M3, sur 2015-16 à 2020-21
+seulement (jamais une saison de test) :
+\(z = (O - E)/\sqrt{E}\) et \(\sum z^2 \approx \chi^2_9\). On obtient \(\sum z^2 = 9{,}86\)
+(\(p = 0{,}36\)) et des rapports \(O/E\) entre \(0{,}97\) et \(1{,}03\), sans forme : la relation
+log-linéaire à l'Elo suffit, et aucune spline n'est ajoutée.
+
+\paragraph{Résultat.} Avec les mêmes variables G0 à G3, le ridge ne bat pas le Poisson non régularisé
+(\(+0{,}0002\), \([-0{,}0004 ; +0{,}0008]\)), l'élastique net non plus (\(+0{,}0001\),
+\([-0{,}0001 ; +0{,}0004]\)) : avec environ \(33\,000\) lignes pour une trentaine de coefficients, la
+variance d'estimation est déjà faible. En revanche, les variables G2 et G3 font gagner \(0{,}0091\)
+(\([0{,}0056 ; 0{,}0126]\)) au Poisson par équipe. La structure retenue reste M3 (non régularisé) ; les
+ablations du lot 3 mesurent la part de chaque groupe.

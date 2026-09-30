@@ -15,7 +15,7 @@ Mode d'emploi du protocole, de l'exécuteur d'expériences, des métriques et de
 ```bash
 uv run python -m foot_predictor.modeling evaluate experiments/references.yaml   # une expérience
 uv run python -m foot_predictor.modeling index                                  # régénère reports/experiments/INDEX.md
-PYTHONIOENCODING=utf-8 uv run python -m foot_predictor.modeling summary reports/experiments/<id>.json   # tableaux Markdown
+uv run python -m foot_predictor.modeling summary reports/experiments/<id>.json --output <fichier.md>   # tableaux Markdown
 ```
 
 Durée mesurée : environ 8 s pour les références (4 plis, 10 000 rééchantillonnages). Mesurer toute nouvelle expérience avec `n_resamples: 200` avant de la lancer en entier ; l'essai de mesure est conservé comme les autres.

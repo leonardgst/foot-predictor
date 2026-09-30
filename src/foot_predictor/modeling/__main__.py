@@ -31,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("index", help="régénère reports/experiments/INDEX.md")
     summary = sub.add_parser("summary", help="tableaux Markdown d'un rapport d'expérience")
     summary.add_argument("report", type=Path, help="reports/experiments/<id>.json")
+    summary.add_argument("--output", type=Path, help="fichier Markdown (UTF-8, fins de ligne LF) au lieu de la console")
     return parser
 
 
@@ -44,7 +45,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "summary":
         from foot_predictor.modeling.summary import summarize
 
-        print(summarize(args.report))
+        text = summarize(args.report)
+        if args.output:
+            args.output.write_text(text, encoding="utf-8", newline="\n")
+            print(f"Tableaux : {args.output}")
+        else:
+            print(text)
         return 0
     if args.command == "index":
         print(f"Index : {experiment.write_index()}")

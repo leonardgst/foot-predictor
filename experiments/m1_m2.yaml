@@ -1,0 +1,16 @@
+# M1 (moindres carrés sur le total) et M2 (Poisson sur le total), variables G0 + G1 (décision 5).
+# Étapes pédagogiques, pas candidates (ADR-0009, ADR-0037) : comparées à B1 et entre elles.
+name: m1-m2
+dataset: ds-2026-09-30-ba2b91f7
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  - {id: B1, model: b1, grid: {window: [1, 2, 3, 6]}}
+  - {id: M1, model: m1, params: {groups: [G0, G1]}}
+  - {id: M2, model: m2, params: {groups: [G0, G1]}}
+comparisons:
+  - [B1, M1]
+  - [B1, M2]
+  - [M1, M2]

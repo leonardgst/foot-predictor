@@ -16,3 +16,17 @@ def test_index_command_writes_the_index(tmp_path, monkeypatch):
     monkeypatch.setattr(experiment.write_index, "__defaults__", (tmp_path,))
     assert cli.main(["index"]) == 0
     assert "**0 essai(s)**" in (tmp_path / "INDEX.md").read_text(encoding="utf-8")
+
+
+def test_summary_writes_a_utf8_lf_file(tmp_path):
+    import json
+
+    report = {
+        "id": "x", "seed": 1, "n_resamples": 10, "folds": [], "metrics": {}, "pooled": {}, "comparisons": [],
+        "dataset": {"version": "ds-test"}, "git": {"commit": "abc"},
+    }  # fmt: skip
+    path = tmp_path / "x.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+    output = tmp_path / "t.md"
+    assert cli.main(["summary", str(path), "--output", str(output)]) == 0
+    assert b"\r\n" not in output.read_bytes() and "rééchantillonnages" in output.read_text(encoding="utf-8")

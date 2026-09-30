@@ -132,6 +132,9 @@ def distribution_metrics(predicted, truth: pd.DataFrame, rng: np.random.Generato
                 dist.outcome_probabilities(predicted.joint), truth["home_goals"], truth["away_goals"]
             ).mean()
         )
+    if predicted.extra:
+        # Diagnostics propres au modèle, par match (M1 : masse négative, borne basse < 0…) : moyennes du pli.
+        result["extra"] = {name: float(np.mean(values)) for name, values in predicted.extra.items()}
     for k in (0, 1, 2):
         observed = (totals == k).astype(float)
         result.setdefault("small_totals", {})[str(k)] = {

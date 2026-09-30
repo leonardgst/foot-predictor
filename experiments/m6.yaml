@@ -1,0 +1,19 @@
+# M6 : Poisson régularisé sur G0 à G3 (ridge, élastique net), demi-vie et α par validation interne.
+# Comparé à M3 (G0 + G1, structure retenue) et à M3 sans régularisation sur les mêmes variables
+# (G0 à G3) : la seconde comparaison isole l'apport de la régularisation. Durée mesurée : environ 18 min.
+name: m6
+dataset: ds-2026-09-30-ba2b91f7
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  - {id: M3, model: m3, params: {groups: [G0, G1]}}
+  - {id: M3_G0G3, model: m3, params: {groups: [G0, G1, G2, G3]}, grid: {half_life: [60, 120, 240]}}
+  - {id: M6_ridge, model: m6, params: {groups: [G0, G1, G2, G3], penalty: l2}, grid: {half_life: [60, 120, 240], alpha: [0.0001, 0.001, 0.01, 0.1]}}
+  - {id: M6_en, model: m6, params: {groups: [G0, G1, G2, G3], penalty: elasticnet, l1_ratio: 0.5}, grid: {half_life: [60, 120, 240], alpha: [0.0001, 0.001, 0.01]}}
+comparisons:
+  - [M3, M6_ridge]
+  - [M3_G0G3, M6_ridge]
+  - [M3_G0G3, M6_en]
+  - [M3, M3_G0G3]

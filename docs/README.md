@@ -39,7 +39,9 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Journal des tests scellés (vide pendant le développement) | [`../reports/sealed_tests.md`](../reports/sealed_tests.md) |
 | Protocole d'évaluation, expériences, métriques, références B0, B1 et marché | [`realisation/08_protocole_et_references/README.md`](realisation/08_protocole_et_references/README.md) |
 | Modèles M1 à M6 : commandes, classes, ajout d'un modèle | [`realisation/09_modeles/README.md`](realisation/09_modeles/README.md) |
-| Résultats lisibles (références, puis modèles) | [`resultats/`](resultats/) : [`references.md`](resultats/references.md), [`modeles.md`](resultats/modeles.md) |
+| Modèle MVP H1, test scellé, entraînement final, carte d'identité | [`realisation/10_selection_et_entrainement_final/README.md`](realisation/10_selection_et_entrainement_final/README.md) |
+| Cartes d'identité des modèles entraînés | [`../reports/model_cards/`](../reports/model_cards/) |
+| Résultats lisibles (références, puis modèles) | [`resultats/`](resultats/) : [`references.md`](resultats/references.md), [`modeles.md`](resultats/modeles.md), [`ablations.md`](resultats/ablations.md) |
 | Rapports d'expériences (JSON) et index de tous les essais | [`../reports/experiments/INDEX.md`](../reports/experiments/INDEX.md) |
 | Chapitres mathématiques LaTeX (compilation sur Overleaf) | [`latex/mathematiques/`](latex/mathematiques/) |
 | Anciens récaps, RECAP_PROJET, guide d'abonnement | [`archives/`](archives/) (non maintenus) |

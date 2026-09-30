@@ -1,6 +1,7 @@
 """Variables du MVP : construction, contrôle et catalogue du jeu de données (ADR-0030).
 
     python -m foot_predictor.features build [--output-root data/datasets] [--no-db]
+    python -m foot_predictor.features build --sealed-test --experiment experiments/scelle_h1.yaml   # phase B seulement
     python -m foot_predictor.features check [--version ds-...] [--report-dir reports/variables] [--invariance]
     python -m foot_predictor.features catalogue [--output docs/realisation/06_variables/catalogue.md]
 
@@ -22,6 +23,12 @@ def build_parser() -> argparse.ArgumentParser:
     build = sub.add_parser("build", help="construit un jeu de données versionné (lecture seule de staging)")
     build.add_argument("--output-root", type=Path, help="dossier des versions (défaut : data/datasets)")
     build.add_argument("--no-db", action="store_true", help="ne pas écrire la ligne de features.dataset_version")
+    build.add_argument(
+        "--sealed-test",
+        action="store_true",
+        help="test scellé seulement (ADR-0012, une fois par version) : inclut les matchs scellés, journalisé",
+    )
+    build.add_argument("--experiment", help="fichier d'expérience du test scellé (obligatoire avec --sealed-test)")
     check = sub.add_parser("check", help="contrôle un jeu de données : registre, valeurs vides, distributions, scellé")
     check.add_argument("--version", help="version à contrôler (défaut : la plus récente)")
     check.add_argument("--output-root", type=Path, help="dossier des versions (défaut : data/datasets)")
@@ -52,7 +59,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "build":
         from foot_predictor.features.build import run_build
 
-        summary = run_build(output_root=args.output_root, record=not args.no_db)
+        summary = run_build(
+            output_root=args.output_root,
+            record=not args.no_db,
+            sealed_test=args.sealed_test,
+            experiment=args.experiment,
+        )
         print(f"Version {summary['version']} : {summary['rows']} lignes en {summary['seconds']:.0f} s")
         print(f"Dossier : {summary['path']}")
         return 0

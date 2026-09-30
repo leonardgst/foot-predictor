@@ -45,6 +45,15 @@ class ProtocolError(RuntimeError):
 class Fold:
     test_season: int
     first_season: int = FIRST_TRAINING_SEASON
+    extra_test_seasons: tuple[int, ...] = ()
+    """Saisons de test supplémentaires (test scellé : 2025-26 et le début de 2026-27 dans un même pli)."""
+    sealed: bool = False
+    train_on_sealed: bool = False
+    """Entraînement final après le test scellé seulement (4.17) : l'apprentissage peut contenir des matchs scellés."""
+
+    @property
+    def test_seasons(self) -> tuple[int, ...]:
+        return (self.test_season, *self.extra_test_seasons)
 
     @property
     def train_seasons(self) -> range:
@@ -60,7 +69,8 @@ class Fold:
 
     @property
     def name(self) -> str:
-        return f"{self.test_season}-{(self.test_season + 1) % 100:02d}"
+        label = f"{self.test_season}-{(self.test_season + 1) % 100:02d}"
+        return f"scellé depuis {label}" if self.sealed else label
 
 
 def folds(test_seasons: Iterable[int] = TEST_SEASONS) -> list[Fold]:
@@ -69,6 +79,16 @@ def folds(test_seasons: Iterable[int] = TEST_SEASONS) -> list[Fold]:
         if fold.test_season >= SEAL_DATE.year:
             raise ProtocolError(f"Saison de test {fold.name} : sous scellés (ADR-0012), refusée sans test scellé.")
     return result
+
+
+def sealed_fold(data: pd.DataFrame, last_training_season: int = SEAL_DATE.year - 1) -> Fold:
+    """Pli unique du test scellé (ADR-0012, règle 5) : apprentissage de 2015-16 à `last_training_season`,
+    validation interne sur cette dernière saison, test sur **toutes** les saisons suivantes présentes
+    dans le jeu (construit avec `--sealed-test`). Ne s'emploie qu'avec `evaluate --sealed-test`."""
+    seasons = sorted(int(s) for s in data["season_year"].unique() if s > last_training_season)
+    if not seasons:
+        raise ProtocolError("Aucune saison après la période de développement : jeu construit sans --sealed-test ?")
+    return Fold(seasons[0], extra_test_seasons=tuple(seasons[1:]), sealed=True)
 
 
 def population_mask(rows: pd.DataFrame, population: str) -> pd.Series:
@@ -100,15 +120,19 @@ def training_rows(data: pd.DataFrame, seasons: Iterable[int], population: str) -
     return part
 
 
-def test_rows(data: pd.DataFrame, season: int) -> pd.DataFrame:
-    """Lignes du top 5 de la saison de test, **sans les cibles** : un modèle ne peut pas lire le résultat."""
-    part = data[(data["season_year"] == season) & data["eval_population"].astype(bool)]
+def _seasons(season) -> list[int]:
+    return [int(season)] if isinstance(season, int | np.integer) else [int(s) for s in season]
+
+
+def test_rows(data: pd.DataFrame, season) -> pd.DataFrame:
+    """Lignes du top 5 de la (des) saison(s) de test, **sans les cibles** : un modèle ne peut pas lire le résultat."""
+    part = data[data["season_year"].isin(_seasons(season)) & data["eval_population"].astype(bool)]
     return part.drop(columns=[c for c in TARGET_COLUMNS if c in part.columns])
 
 
-def outcomes(data: pd.DataFrame, season: int) -> pd.DataFrame:
-    """Résultats des matchs d'évaluation d'une saison : une ligne par match (buts domicile, extérieur, total)."""
-    part = data[(data["season_year"] == season) & data["eval_population"].astype(bool)]
+def outcomes(data: pd.DataFrame, season) -> pd.DataFrame:
+    """Résultats des matchs d'évaluation d'une (ou plusieurs) saison(s) : une ligne par match (buts, total)."""
+    part = data[data["season_year"].isin(_seasons(season)) & data["eval_population"].astype(bool)]
     home = part[part["is_home"]].set_index("match_id")
     frame = pd.DataFrame(
         {
@@ -170,14 +194,15 @@ def _guard(rows: pd.DataFrame, fold: Fold) -> None:
     """Contrôle anti-fuite : aucune ligne de la saison de test (ni au-delà) dans l'apprentissage, aucun scellé."""
     if len(rows) and int(rows["season_year"].max()) >= fold.test_season:
         raise ProtocolError(f"Pli {fold.name} : une ligne de la saison de test ou postérieure dans l'apprentissage.")
-    check_seal(rows["match_date"]) if "match_date" in rows.columns else None
+    if "match_date" in rows.columns and not fold.train_on_sealed:
+        check_seal(rows["match_date"])
 
 
 def predict_fold(
     fit: FitResult, data: pd.DataFrame, fold: Fold, features: Iterable[str] = ()
 ) -> tuple[MatchPredictions, int]:
     """Prédictions des matchs de test du pli ; matchs sans prédiction (variable manquante) comptés."""
-    rows = test_rows(data, fold.test_season)
+    rows = test_rows(data, fold.test_seasons)
     n_matches = rows["match_id"].nunique()
     rows, _ = usable(rows, features)
     rows = complete_matches(rows)

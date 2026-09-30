@@ -1,7 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-09-29 (fin de la partie 3, phase A)
-**Partie courante** : 3/6, variables v2 et exploration (J4). **Phase A faite** ; la **phase B** (3.11) reprend après la session de gel du **lundi 19 octobre** et la phase B de la partie 2, sur demande.
+**Dernière mise à jour** : 2026-09-30 (partie 4, lot 1 en cours)
+**Partie courante** : 4/6, protocole, références et modèle MVP (J5, J6), phase A, lot 1. Les phases B des parties 2 et 3 reprennent après la session de gel du **lundi 19 octobre**, sur demande.
+
+**Reprise de la partie 4 au lot 1, sous-étape 4.1** (4.0 faite : tirs d'API-FOOTBALL, ADR-0035, jeu `ds-2026-09-30-ba2b91f7`).
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé
@@ -31,7 +33,6 @@
 
 ## Décisions ouvertes
 
-- **Tirs de la Serie A de 2018-19 à 2020-21** : garder football-data (biais de +0,27 xG par équipe et par match) ou prendre les tirs d'API-FOOTBALL là où ils existent (ADR-0029, ADR-0032). À trancher avant la partie 4.
 - Renouvellement automatique de l'abonnement : à couper au gel. Conditions de football-data (ADR-0023) : à relire.
 - Rapport, décisions 16, 18, 20 à 22.
 
@@ -50,7 +51,8 @@ cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main &
 git tag -l v0.3.0                                          # phase B de la partie 2 faite
 uv run python -m foot_predictor.features build             # nouveau staging (brut définitif)
 uv run python -m foot_predictor.features check --invariance
-# comparer, pour les matchs antérieurs au 2025-07-01, les lignes de la nouvelle version à ds-2026-09-29-83d28f3b
+# comparer, pour les matchs antérieurs au 2025-07-01, les lignes de la nouvelle version à ds-2026-09-30-ba2b91f7
+# (jeu en vigueur depuis la partie 4, ADR-0035 ; et non plus ds-2026-09-29-83d28f3b)
 # puis tag v0.4.0, ETAT_PROJET.md, docs/retours/partie-3_<date>.md
 ```
 

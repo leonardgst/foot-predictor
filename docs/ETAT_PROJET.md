@@ -3,7 +3,7 @@
 **Dernière mise à jour** : 2026-09-30 (fin du lot 2 de la partie 4)
 **Partie courante** : 4/6, protocole, références et modèle MVP (J5, J6), phase A. **Lots 1 et 2 faits** (protocole, références, modèles M1 à M6) ; lot 3 (ablations, choix du modèle H1, gel de la liste) à la prochaine session. Les phases B des parties 2, 3 et 4 reprennent après la session de gel du **lundi 19 octobre**, sur demande.
 
-**Reprise de la partie 4 au lot 3, sous-étape 4.14** (carte d'identité, `train --final`, code du test scellé, branche `feat/10-carte-identite` ; puis tag `pre-scelle-h1` sur sa fusion, ADR-0039 ; faits : 4.12 ablations, 4.13 ADR-0039 et `experiments/scelle_h1.yaml`). Relancer le prompt de la partie 4 ; lire d'abord `docs/retours/partie-4-lot2_2026-09-30.md`.
+**Reprise de la partie 4 au lot 3, sous-étape 4.15** (clôture de la phase A, branche `docs/10-cloture-partie-4a` ; faits : 4.12 ablations, 4.13 ADR-0039, 4.14 carte d'identité, `train --final`, code du test scellé ; **tag `pre-scelle-h1` à poser sur la fusion de 4.14 s'il manque**).
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé

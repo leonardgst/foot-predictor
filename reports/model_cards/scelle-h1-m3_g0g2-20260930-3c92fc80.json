@@ -1,0 +1,216 @@
+{
+  "version": "scelle-h1-m3_g0g2-20260930-3c92fc80",
+  "created_at": "2026-09-30T12:33:13+00:00",
+  "horizon": "H1",
+  "model": {
+    "id": "M3_G0G2",
+    "class": "M3",
+    "params": {
+      "groups": [
+        "G0",
+        "G1",
+        "G2"
+      ],
+      "half_life": 240
+    },
+    "grid": {
+      "half_life": [
+        60,
+        120,
+        240
+      ]
+    },
+    "features": [
+      "is_home",
+      "api_league_id",
+      "behind_closed_doors",
+      "elo_pre",
+      "opp_elo_pre",
+      "goals_for_ewm_h240",
+      "goals_against_ewm_h240",
+      "xgp_for_ewm_h240",
+      "xgp_against_ewm_h240",
+      "opp_goals_for_ewm_h240",
+      "opp_goals_against_ewm_h240",
+      "opp_xgp_for_ewm_h240",
+      "opp_xgp_against_ewm_h240"
+    ],
+    "design": {
+      "groups": [
+        "G0",
+        "G1",
+        "G2"
+      ],
+      "half_life": 240,
+      "level": "team",
+      "dropped": []
+    }
+  },
+  "hyperparameters": {
+    "chosen": {
+      "groups": [
+        "G0",
+        "G1",
+        "G2"
+      ],
+      "half_life": 240
+    },
+    "inner_validation": [
+      {
+        "params": {
+          "groups": [
+            "G0",
+            "G1",
+            "G2"
+          ],
+          "half_life": 60
+        },
+        "log_loss": 1.8679931027322136,
+        "matches": 1752
+      },
+      {
+        "params": {
+          "groups": [
+            "G0",
+            "G1",
+            "G2"
+          ],
+          "half_life": 120
+        },
+        "log_loss": 1.8674118229028118,
+        "matches": 1752
+      },
+      {
+        "params": {
+          "groups": [
+            "G0",
+            "G1",
+            "G2"
+          ],
+          "half_life": 240
+        },
+        "log_loss": 1.8673061052127669,
+        "matches": 1752
+      }
+    ]
+  },
+  "training": {
+    "first_season": 2015,
+    "last_season": 2024,
+    "first_match": "2015-08-07T18:30:00+00:00",
+    "last_match": "2025-05-25T19:00:00+00:00",
+    "rows": 35996,
+    "matches": 17998,
+    "population": "top5",
+    "excluded_rows": 26,
+    "includes_sealed_matches": false
+  },
+  "dataset": {
+    "version": "ds-2026-09-30-ba2b91f7",
+    "manifest_sha256": "ba2b91f7d1b131e26140fc02b628ed3f886542572ea8949e781b6145d462b2fc",
+    "registry_sha256": "3db41ad0d7a84bf29d0e026e606c69ec4e809edd33070e101a84366102516289",
+    "load_run_id": 4
+  },
+  "alembic_revision": "0006_dataset_version",
+  "code": {
+    "commit": "3c92fc80fa8f892a3203866f5db6e8c18c92c4b5",
+    "dirty": false
+  },
+  "experiment_file": "experiments/scelle_h1.yaml",
+  "coefficients": {
+    "const": 0.15661115322298275,
+    "league_61": 0.01624500498709009,
+    "league_78": -0.01068650532619775,
+    "league_135": -0.02671211404668185,
+    "league_140": 0.012982440908561961,
+    "is_home": 0.23594857016778875,
+    "behind_closed_doors": 0.08039900852434204,
+    "home_x_closed": -0.13361138177003126,
+    "z_elo": 0.15309896096679154,
+    "z_opp_elo": -0.1624695313036134,
+    "z_log_goals_for_ewm_h240": 0.04126860612806696,
+    "z_log_goals_against_ewm_h240": 0.04528429279691742,
+    "z_log_xgp_for_ewm_h240": 0.07759015748971239,
+    "z_log_xgp_against_ewm_h240": -0.028171325059524795,
+    "z_log_opp_goals_for_ewm_h240": 0.032408950542335294,
+    "z_log_opp_goals_against_ewm_h240": 0.010281811621084125,
+    "z_log_opp_xgp_for_ewm_h240": 0.008476721316981323,
+    "z_log_opp_xgp_against_ewm_h240": 0.06424641707977347
+  },
+  "validation": {
+    "report": "ablations-20260930T110352",
+    "model_id": "A2_G0G2",
+    "folds": [
+      "2021-22",
+      "2022-23",
+      "2023-24",
+      "2024-25"
+    ],
+    "log_loss": 1.8805179245315808,
+    "rps": 0.12873627732307555,
+    "brier_over_2_5": 0.24161596209582467,
+    "matches": 7156,
+    "calibration_over_2_5": {
+      "mean_abs_gap": 0.016612265745151893,
+      "slope": 0.9529506317675408,
+      "intercept": 0.029002448251428427
+    },
+    "comparisons": [
+      {
+        "a": "B0",
+        "b": "A2_G0G2",
+        "log_loss": {
+          "mean": 0.022410197954926072,
+          "low": 0.016929090522816468,
+          "high": 0.028029113182548162,
+          "n": 7156,
+          "n_blocks": 736,
+          "excludes_zero": true
+        }
+      },
+      {
+        "a": "A1_G0G1",
+        "b": "A2_G0G2",
+        "log_loss": {
+          "mean": 0.009166051770952612,
+          "low": 0.005705974691776619,
+          "high": 0.012679757673785682,
+          "n": 7156,
+          "n_blocks": 736,
+          "excludes_zero": true
+        }
+      },
+      {
+        "a": "A2_G0G2",
+        "b": "A3_G0G3",
+        "log_loss": {
+          "mean": -9.858406247944666e-05,
+          "low": -0.0003952831332326558,
+          "high": 0.00019413530924590594,
+          "n": 7156,
+          "n_blocks": 736,
+          "excludes_zero": false
+        }
+      },
+      {
+        "a": "B1",
+        "b": "A2_G0G2",
+        "log_loss": {
+          "mean": 0.01785928968622809,
+          "low": 0.013346568746219312,
+          "high": 0.022582450054195093,
+          "n": 7156,
+          "n_blocks": 736,
+          "excludes_zero": true
+        }
+      }
+    ]
+  },
+  "limits": [
+    "Horizon H1 : aucune information de composition (ADR-0010).",
+    "Indépendance conditionnelle des deux équipes (Dixon-Coles sans gain, ADR-0038) ; légère sous-dispersion des buts par équipe (φ ≈ 0,98) non modélisée.",
+    "En live, les tirs de G2 viennent de football-data seulement : écart d'xg_proxy de +0,02 en moyenne, +0,08 en Serie A (ADR-0035), à contrôler en partie 5.",
+    "Les coupes ne sont pas des matchs d'évaluation ; le modèle est appris et validé sur les championnats du top 5.",
+    "Calibration de P(T > 2,5) : un décile sur dix à 3,8 points en validation glissante (ADR-0039)."
+  ]
+}

@@ -3,7 +3,7 @@
 % diagnostics.py, distributions.py, models/). Les chiffres cités viennent des rapports
 % reports/experiments/*.json (jeu ds-2026-09-30-ba2b91f7, 4 plis, 7 156 matchs).
 
-\chapter{Modèles}
+\chapter{Modèles et évaluation}
 \label{chap:modeles}
 
 Ce chapitre présente les modèles du MVP dans l'ordre du rapport de cadrage (I.4) : chaque étape
@@ -12,6 +12,56 @@ prédire des matchs) et la même sortie : \(\lambda_{\mathrm{dom}}\), \(\lambda_
 loi du total \(T = Y_{\mathrm{dom}} + Y_{\mathrm{ext}}\), repliée sur \(\{0, \dots, 9, \ge 10\}\).
 Les variables sont celles des groupes G0 (contexte : domicile, championnat, huis clos) et G1 (Elo),
 standardisées sur l'apprentissage du pli seulement.
+
+% ---------------------------------------------------------------------------------------------
+\section{Protocole d'évaluation et métriques}
+\label{sec:protocole}
+
+\paragraph{Plis.} Quatre plis à fenêtre croissante (ADR-0012, ADR-0037) : pour la saison de test
+\(s \in \{2021, 2022, 2023, 2024\}\), apprentissage sur les lignes \((m, e)\) des saisons 2015-16 à
+\(s - 1\), évaluation sur les matchs de championnat du top 5 de la saison \(s\). Les hyperparamètres se
+choisissent par validation interne (apprentissage jusqu'à \(s - 2\), mesure sur \(s - 1\)), puis le
+modèle est réajusté sur tout l'apprentissage du pli. Standardisation et autres ajustements se font
+dans le pli ; les comparaisons portent sur les mêmes matchs (intersection).
+
+\paragraph{Loi du total et métriques.} Chaque modèle prédit
+\(\hat p_k = \hat P(T = k)\) pour \(k \in \{0, \dots, 9\}\) et \(\hat p_{10} = \hat P(T \ge 10)\). Pour un
+match de total observé \(t\), avec \(c(t) = \min(t, 10)\) :
+\[
+  \text{log-loss} = -\log \hat p_{c(t)},
+  \qquad
+  \text{RPS} = \frac{1}{K - 1}\sum_{k=0}^{K-2}\Big(\hat F(k) - \mathbf{1}\{t \le k\}\Big)^2
+  \quad (K = 8 \text{ catégories } 0, \dots, 6, \ge 7),
+\]
+\[
+  \text{Brier} = \big(\hat P(T > 2{,}5) - \mathbf{1}\{t > 2{,}5\}\big)^2 .
+\]
+Le log-loss est la métrique principale : c'est une règle de score strictement propre, liée à la
+vraisemblance, sensible à toute la loi. Une probabilité nulle sur le total observé donne une perte
+infinie ; elle est refusée, jamais remplacée par un plancher.
+
+\paragraph{Calibration.} Par décile de \(\hat p = \hat P(T \ge 3)\) (classes d'effectifs égaux), on
+compare la moyenne prédite à la fréquence observée ; on estime aussi \(\operatorname{logit} P(Y = 1)
+= a + b \operatorname{logit}(\hat p)\) : un modèle calibré a \(a = 0\), \(b = 1\) ; \(b < 1\) signale des
+prédictions trop extrêmes. Le \emph{PIT randomisé} d'une loi discrète, \(\hat F(t - 1) + U\, \hat
+p_{c(t)}\) avec \(U\) uniforme sur \([0, 1]\), est uniforme si la loi est juste.
+
+\paragraph{Intervalle et couverture.} L'intervalle \([q_{10} ; q_{90}]\) de la loi discrète ne couvre pas
+exactement 80 \% ; on publie donc sa couverture annoncée \(\hat P(T \in [q_{10} ; q_{90}])\) et l'on
+compare la couverture observée à la moyenne des couvertures annoncées (ADR-0009).
+
+\paragraph{Inférence sur les écarts.} Pour deux modèles \(A\) et \(B\), \(d_m = \ell_A(m) - \ell_B(m)\)
+match par match ; \(\bar d > 0\) : \(B\) est meilleur. Les matchs d'une même journée d'un championnat
+étant corrélés, l'intervalle à 95 \% vient d'un \emph{bootstrap par blocs} : on tire avec remise les
+blocs (championnat, saison, journée) de chaque pli, \(10\,000\) fois, et l'on prend les percentiles
+2,5 et 97,5 de \(\sum_b S_b^* / \sum_b n_b^*\) (sommes et effectifs des blocs tirés). La statistique
+de Diebold-Mariano \(\bar d / \sqrt{\hat V}\), avec \(\hat V = \sum_b (S_b - n_b \bar d)^2 / N^2\), complète.
+
+\paragraph{Règle de décision (ADR-0037, écrite avant toute évaluation).} Un modèle ou un groupe de
+variables plus complexe \(B\) remplace \(A\) si (i) le gain moyen poolé des 4 plis est positif et son
+intervalle à 95 \% exclut 0 ; (ii) le gain est positif dans au moins 3 plis sur 4 ; (iii) la
+calibration poolée ne se dégrade pas (écart absolu moyen par décile de \(P(T \ge 3)\) : \(+0{,}5\)
+point au plus ; pente dans \([0{,}9 ; 1{,}1]\)). Sinon, on garde le plus simple.
 
 % ---------------------------------------------------------------------------------------------
 \section{M1 : la régression linéaire sur le total}
@@ -226,3 +276,30 @@ log-linéaire à l'Elo suffit, et aucune spline n'est ajoutée.
 variance d'estimation est déjà faible. En revanche, les variables G2 et G3 font gagner \(0{,}0091\)
 (\([0{,}0056 ; 0{,}0126]\)) au Poisson par équipe. La structure retenue reste M3 (non régularisé) ; les
 ablations du lot 3 mesurent la part de chaque groupe.
+
+% ---------------------------------------------------------------------------------------------
+\section{Ablations et modèle retenu}
+\label{sec:retenu}
+
+\paragraph{Ablations.} Sur la structure M3, les groupes s'ajoutent un à un et chaque ajout est jugé
+par la règle : G0 (contexte) gagne \(0{,}0039\) sur B0 ; G1 (Elo) \(0{,}0094\)
+(\([0{,}0060 ; 0{,}0128]\)) de plus ; G2 (moyennes glissantes) \(0{,}0092\) (\([0{,}0057 ; 0{,}0127]\)) de
+plus ; G3 (calendrier) \(-0{,}0001\) (\([-0{,}0004 ; 0{,}0002]\)) : il n'est pas retenu. Apprendre aussi
+sur les deuxièmes divisions n'apporte rien de significatif (\(+0{,}0003\), \([-0{,}0003 ; 0{,}0010]\)).
+
+\paragraph{Modèle MVP, horizon H1 (ADR-0039).} Pour une ligne \((m, e)\),
+\[
+  \log \lambda_{m,e} = \beta_0 + \beta_{\mathrm{ch}(m)} + \beta_{\mathrm{dom}}\, d_{m,e}
+  + \beta_{\mathrm{hc}}\, h_m + \beta_{\mathrm{dom \times hc}}\, d_{m,e} h_m
+  + \beta_{1}\, \tilde R_e + \beta_{2}\, \tilde R_{\mathrm{adv}(e)}
+  + \sum_{j=1}^{8} \gamma_j\, \widetilde{\log g_j},
+\]
+où \(\tilde R\) est l'Elo standardisé, et \(\widetilde{\log g_j}\) les logarithmes standardisés des huit
+moyennes glissantes (buts et \(\mathrm{xg\_proxy}\), pour et contre, de l'équipe et de l'adversaire) à
+la demi-vie choisie par validation interne. \(Y_{m,e} \sim \mathcal{P}(\lambda_{m,e})\), estimé par
+maximum de vraisemblance sur le top 5, et \(T \sim \mathcal{P}(\lambda_{\mathrm{dom}} +
+\lambda_{\mathrm{ext}})\). Sur les 4 plis, il bat B1 de \(0{,}0179\) (\([0{,}0133 ; 0{,}0226]\)), avec une
+pente de calibration poolée de \(0{,}95\) et une couverture de \([q_{10} ; q_{90}]\) à \(\pm 1{,}1\) point
+de la couverture annoncée. Le même modèle sert en rejeu et en live (G3 non retenu). Le test scellé,
+sur les matchs joués depuis le 1\textsuperscript{er} juillet 2025, dira s'il tient ses promesses ; son
+résultat sera publié tel quel.

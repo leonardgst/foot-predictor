@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-09-30 (fin du lot 2 de la partie 4)
-**Partie courante** : 4/6, protocole, références et modèle MVP (J5, J6), phase A. **Lots 1 et 2 faits** (protocole, références, modèles M1 à M6) ; lot 3 (ablations, choix du modèle H1, gel de la liste) à la prochaine session. Les phases B des parties 2, 3 et 4 reprennent après la session de gel du **lundi 19 octobre**, sur demande.
+**Dernière mise à jour** : 2026-09-30 (fin de la partie 4, phase A)
+**Partie courante** : 4/6, protocole, références et modèle MVP (J5, J6). **Phase A faite** (lots 1 à 3) ; la **phase B** (test scellé, entraînement final) reprend après la session de gel du **lundi 19 octobre** et les phases B des parties 2 et 3, sur demande.
 
-**Reprise de la partie 4 au lot 3, sous-étape 4.15** (clôture de la phase A, branche `docs/10-cloture-partie-4a` ; faits : 4.12 ablations, 4.13 ADR-0039, 4.14 carte d'identité, `train --final`, code du test scellé ; **tag `pre-scelle-h1` à poser sur la fusion de 4.14 s'il manque**).
+**Reprise de la partie 4 à la phase B** (4.16 puis 4.17), après les préconditions ci-dessous ; lire d'abord `docs/retours/partie-4a_2026-09-30.md`.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé
@@ -16,7 +16,8 @@
   - `modeling/` : métriques, protocole, bootstrap par blocs, exécuteur d'expériences, anciens modules dans `modeling/legacy/` ;
   - **protocole et règle de décision figés** (ADR-0037, tag `protocole-v1`) ;
   - références : B1 bat B0 de +0,0046 [+0,0010 ; +0,0080] en log-loss du total ; le marché bat B1 de +0,0091 en Brier de P(T > 2,5) (`docs/resultats/references.md`).
-- **Partie 4, lot 2** (2026-09-30, PR #50 à #54, `docs/retours/partie-4-lot2_2026-09-30.md`) : M1 à M6 sur G0 + G1 (`docs/resultats/modeles.md`, chapitre LaTeX « Modèles ») ; **structure retenue : M3, Poisson par équipe** (ADR-0038), qui bat B1 de +0,0087 [+0,0048 ; +0,0126] ; NB, Dixon-Coles et régularisation sans gain ; G2 + G3 apportent +0,0091 à M3.
+- **Partie 4, lot 2** (PR #50 à #54) : M1 à M6 sur G0 + G1 ; **structure retenue : M3, Poisson par équipe** (ADR-0038) ; NB, Dixon-Coles et régularisation sans gain.
+- **Partie 4, lot 3** (PR #55 à #58, `docs/retours/partie-4a_2026-09-30.md`) : ablations (G1 +0,0094, G2 +0,0092, G3 et D2 sans gain, `docs/resultats/ablations.md`) ; **modèle MVP H1 : M3 sur G0 + G1 + G2, top 5** (ADR-0039), qui bat B1 de +0,0179 [+0,0133 ; +0,0226] ; carte d'identité (`reports/model_cards/`) ; code du test scellé ; **tag `pre-scelle-h1`**.
 
 ## En cours
 
@@ -44,16 +45,6 @@
 
 **Reprise de la partie 2 à la phase B après la session de gel** : 2.10 (`load` sur le brut définitif, recopie des CSV), 2.11 (chemins gelés, dont E-036), 2.12 (tag `v0.3.0`). Commandes : `docs/realisation/04_referentiel/README.md`, section « Phase B ».
 
-**Reprise de la partie 4, lot 3, à la prochaine session** (commandes de départ) :
-
-```bash
-cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
-uv run alembic current                        # 0007_cotes_football_data
-uv run python -m foot_predictor.collect.api_football lock-status
-uv run pytest -q                              # 571 réussis, 2 sautés au 2026-09-30
-git switch --no-track -c feat/09-ablations origin/main
-```
-
 **Reprise de la partie 3 à la phase B après la session de gel et la phase B de la partie 2** (3.11, sur demande) :
 
 ```bash
@@ -66,7 +57,23 @@ uv run python -m foot_predictor.features check --invariance
 # puis tag v0.4.0, ETAT_PROJET.md, docs/retours/partie-3_<date>.md
 ```
 
-**Long terme** : 4. protocole, références et modèle MVP (J5, J6) ; 5. inférence, API et interface, `v1.0.0` (J7, J8) ; 6. version intermédiaire (J9).
+**Reprise de la partie 4 à la phase B** (après le gel, `v0.3.0` et `v0.4.0` ; sur demande) :
+
+```bash
+cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
+git tag -l data-freeze-2026-10 v0.3.0 v0.4.0 pre-scelle-h1        # les quatre tags doivent exister
+uv run python -m foot_predictor.collect.api_football lock-status   # libre
+git diff --stat pre-scelle-h1..HEAD -- src/foot_predictor/modeling src/foot_predictor/features experiments   # VIDE, sinon s'arrêter
+git switch --no-track -c data/10-test-scelle-h1 origin/main
+uv run python -m foot_predictor.features build --sealed-test --experiment experiments/scelle_h1.yaml   # 1 ligne au journal
+uv run python -m foot_predictor.modeling evaluate experiments/scelle_h1.yaml --sealed-test --dataset <version de data/datasets_scelles/>
+# UNE seule fois ; résultat tel quel dans docs/resultats/test_scelle_h1.md ; en cas d'erreur technique : ne pas relancer, écrire et s'arrêter
+git switch --no-track -c feat/10-modele-final origin/main   # 4.17, après fusion de 4.16
+uv run python -m foot_predictor.modeling train --final experiments/scelle_h1.yaml --model M3_G0G2 --include-sealed     --dataset <version scellée> --validation-report reports/experiments/<rapport du test scellé>.json
+# ADR de clôture, tag v0.5.0, retour docs/retours/partie-4_<date>.md
+```
+
+**Long terme** : 5. inférence, API et interface, `v1.0.0` (J7, J8) ; 6. version intermédiaire (J9).
 
 ## Commandes de la session de gel (19 octobre)
 

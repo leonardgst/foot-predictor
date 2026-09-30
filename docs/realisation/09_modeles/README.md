@@ -15,8 +15,12 @@ uv run python -m foot_predictor.modeling evaluate experiments/m1_m2.yaml   # env
 uv run python -m foot_predictor.modeling evaluate experiments/m3.yaml      # environ 7 s (diagnostic de M4 compris)
 uv run python -m foot_predictor.modeling evaluate experiments/m5.yaml      # environ 7 s
 uv run python -m foot_predictor.modeling evaluate experiments/m6.yaml      # environ 12 min (élastique net)
+uv run python -m foot_predictor.modeling evaluate experiments/ablations.yaml  # environ 1 min : G0 à G3 sur M3 (4.12)
+uv run python -m foot_predictor.modeling evaluate experiments/population.yaml # environ 15 s : top 5 contre top 5 et D2
 uv run python -m foot_predictor.modeling summary reports/experiments/<id>.json --output <fichier.md>
 ```
+
+Ablations (4.12) : `docs/resultats/ablations.md` ; courbe d'apport et analyses descriptives par `modeling/analysis.py` (`contribution_table`, `plot_contribution`, `gain_by_group`, `closed_doors_effect`), figure `docs/resultats/figures/courbe_apport.png`. Résultat : G0 + G1 + G2 retenus, G3 et les D2 sans gain.
 
 ## Modèles (`modeling/models/`)
 

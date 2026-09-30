@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-048 — Échec de test masqué par un tube, puis index manquants dans les modèles ORM (2026-09-30)
+
+- **Contexte** : sous-étape 5.4 (migration 0008).
+- **Message d'erreur** : `test_models_match_migrations` : `remove_index … uq_model_registry_one_active` ; la commande `uv run pytest -q | tail -1 && git commit …` a pourtant commité.
+- **Cause** : (1) dans `commande | tail`, le code de sortie est celui de `tail`, pas de `pytest` : l'échec n'arrêtait pas l'enchaînement ; (2) les index de la migration 0008 (index unique partiel du registre, index de recherche des prédictions) n'étaient pas déclarés dans les modèles SQLAlchemy.
+- **Solution** : index ajoutés aux `__table_args__` ; commit de reprise retiré localement (non poussé) puis remis après la correction ; les tests se lancent désormais avec le vrai code de sortie (`pytest > fichier ; code=$?`).
+- **Fichiers concernés** : `src/foot_predictor/db/models.py`.
+- **Prévention** : jamais de `pytest … | tail` avant un `&&` ; toute migration qui crée un index le déclare aussi dans le modèle ORM.
+- **Test de non-régression** : `tests/db/test_migration_0004.py::test_models_match_migrations`.
+
 ## E-047 — PR fusionnée avant la fin de la CI (2026-09-30)
 
 - **Contexte** : fusion de la PR #55 (ablations, partie 4, sous-étape 4.12).

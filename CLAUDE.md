@@ -58,6 +58,13 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - **Depuis le tag `pre-scelle-h1`** : aucun changement sous `src/foot_predictor/modeling/`, `src/foot_predictor/features/`, `experiments/` avant le test scellé H1.
 - **Un lot par session** : finir le lot, écrire son retour, mettre à jour la ligne « Reprise » d'`ETAT_PROJET.md` (dernière modification de chaque PR), puis s'arrêter.
 
+## Inférence, API et interface (partie 5)
+
+- **Chemins figés par `pre-scelle-h1`** jusqu'à la fin du test scellé : `src/foot_predictor/modeling/`, `src/foot_predictor/features/`, `src/foot_predictor/seal.py`, `experiments/`, `tests/modeling`, `tests/features` : on les **importe**, jamais on ne les modifie (contrôle `git diff --stat pre-scelle-h1..HEAD -- <ces chemins>` vide avant chaque fusion). Le code de la partie 5 vit dans `inference/`, `api/`, `ui/` et de nouveaux fichiers de `collect/football_data/`.
+- **Même fonction** : l'inférence n'a aucune formule de variable propre ; elle appelle `features.dataset.build_frame` sur l'historique tronqué au jour du match, un jour à la fois (ADR-0040). Tout écart entre entraînement et inférence est un défaut.
+- **Disponibilité** : une variable requise est présente, manquante (raison) ou périmée (source en retard) ; une seule non présente ⇒ `unavailable`, aucune prédiction, jamais de valeur de remplacement.
+- **Rejeu** : modèle du pli de la saison, jamais un modèle qui a vu la saison ; saisons 2021-22 à 2024-25 tant que le test scellé n'est pas fait. **Live** : prédiction écrite avant le coup d'envoi seulement.
+
 ## Commandes principales
 
 ```bash

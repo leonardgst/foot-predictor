@@ -1,23 +1,17 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-09-30 (partie 5, lot 1 en cours)
-**Partie courante** : 5/6, inférence, API et interface (J7, J8), phase A, lot 1. La partie 4 attend sa phase B (test scellé, puis entraînement final) après la session de gel du **lundi 19 octobre** ; les phases B des parties 2, 3, 4 et 5 se font sur demande.
+**Dernière mise à jour** : 2026-09-30 (fin du lot 1 de la partie 5)
+**Partie courante** : 5/6, inférence, API et interface (J7, J8), phase A. **Lot 1 fait** (inférence en rejeu, traçabilité) ; lot 2 (API, effet des tirs de football-data) à la prochaine session. La partie 4 attend sa phase B (test scellé, entraînement final) après la session de gel du **lundi 19 octobre** ; les phases B des parties 2 à 5 se font sur demande.
 
-**Reprise de la partie 5 au lot 1, sous-étape 5.5** (clôture du lot 1, branche `docs/11-cloture-lot-1` ; faits : 5.0 à 5.4, base de travail en révision 0008). Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
+**Reprise de la partie 5 au lot 2, sous-étape 5.6** (API, branche `feat/12-api`). Relancer le prompt de la partie 5 ; lire d'abord `docs/retours/partie-5-lot1_2026-09-30.md`. Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé
 
 - Cadrage, collecteur v2, collecte P1 à P4 ; partie 1 (PR #15 à #21) ; partie 2, phase A (PR #22 à #31) : référentiel reconstruit par `load`.
 - **Partie 3, phase A** (PR #32 à #42, `docs/retours/partie-3a_2026-09-29.md`) : scellé technique et porte unique (ADR-0028), tirs de football-data (ADR-0029), registre et jeu versionné (ADR-0030), Elo (ADR-0031), glissants et `xg_proxy` (ADR-0032), calendrier et huis clos (ADR-0033), notebooks et LaTeX (ADR-0034).
-- **Partie 4, lot 1** (2026-09-30, PR #43 à #49, `docs/retours/partie-4-lot1_2026-09-30.md`) :
-  - tirs d'API-FOOTBALL depuis 2015-16 quand elle est complète, `xg_proxy` = 0,3076 · tirs cadrés, jeu **`ds-2026-09-30-ba2b91f7`** (ADR-0035) ;
-  - cotes plus/moins 2,5 dans `staging.match_odds` (migration 0007, `ops.load_run` n° 5), référence de marché (ADR-0036) ;
-  - `modeling/` : métriques, protocole, bootstrap par blocs, exécuteur d'expériences, anciens modules dans `modeling/legacy/` ;
-  - **protocole et règle de décision figés** (ADR-0037, tag `protocole-v1`) ;
-  - références : B1 bat B0 de +0,0046 [+0,0010 ; +0,0080] en log-loss du total ; le marché bat B1 de +0,0091 en Brier de P(T > 2,5) (`docs/resultats/references.md`).
-- **Partie 4, lot 2** (PR #50 à #54) : M1 à M6 sur G0 + G1 ; **structure retenue : M3, Poisson par équipe** (ADR-0038) ; NB, Dixon-Coles et régularisation sans gain.
-- **Partie 4, lot 3** (PR #55 à #58, `docs/retours/partie-4a_2026-09-30.md`) : ablations (G1 +0,0094, G2 +0,0092, G3 et D2 sans gain, `docs/resultats/ablations.md`) ; **modèle MVP H1 : M3 sur G0 + G1 + G2, top 5** (ADR-0039), qui bat B1 de +0,0179 [+0,0133 ; +0,0226] ; carte d'identité (`reports/model_cards/`) ; code du test scellé ; **tag `pre-scelle-h1`**.
+- **Partie 4, phase A** (PR #43 à #58, `docs/retours/partie-4a_2026-09-30.md`) : tirs d'API-FOOTBALL et jeu **`ds-2026-09-30-ba2b91f7`** (ADR-0035) ; cotes (migration 0007, ADR-0036) ; protocole figé (ADR-0037, tag `protocole-v1`) ; structure M3 (ADR-0038) ; **modèle MVP H1 : M3 sur G0 + G1 + G2, top 5** (ADR-0039), +0,0179 [+0,0133 ; +0,0226] sur B1 ; code du test scellé, **tag `pre-scelle-h1`**.
+- **Partie 5, lot 1** (2026-09-30, PR #59 à #64, `docs/retours/partie-5-lot1_2026-09-30.md`) : architecture (ADR-0040), groupes `api` et `ui` ; `inference/` : variables par la fonction de l'entraînement (622 lignes identiques au bit près), modèles de rejeu par pli (écart nul avec l'évaluation), disponibilité et prédiction, **migration 0008** (`ops.prediction`, `ops.model_registry`).
 
 ## En cours
 
@@ -34,14 +28,20 @@
 
 ## Décisions ouvertes
 
-- Renouvellement automatique de l'abonnement : à couper au gel. Conditions de football-data (ADR-0023) : à relire.
-- Rapport, décisions 16, 18, 20 à 22.
+- Renouvellement automatique de l'abonnement : à couper au gel. Conditions de football-data (ADR-0023) : à relire. Rapport : décisions 16, 18, 20 à 22.
 
 ## Prochaines actions
 
 **Automatiques** (tâches planifiées, journaux dans `C:/foot-predictor/data/logs/`) : `refresh` puis `run` les lundis 5 et 12 octobre à 08:00 ; journal T-60 les 9, 10, 11, 12, 16, 17 et 18 octobre.
 
 **Session de gel, lundi 19 octobre** : suivre `docs/realisation/03_collecte/gel.md` (code du tag `v0.2.0`).
+
+**Départ du lot 2 de la partie 5** :
+```bash
+cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
+uv run alembic current ; uv run python -m foot_predictor.collect.api_football lock-status   # 0008 ; libre
+uv run pytest -q > /tmp/pt.txt; echo $? ; tail -1 /tmp/pt.txt   # 0 ; 616 réussis, 2 sautés (jamais « | tail && »)
+```
 
 **Reprise de la partie 2 à la phase B après la session de gel** : 2.10 (`load` sur le brut définitif, recopie des CSV), 2.11 (chemins gelés, dont E-036), 2.12 (tag `v0.3.0`). Commandes : `docs/realisation/04_referentiel/README.md`, section « Phase B ».
 

@@ -87,3 +87,66 @@ en compte.
 avec une pente de calibration poolée de \(0{,}97\). Ce qu'il rate : le total mélange deux équipes ;
 \(\log(\lambda_{\mathrm{dom}} + \lambda_{\mathrm{ext}})\) n'est pas linéaire dans les forces des
 équipes, et l'on perd \og qui marque \fg{} (section suivante, M3).
+
+% ---------------------------------------------------------------------------------------------
+\section{M3 : le modèle de Poisson par équipe}
+\label{sec:m3}
+
+\paragraph{Modèle.} Chaque match donne deux lignes \((m, e)\), une par équipe. Avec \(x_{m,e}\) les
+variables de l'équipe \emph{et} de son adversaire (constante, championnat, domicile, huis clos et son
+interaction avec le domicile, Elo de l'équipe et Elo de l'adversaire),
+\[
+  Y_{m,e} \sim \mathcal{P}(\lambda_{m,e}),
+  \qquad
+  \log \lambda_{m,e} = x_{m,e}^\top \beta .
+\]
+Le lien log rend multiplicative la rencontre de l'attaque d'une équipe et de la défense de
+l'autre : \(\lambda_{m,e} = e^{\beta_0}\, e^{\beta_{\mathrm{dom}} d_{m,e}}\, e^{\beta_{\mathrm{Elo}} z_e}\,
+e^{\beta_{\mathrm{adv}} z_{\mathrm{adv}(e)}} \cdots\).
+
+\paragraph{Loi du total.} Si \(Y_{\mathrm{dom}}\) et \(Y_{\mathrm{ext}}\) sont indépendants sachant
+les variables,
+\[
+  P(T = k) = \sum_{a=0}^{k} P(Y_{\mathrm{dom}} = a)\, P(Y_{\mathrm{ext}} = k - a),
+  \qquad\text{soit}\qquad T \sim \mathcal{P}(\lambda_{\mathrm{dom}} + \lambda_{\mathrm{ext}}),
+\]
+et la loi jointe \(P(a, b) = P(Y_{\mathrm{dom}} = a) P(Y_{\mathrm{ext}} = b)\) donne le score exact
+et le 1N2.
+
+\paragraph{Erreurs standard groupées.} Les deux lignes d'un match ne sont pas indépendantes. On
+estime \(\operatorname{Var}(\hat\beta)\) par le sandwich par grappes
+\(\hat V = A^{-1} \big(\sum_{m} s_m s_m^\top\big) A^{-1}\), où \(A\) est l'information de Fisher et
+\(s_m = \sum_{e \in m} (y_{m,e} - \hat\lambda_{m,e}) x_{m,e}\) le score du match. Sur nos données,
+elles valent de \(0{,}97\) à \(1{,}00\) fois les erreurs \og naïves \fg{} : sachant les variables,
+les deux lignes d'un match sont très légèrement corrélées négativement.
+
+\paragraph{Ce que M3 apporte.} Sur les 4 plis, M3 bat M2 de \(0{,}0033\) (\([0{,}0014 ;
+0{,}0052]\), 4 plis sur 4) et B1 de \(0{,}0087\) (\([0{,}0048 ; 0{,}0126]\)) ; pente de calibration
+poolée \(1{,}01\). Décomposer par équipe améliore la loi du total. Coefficients (pli 2024-25) :
+\(\hat\beta_{\mathrm{dom}} = 0{,}25\) (une équipe à domicile marque \(e^{0{,}25} \approx 1{,}28\) fois
+plus) ; à huis clos, l'interaction vaut \(-0{,}15\) : l'avantage tombe à \(e^{0{,}10} \approx 1{,}11\).
+
+% ---------------------------------------------------------------------------------------------
+\section{M4 : la dispersion, et pourquoi la binomiale négative n'est pas retenue}
+\label{sec:m4}
+
+\paragraph{Modèle.} La binomiale négative NB2 garde la moyenne \(\mu\) et ajoute un paramètre
+\(\alpha \ge 0\) :
+\[
+  P(Y = y) = \frac{\Gamma(y + \alpha^{-1})}{\Gamma(\alpha^{-1})\, y!}
+  \Big(\frac{\alpha^{-1}}{\alpha^{-1} + \mu}\Big)^{\alpha^{-1}}
+  \Big(\frac{\mu}{\alpha^{-1} + \mu}\Big)^{y},
+  \qquad
+  \operatorname{Var}(Y) = \mu + \alpha \mu^2 .
+\]
+Elle se justifie en cas de \emph{surdispersion}. On la teste par Cameron-Trivedi (section
+\ref{sec:m2}) et par le rapport de vraisemblance \(LR = 2(\ell_{NB} - \ell_{\mathcal{P}})\). Sous
+\(H_0 : \alpha = 0\), le paramètre est au bord de son domaine : \(LR\) suit le mélange
+\(\tfrac12 \chi^2_0 + \tfrac12 \chi^2_1\), d'où \(p = \tfrac12 P(\chi^2_1 > LR)\).
+
+\paragraph{Constat.} Sur l'apprentissage de chacun des 4 plis : \(\hat\varphi\) de \(0{,}976\) à
+\(0{,}980\), \(\hat\alpha_{CT}\) de \(-0{,}017\) à \(-0{,}014\) (\(p\) de \(0{,}001\) à \(0{,}017\)) :
+les buts d'une équipe sont légèrement \emph{sous}-dispersés une fois les variables connues. La NB2
+estime \(\alpha\) au bord (\(\approx 10^{-7}\)), \(LR \approx 0\), \(p = 0{,}5\). La binomiale négative
+ne peut pas représenter une sous-dispersion : elle se confond avec Poisson. Elle n'est donc pas
+évaluée sur les plis (règle de la sous-étape 4.8), et M3 reste la structure de référence.

@@ -2,10 +2,11 @@
 
 Généré par `python -m foot_predictor.modeling evaluate` (ou `index`). **Tous les essais sont conservés**, y compris ceux qui échouent : leur nombre aide à se méfier des comparaisons multiples.
 
-**3 essai(s)**, dont 0 en échec.
+**4 essai(s)**, dont 0 en échec.
 
 | Date (UTC) | Identifiant | Statut | Modèles | Première comparaison (log-loss du total, A − B, poolée) |
 |---|---|---|---|---|
 | 2026-09-30T08:06:11+00:00 | `references-mesure-duree-20260930T080611` | ok | B0, B1, marche_avant_cloture, marche_cloture | B0 − B1 : +0.0046 [+0.0014 ; +0.0080] |
 | 2026-09-30T08:06:23+00:00 | `references-20260930T080623` | ok | B0, B1, marche_avant_cloture, marche_cloture | B0 − B1 : +0.0046 [+0.0010 ; +0.0080] |
 | 2026-09-30T08:38:47+00:00 | `m1-m2-20260930T083847` | ok | B1, M1, M2 | B1 − M1 : -0.0108 [-0.0166 ; -0.0049] |
+| 2026-09-30T08:46:58+00:00 | `m3-20260930T084658` | ok | B1, M2, M3 | B1 − M3 : +0.0087 [+0.0048 ; +0.0126] |

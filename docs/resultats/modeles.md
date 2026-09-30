@@ -72,3 +72,73 @@ Résultat : **M1 est moins bon que B1** (−0,0108 [−0,0166 ; −0,0049], 0 pl
 - **Dispersion** : φ = 0,987 à 0,991 et Cameron-Trivedi α̂ ≈ −0,004 (t ≈ −1, p > 0,29) dans chaque pli : une fois le championnat et l'Elo connus, la variance du total est celle d'une loi de Poisson. Pas de surdispersion à corriger.
 - **Calibration** : P(T = 0), P(T = 1), P(T = 2) à moins de 2,2 points des fréquences observées ; PIT proche de l'uniforme (de 8,7 à 11,5 % par décile) ; pente poolée 0,97.
 - **Gain** : M2 bat M1 de +0,0162 [+0,0115 ; +0,0208] et **B1 de +0,0054 [+0,0018 ; +0,0090]** (3 plis sur 4 ; les trois critères de la règle sont remplis). C'est le premier modèle qui bat la référence : l'Elo apporte de l'information sur le total, au-delà du championnat. M2 reste une étape : il ne sait pas « qui marque ».
+
+## M3 : Poisson par équipe (structure de référence)
+
+Rapport `reports/experiments/m3-20260930T084658.json`, expérience `experiments/m3.yaml`.
+
+- **Concept** : une ligne par (match, équipe), Y ~ Poisson(λ), log λ = xᵀβ, x contenant les variables de l'équipe **et** de l'adversaire ; λ domicile et λ extérieur, total Poisson(λ_dom + λ_ext) (indépendance conditionnelle), loi jointe pour le score exact et le 1N2.
+- **Hypothèses** : loi de Poisson (variance = moyenne), log λ linéaire dans les variables, indépendance des deux équipes sachant les variables (testée par M5).
+- **Erreurs standard groupées par match** : de 0,97 à 1,00 fois les erreurs naïves ; les deux lignes d'un match, sachant les variables, sont presque indépendantes (très légère corrélation négative).
+
+Rapport `m3-20260930T084658` : jeu `ds-2026-09-30-ba2b91f7`, commit `1fc8290`, graine 20260930, 10000 rééchantillonnages.
+
+| Pli | Matchs d'évaluation | Intersection | Écartés | Avec cote | Hyperparamètres retenus |
+|---|---|---|---|---|---|
+| 2021-22 | 1826 | 1826 | 0 | n. d. | B1 : {'window': 1}; M2 : {'groups': ['G0', 'G1']}; M3 : {'groups': ['G0', 'G1'], 'check_dispersion': True} |
+| 2022-23 | 1826 | 1826 | 0 | n. d. | B1 : {'window': 3}; M2 : {'groups': ['G0', 'G1']}; M3 : {'groups': ['G0', 'G1'], 'check_dispersion': True} |
+| 2023-24 | 1752 | 1752 | 0 | n. d. | B1 : {'window': 1}; M2 : {'groups': ['G0', 'G1']}; M3 : {'groups': ['G0', 'G1'], 'check_dispersion': True} |
+| 2024-25 | 1752 | 1752 | 0 | n. d. | B1 : {'window': 1}; M2 : {'groups': ['G0', 'G1']}; M3 : {'groups': ['G0', 'G1'], 'check_dispersion': True} |
+
+| Modèle | Pli | Log-loss | RPS | Brier P(T > 2,5) | Calibration : écart moyen | Pente | Couverture observée | Couverture annoncée | Log-loss score exact | Brier 1N2 | MAE E[T] |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| B1 | 2021-22 | 1.9099 | 0.1336 | 0.2477 | 0.0286 | 0.86 | 86.2 % | 87.1 % | 3.0658 | 0.6530 | 1.368 |
+| B1 | 2022-23 | 1.8850 | 0.1293 | 0.2503 | 0.0445 | 0.36 | 87.1 % | 87.1 % | 3.0218 | 0.6437 | 1.322 |
+| B1 | 2023-24 | 1.9120 | 0.1328 | 0.2446 | 0.0450 | 1.16 | 87.2 % | 88.2 % | 3.0703 | 0.6519 | 1.354 |
+| B1 | 2024-25 | 1.8866 | 0.1295 | 0.2484 | 0.0401 | 0.56 | 89.6 % | 89.1 % | 3.0450 | 0.6542 | 1.342 |
+| M2 | 2021-22 | 1.9062 | 0.1330 | 0.2469 | 0.0345 | 0.90 | 86.1 % | 87.3 % | n. d. | n. d. | 1.365 |
+| M2 | 2022-23 | 1.8766 | 0.1281 | 0.2473 | 0.0280 | 0.84 | 87.4 % | 87.3 % | n. d. | n. d. | 1.310 |
+| M2 | 2023-24 | 1.9126 | 0.1329 | 0.2449 | 0.0289 | 1.05 | 86.5 % | 87.3 % | n. d. | n. d. | 1.353 |
+| M2 | 2024-25 | 1.8767 | 0.1281 | 0.2449 | 0.0441 | 1.10 | 88.1 % | 87.4 % | n. d. | n. d. | 1.311 |
+| M3 | 2021-22 | 1.9043 | 0.1328 | 0.2463 | 0.0291 | 0.89 | 86.4 % | 87.3 % | 2.9341 | 0.5920 | 1.364 |
+| M3 | 2022-23 | 1.8721 | 0.1275 | 0.2458 | 0.0277 | 0.96 | 87.4 % | 87.2 % | 2.9091 | 0.5876 | 1.305 |
+| M3 | 2023-24 | 1.9078 | 0.1322 | 0.2435 | 0.0392 | 1.18 | 86.3 % | 87.3 % | 2.9461 | 0.5832 | 1.348 |
+| M3 | 2024-25 | 1.8747 | 0.1278 | 0.2445 | 0.0300 | 1.02 | 87.9 % | 87.3 % | 2.9235 | 0.5885 | 1.312 |
+
+| Modèle | Matchs | Log-loss | RPS | Brier P(T > 2,5) | Calibration poolée : écart moyen | Pente | Ordonnée |
+|---|---|---|---|---|---|---|---|
+| B1 | 7156 | 1.8984 | 0.1313 | 0.2478 | 0.0228 | 0.69 | +0.041 |
+| M2 | 7156 | 1.8930 | 0.1305 | 0.2460 | 0.0195 | 0.97 | +0.039 |
+| M3 | 7156 | 1.8897 | 0.1301 | 0.2450 | 0.0143 | 1.01 | +0.047 |
+
+Écarts appariés A − B (positif : B meilleur), intervalle à 95 % par bootstrap par blocs :
+
+| A | B | Métrique | Écart poolé | IC 95 % | Plis où B gagne | DM (p) | Par pli |
+|---|---|---|---|---|---|---|---|
+| B1 | M3 | log-loss du total | +0.00869 | [+0.00477 ; +0.01262] | 4 sur 4 | 0.0000 | 2021 : +0.0056 ; 2022 : +0.0129 ; 2023 : +0.0043 ; 2024 : +0.0119 |
+| B1 | M3 | RPS | +0.00120 | [+0.00064 ; +0.00177] | 4 sur 4 | 0.0000 | 2021 : +0.0008 ; 2022 : +0.0017 ; 2023 : +0.0006 ; 2024 : +0.0017 |
+| | | règle de décision | (i) oui, (ii) oui, (iii) oui | **M3 remplace B1** | | | |
+| M2 | M3 | log-loss du total | +0.00329 | [+0.00140 ; +0.00520] | 4 sur 4 | 0.0006 | 2021 : +0.0019 ; 2022 : +0.0045 ; 2023 : +0.0048 ; 2024 : +0.0020 |
+| M2 | M3 | RPS | +0.00045 | [+0.00017 ; +0.00073] | 4 sur 4 | 0.0018 | 2021 : +0.0002 ; 2022 : +0.0006 ; 2023 : +0.0007 ; 2024 : +0.0003 |
+| | | règle de décision | (i) oui, (ii) oui, (iii) oui | **M3 remplace M2** | | | |
+
+### Ce que M3 enseigne
+
+- **Décomposer par équipe paie** : M3 bat M2 de +0,0033 [+0,0014 ; +0,0052] dans les 4 plis, avec les **mêmes variables** (G0 + G1). La règle de décision s'applique : M3 remplace M2 (et B1).
+- **Objectif du MVP déjà atteint par M3** : +0,0087 [+0,0048 ; +0,0126] sur B1 ; pente de calibration poolée 1,01 ; couverture observée à 1,0 point au plus de l'annoncée, par pli.
+- **Coefficients lisibles** (pli 2024-25) : domicile +0,25 (×1,28 buts) ; à huis clos, −0,15 (l'avantage tombe à ×1,11) ; Elo de l'équipe +0,24 par écart-type, Elo de l'adversaire −0,18.
+- **Continuité avec les modèles de 2025** : log-loss du score exact de 2,91 à 2,95 et Brier du 1N2 de 0,583 à 0,592 selon le pli (repères historiques : 2,933 et 0,59 sur 2024-25).
+- **Ce qu'il rate** : P(T = 1) reste surestimée (17,3 à 17,7 % prédits contre 15,2 à 17,4 % observés) ; la dépendance entre les deux équipes est la question de M5.
+
+## M4 : binomiale négative, non retenue (constat)
+
+La binomiale négative NB2 (Var = μ + α μ²) n'est évaluée que si la surdispersion est établie (sous-étape 4.8). Diagnostic sur l'apprentissage de chaque pli (M3, G0 + G1) :
+
+| Pli | φ (Pearson) | Cameron-Trivedi α̂ | t | p | α̂ de la NB2 | LR | p (au bord) |
+|---|---|---|---|---|---|---|---|
+| 2021-22 | 0,980 | −0,016 | −2,39 | 0,017 | 2,5 · 10⁻⁷ | 0,000 | 0,50 |
+| 2022-23 | 0,979 | −0,014 | −2,41 | 0,016 | 1,8 · 10⁻⁷ | 0,000 | 0,49 |
+| 2023-24 | 0,979 | −0,014 | −2,57 | 0,010 | 2,9 · 10⁻⁷ | 0,000 | 0,50 |
+| 2024-25 | 0,976 | −0,017 | −3,21 | 0,001 | 6,0 · 10⁻⁷ | 0,000 | 0,50 |
+
+**Lecture** : une fois le championnat, le terrain et l'Elo connus, les buts d'une équipe sont légèrement **sous**-dispersés (φ < 1, α̂ < 0 significatif). La NB2 ne peut qu'ajouter de la variance : son α tombe au bord (0), le rapport de vraisemblance est nul. **M4 n'est pas évalué sur les plis** (aucun essai ajouté) ; M3 reste la structure de référence. Une sous-dispersion de cet ordre (2 %) coûte peu ; une loi sous-dispersée (Conway-Maxwell-Poisson, par exemple) serait une piste de la version avancée, pas du MVP. Dans le pli 2023-24, l'optimiseur de la NB2 signale une non-convergence, au bord α = 0 : sans effet sur le constat.

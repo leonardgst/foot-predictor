@@ -15,12 +15,15 @@ numérotation interne. Règles :
 - pour chaque match apparié **ou** créé, une ligne par équipe dans
   `team_match_stats_external` : tirs et tirs cadrés (`HS`, `HST` à domicile, `AS`,
   `AST` à l'extérieur ; ADR-0029). Une valeur absente ou illisible reste vide,
-  jamais 0 ; une colonne absente d'un ancien fichier aussi.
+  jamais 0 ; une colonne absente d'un ancien fichier aussi ;
+- pour ces mêmes matchs, au plus une ligne par version dans `match_odds` : cotes
+  plus/moins 2,5 « avant clôture » et « clôture », colonne choisie par l'ordre de
+  priorité de `football_data_odds` (ADR-0036). Sans cote lisible, aucune ligne.
 
 Scellé (ADR-0012) : la cohérence des scores entre les deux sources n'est
 contrôlée que pour les matchs antérieurs au 1er juillet 2025. Au-delà, seuls
-les taux d'appariement et les décomptes sont produits. Les tirs des matchs
-scellés sont chargés (permis), jamais comparés ni résumés ici.
+les taux d'appariement et les décomptes sont produits. Les tirs et les cotes
+des matchs scellés sont chargés (permis), jamais comparés ni résumés ici.
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ from pathlib import Path
 from foot_predictor.collect.football_data.download import FIRST_SEASON, LAST_SEASON
 from foot_predictor.ingestion import raw_api
 from foot_predictor.ingestion.football_data_csv import CsvMatch, read_matches
+from foot_predictor.ingestion.football_data_odds import VERSIONS, select_odds
 from foot_predictor.ingestion.load_api import ApiLoad
 from foot_predictor.seal import SEAL_DATE
 
@@ -73,6 +77,8 @@ class ExternalLoad:
     score_mismatches: dict[tuple[str, int], int] = field(default_factory=dict)  # avant le scellé seulement
     _shots_id: int = 0
     _shots_team_matches: set[int] = field(default_factory=set)
+    _odds_id: int = 0
+    _odds_matches: set[int] = field(default_factory=set)
 
     def run(self) -> None:
         api = self.api
@@ -129,6 +135,7 @@ class ExternalLoad:
                         match_mapping_id += 1
                         self._compare_scores(division, season, row, fid)
                         self._emit_shots(api.match_ids[fid], row)
+                        self._emit_odds(api.match_ids[fid], row)
                     self.rates[(division, season)] = (matched, len(rows))
                     self.counts["fd_rows_covered"] += len(rows)
                     self.counts["fd_rows_matched"] += matched
@@ -160,6 +167,7 @@ class ExternalLoad:
                     )
                     match_mapping_id += 1
                     self._emit_shots(next_match, row)
+                    self._emit_odds(next_match, row)
                     next_match += 1
                     self.counts["matches_hors_api"] += 1
 
@@ -183,6 +191,29 @@ class ExternalLoad:
             self.counts["fd_shots_rows"] += 1
             if shots is None or on_target is None:
                 self.counts["fd_shots_rows_incomplete"] += 1
+
+    def _emit_odds(self, match_id: int, row: CsvMatch) -> None:
+        """Cotes plus/moins 2,5 du match, une ligne par version disponible, dans `match_odds` (ADR-0036).
+
+        Deux lignes du CSV appariées au même match : seule la première est gardée, comme
+        pour les tirs. Une version sans cote lisible ne donne aucune ligne (jamais inventée).
+        """
+        if match_id in self._odds_matches:
+            self.counts["fd_odds_duplicate_pairing"] += 1
+            return
+        self._odds_matches.add(match_id)
+        for version in VERSIONS:
+            odds = select_odds(row.row, version)
+            if odds is None:
+                self.counts[f"fd_odds_missing_{version}"] += 1
+                continue
+            self._odds_id += 1
+            self.api.rows.add(
+                "match_odds",
+                (self._odds_id, match_id, SOURCE, version, odds.over, odds.under, odds.column, odds.n_odds),
+            )
+            self.counts[f"fd_odds_rows_{version}"] += 1
+            self.counts[f"fd_odds_{version}_{odds.column}"] += 1
 
     def _team(self, name: str, hors_api_ids: dict[str, int]) -> int | None:
         if name in self.teams:

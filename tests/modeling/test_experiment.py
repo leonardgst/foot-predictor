@@ -59,6 +59,8 @@ def test_report_contains_folds_metrics_comparisons_and_decision(run):
     assert set(comparison["decision"]) == {"i_gain_significant", "ii_positive_folds", "iii_calibration", "b_replaces_a"}
     assert report["pooled"]["L"]["matches"] == 120
     assert "slope" in report["pooled"]["L"]["calibration_over_2_5"]
+    assert set(report["pooled"]["L"]["small_totals"]) == {"0", "1", "2"}  # question de M5
+    assert "brier_total_0" in comparison and "decision" in comparison
     saved = json.loads((tmp_path / "rapports" / f"{report['id']}.json").read_text(encoding="utf-8"))
     assert saved["dataset"]["version"] == "ds-test"
     assert (tmp_path / "pred" / report["id"] / "predictions.parquet").exists()

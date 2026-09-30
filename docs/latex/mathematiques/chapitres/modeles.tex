@@ -150,3 +150,39 @@ les buts d'une équipe sont légèrement \emph{sous}-dispersés une fois les var
 estime \(\alpha\) au bord (\(\approx 10^{-7}\)), \(LR \approx 0\), \(p = 0{,}5\). La binomiale négative
 ne peut pas représenter une sous-dispersion : elle se confond avec Poisson. Elle n'est donc pas
 évaluée sur les plis (règle de la sous-étape 4.8), et M3 reste la structure de référence.
+
+% ---------------------------------------------------------------------------------------------
+\section{M5 : la dépendance entre les deux équipes (Dixon-Coles)}
+\label{sec:m5}
+
+\paragraph{Modèle.} M3 suppose \(Y_{\mathrm{dom}}\) et \(Y_{\mathrm{ext}}\) indépendants sachant
+les variables. Dixon et Coles (1997) corrigent les quatre scores les plus bas :
+\[
+  P(a, b) = \tau_{\lambda,\mu}(a, b)\; \frac{e^{-\lambda}\lambda^{a}}{a!}\; \frac{e^{-\mu}\mu^{b}}{b!},
+  \qquad
+  \tau(a, b) =
+  \begin{cases}
+    1 - \lambda\mu\rho & (a, b) = (0, 0)\
+    1 + \lambda\rho & (a, b) = (0, 1)\
+    1 + \mu\rho & (a, b) = (1, 0)\
+    1 - \rho & (a, b) = (1, 1)\
+    1 & \text{sinon,}
+  \end{cases}
+\]
+avec \(\lambda = \lambda_{\mathrm{dom}}\), \(\mu = \lambda_{\mathrm{ext}}\). Les corrections se
+compensent (\(-\lambda\mu\rho\, p_{00} + \lambda\rho\, p_{01} + \mu\rho\, p_{10} - \rho\, p_{11} = 0\)
+pour des marges de Poisson) : \(P\) reste une loi. La loi du total vient de la loi jointe,
+\(P(T = k) = \sum_{a + b = k} P(a, b)\). La contrainte \(\tau > 0\) impose
+\(\max(-1/\lambda, -1/\mu) < \rho < \min(1/(\lambda\mu), 1)\) pour chaque match.
+
+\paragraph{Estimation.} En deux temps, dans le pli : les \(\lambda\) de M3 par maximum de
+vraisemblance, puis \(\hat\rho = \arg\max_\rho \sum_m \log \tau(y_{m,\mathrm{dom}}, y_{m,\mathrm{ext}};
+\hat\lambda_m, \hat\mu_m, \rho)\).
+
+\paragraph{Résultat.} \(\hat\rho\) vaut de \(-0{,}061\) à \(-0{,}055\) selon le pli : les scores 0-0
+et 1-1 sont un peu plus fréquents que sous l'indépendance. Sur la loi du total (4 plis poolés),
+\(P(T = 1)\) passe de \(17{,}6\,\%\) à \(16{,}3\,\%\) (observé : \(16{,}3\,\%\)), mais \(P(T = 0)\) de
+\(6{,}5\,\%\) à \(7{,}1\,\%\) (observé : \(6{,}3\,\%\)) : la correction répare \(T = 1\) et dépasse sur
+\(T = 0\). Le log-loss du total ne bouge pas (\(+0{,}00002\), \([-0{,}0009 ; +0{,}0010]\)) : la
+corrélation change la forme de la loi sur les petites valeurs, sans gain global. Par la règle de
+décision, M3 (plus simple) est conservé.

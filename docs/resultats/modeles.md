@@ -142,3 +142,46 @@ La binomiale négative NB2 (Var = μ + α μ²) n'est évaluée que si la surdis
 | 2024-25 | 0,976 | −0,017 | −3,21 | 0,001 | 6,0 · 10⁻⁷ | 0,000 | 0,50 |
 
 **Lecture** : une fois le championnat, le terrain et l'Elo connus, les buts d'une équipe sont légèrement **sous**-dispersés (φ < 1, α̂ < 0 significatif). La NB2 ne peut qu'ajouter de la variance : son α tombe au bord (0), le rapport de vraisemblance est nul. **M4 n'est pas évalué sur les plis** (aucun essai ajouté) ; M3 reste la structure de référence. Une sous-dispersion de cet ordre (2 %) coûte peu ; une loi sous-dispersée (Conway-Maxwell-Poisson, par exemple) serait une piste de la version avancée, pas du MVP. Dans le pli 2023-24, l'optimiseur de la NB2 signale une non-convergence, au bord α = 0 : sans effet sur le constat.
+
+## M5 : dépendance entre les équipes (Dixon-Coles)
+
+Rapport `reports/experiments/m5-20260930T085337.json`, expérience `experiments/m5.yaml`.
+
+- **Concept** : M3, puis correction τ des scores 0-0, 1-0, 0-1 et 1-1 (Dixon et Coles, 1997), ρ estimé dans le pli à λ fixés ; loi du total tirée de la loi jointe corrigée.
+- **Question** (rapport I.2) : la corrélation change-t-elle la loi du total sur les petites valeurs ? Mesurée par la calibration de P(T = 0), P(T = 1), P(T = 2).
+- ρ̂ par pli : −0,060 (2021-22), −0,061 (2022-23), −0,055 (2023-24), −0,058 (2024-25) ; bornes τ > 0 : environ [−0,25 ; +0,37].
+
+| Modèle | Matchs | Log-loss | RPS | Brier P(T > 2,5) | Calibration poolée : écart moyen | Pente | Ordonnée |
+|---|---|---|---|---|---|---|---|
+| M3 | 7156 | 1.8897 | 0.1301 | 0.2450 | 0.0143 | 1.01 | +0.047 |
+| M5 | 7156 | 1.8897 | 0.1301 | 0.2450 | 0.0143 | 1.01 | +0.047 |
+
+Petits totaux, calibration poolée sur les 4 plis :
+
+| Modèle | k | P(T = k) prédite | observée | Brier | Écart moyen par décile | Pente |
+|---|---|---|---|---|---|---|
+| M3 | 0 | 6.5 % | 6.3 % | 0.0587 | 0.0047 | 0.93 |
+| M3 | 1 | 17.6 % | 16.3 % | 0.1362 | 0.0129 | 0.94 |
+| M3 | 2 | 23.9 % | 24.2 % | 0.1829 | 0.0102 | 1.17 |
+| M5 | 0 | 7.1 % | 6.3 % | 0.0588 | 0.0086 | 0.97 |
+| M5 | 1 | 16.3 % | 16.3 % | 0.1360 | 0.0073 | 0.96 |
+| M5 | 2 | 24.6 % | 24.2 % | 0.1829 | 0.0082 | 1.14 |
+
+Écarts appariés A − B (positif : B meilleur), intervalle à 95 % par bootstrap par blocs :
+
+| A | B | Métrique | Écart poolé | IC 95 % | Plis où B gagne | DM (p) | Par pli |
+|---|---|---|---|---|---|---|---|
+| M3 | M5 | log-loss du total | +0.00002 | [-0.00091 ; +0.00098] | 2 sur 4 | 0.9709 | 2021 : +0.0006 ; 2022 : -0.0011 ; 2023 : +0.0008 ; 2024 : -0.0002 |
+| M3 | M5 | RPS | +0.00001 | [-0.00000 ; +0.00003] | 3 sur 4 | 0.1367 | 2021 : +0.0000 ; 2022 : -0.0000 ; 2023 : +0.0000 ; 2024 : +0.0000 |
+| M3 | M5 | Brier P(T = 0) | -0.00007 | [-0.00015 ; +0.00000] | 0 sur 4 | 0.0614 | 2021 : -0.0000 ; 2022 : -0.0001 ; 2023 : -0.0000 ; 2024 : -0.0001 |
+| M3 | M5 | Brier P(T = 1) | +0.00018 | [-0.00006 ; +0.00041] | 3 sur 4 | 0.1367 | 2021 : +0.0003 ; 2022 : -0.0001 ; 2023 : +0.0005 ; 2024 : +0.0001 |
+| M3 | M5 | Brier P(T = 2) | +0.00001 | [-0.00013 ; +0.00014] | 3 sur 4 | 0.9142 | 2021 : +0.0000 ; 2022 : +0.0000 ; 2023 : -0.0001 ; 2024 : +0.0001 |
+| | | règle de décision | (i) non, (ii) non, (iii) oui | **M5 ne remplace pas M3** | | | |
+
+### Ce que M5 enseigne
+
+- **Oui, la corrélation change la forme de la loi** : ρ < 0 rend 0-0 et 1-1 plus probables. P(T = 1) passe de 17,6 % à 16,3 %, exactement la fréquence observée ; mais P(T = 0) passe de 6,5 % à 7,1 %, au-delà des 6,3 % observés. La correction répare un défaut de M3 et en crée un autre.
+- **Non, cela ne se voit pas globalement** : log-loss du total +0,00002 [−0,0009 ; +0,0010], 2 plis sur 4 ; Brier de P(T = 0) légèrement moins bon (−0,00007 [−0,00015 ; 0,00000]), de P(T = 1) légèrement meilleur (+0,00018 [−0,00006 ; +0,00041]), aucun des deux significatif.
+- **Décision** (règle de l'ADR-0037) : (i) non, (ii) non, (iii) oui : **M5 ne remplace pas M3**. On garde le plus simple.
+- Le score exact gagne un peu (log-loss de 2,9443 contre 2,9461 en 2023-24, par exemple) : c'est ce que visait Dixon-Coles, pas notre métrique.
+- Le Poisson bivarié (option facultative) n'est pas estimé : sa covariance commune positive va dans le même sens que ρ < 0 (dépendance positive sur les petits scores), dont on vient de voir qu'elle n'apporte rien au total. Les forces latentes et le Dixon-Coles dynamique (M8) restent hors périmètre.

@@ -68,6 +68,21 @@ def render(report: dict) -> str:
             f"| {model} | {p['matches']} | {_f(p['log_loss'])} | {_f(p['rps'])} | {_f(p['brier_over_2_5'])} "
             f"| {_f(cal['mean_abs_gap'])} | {_f(cal['slope'], 2)} | {_f(cal['intercept'], 3, sign=True)} |"
         )
+    small = [(m, p["small_totals"]) for m, p in report["pooled"].items() if "small_totals" in p]
+    if small:
+        lines += [
+            "",
+            "Petits totaux, calibration poolée sur les 4 plis :",
+            "",
+            "| Modèle | k | P(T = k) prédite | observée | Brier | Écart moyen par décile | Pente |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for model, per_k in small:
+            for k, v in per_k.items():
+                lines.append(
+                    f"| {model} | {k} | {_pct(v['predicted'])} | {_pct(v['observed'])} | {_f(v['brier'])} "
+                    f"| {_f(v['mean_abs_gap'])} | {_f(v['slope'], 2)} |"
+                )
     subset = [(m, per) for m, per in report["metrics"].items() if any("over_2_5_subset" in v for v in per.values())]
     if subset:
         lines += [
@@ -94,7 +109,10 @@ def render(report: dict) -> str:
         "| A | B | Métrique | Écart poolé | IC 95 % | Plis où B gagne | DM (p) | Par pli |",
         "|---|---|---|---|---|---|---|---|",
     ]
-    names = {"log_loss": "log-loss du total", "rps": "RPS", "brier_over_2_5_subset": "Brier plus/moins 2,5"}
+    names = {
+        "log_loss": "log-loss du total", "rps": "RPS", "brier_over_2_5_subset": "Brier plus/moins 2,5",
+        "brier_total_0": "Brier P(T = 0)", "brier_total_1": "Brier P(T = 1)", "brier_total_2": "Brier P(T = 2)",
+    }  # fmt: skip
     for item in report["comparisons"]:
         for key, label in names.items():
             if key not in item:

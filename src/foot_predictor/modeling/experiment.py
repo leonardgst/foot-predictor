@@ -264,6 +264,8 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
     blocks, over_blocks, frames = {}, {}, []
     p_overs: dict[str, dict] = {}
     over_outcomes: dict[int, np.ndarray] = {}
+    small_probs: dict[str, dict] = {}
+    small_truth: dict[int, np.ndarray] = {}
     for fold in folds:
         truth_all = protocol.outcomes(data, fold.test_season)
         entry = {"season": fold.test_season, "name": fold.name, "eval_matches": int(len(truth_all)), "models": {}}
@@ -296,6 +298,8 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
             losses[model_id][fold.test_season] = metrics.log_loss_by_match(sub.total, truth["total"].to_numpy())
             p_overs.setdefault(model_id, {})[fold.test_season] = metrics.prob_over(sub.total)
             over_outcomes[fold.test_season] = (truth["total"].to_numpy() > 2.5).astype(float)
+            small_probs.setdefault(model_id, {})[fold.test_season] = sub.total[:, : len(SMALL_TOTALS)]
+            small_truth[fold.test_season] = truth["total"].to_numpy()
             rps_losses[model_id][fold.test_season] = metrics.rps_by_match(sub.total, truth["total"].to_numpy())
             frames.append(_prediction_frame(model_id, fold, sub, truth))
         if markets:
@@ -340,6 +344,7 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
                 "intercept": intercept,
                 "slope": slope,
             },
+            "small_totals": small_totals_pooled(small_probs[model_id], small_truth, seasons),
         }
     for model_id, by_season in over_losses.items():
         if by_season:
@@ -360,6 +365,16 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
                 for model_id in (a, b)
             }
             item["decision"] = decision(item, pooled[a], pooled[b])
+            # Descriptif (hors règle) : Brier de P(T = k) pour les petits totaux (question de M5).
+            for k in SMALL_TOTALS:
+                brier = {
+                    m: {
+                        s: metrics.brier_binary_by_match(small_probs[m][s][:, k], small_truth[s] == k)
+                        for s in small_truth
+                    }
+                    for m in (a, b)
+                }
+                item[f"brier_total_{k}"] = compare(brier[a], brier[b], blocks, spec["n_resamples"], spec["seed"])
         if over_blocks and over_losses[a] and over_losses[b]:
             item["brier_over_2_5_subset"] = compare(
                 over_losses[a], over_losses[b], over_blocks, spec["n_resamples"], spec["seed"]
@@ -369,6 +384,29 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
         predictions_dir.mkdir(parents=True, exist_ok=True)
         pd.concat(frames, ignore_index=True).to_parquet(predictions_dir / "predictions.parquet", index=False)
     return {"folds": fold_reports, "metrics": per_model, "pooled": pooled, "comparisons": comparisons}
+
+
+SMALL_TOTALS = (0, 1, 2)
+"""Petits totaux dont la calibration répond à la question de M5 (rapport I.2)."""
+
+
+def small_totals_pooled(probs: dict, totals: dict, seasons: list) -> dict:
+    """Calibration poolée de P(T = k), k = 0, 1, 2 : moyennes, Brier, écart moyen par décile, pente."""
+    result = {}
+    for k in SMALL_TOTALS:
+        p = np.concatenate([probs[s][:, k] for s in seasons])
+        outcome = np.concatenate([totals[s] == k for s in seasons]).astype(float)
+        table = metrics.calibration_table(p, outcome)
+        intercept, slope = metrics.calibration_slope_intercept(p, outcome)
+        result[str(k)] = {
+            "predicted": float(p.mean()),
+            "observed": float(outcome.mean()),
+            "brier": float(metrics.brier_binary_by_match(p, outcome).mean()),
+            "mean_abs_gap": metrics.calibration_mean_abs_gap(table),
+            "slope": slope,
+            "intercept": intercept,
+        }
+    return result
 
 
 MAX_CALIBRATION_GAP_INCREASE = 0.005

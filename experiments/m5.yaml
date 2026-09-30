@@ -1,0 +1,14 @@
+# M5 : M3 + correction de Dixon-Coles (ρ estimé dans le pli), variables G0 + G1 (décision 5).
+# Question (rapport I.2) : la corrélation change-t-elle la loi du total sur les petites valeurs ?
+# Mesurée par la calibration de P(T = 0), P(T = 1), P(T = 2), pas seulement par le log-loss.
+name: m5
+dataset: ds-2026-09-30-ba2b91f7
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  - {id: M3, model: m3, params: {groups: [G0, G1]}}
+  - {id: M5, model: m5, params: {groups: [G0, G1]}}
+comparisons:
+  - [M3, M5]

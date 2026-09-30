@@ -1,0 +1,14 @@
+# Population d'apprentissage (décision 6, sous-étape 4.12) sur l'ensemble retenu par les ablations,
+# G0 + G1 + G2 (G3 sans gain) : top 5 seul (A) contre top 5 et D2 (B). Évaluation sur le top 5 dans
+# les deux cas. La D2 n'est retenue que si la règle de l'ADR-0037 le justifie.
+name: population
+dataset: ds-2026-09-30-ba2b91f7
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  - {id: A2_top5, model: m3, params: {groups: [G0, G1, G2]}, grid: {half_life: [60, 120, 240]}}
+  - {id: A2_top5_d2, model: m3, population: top5_d2, params: {groups: [G0, G1, G2]}, grid: {half_life: [60, 120, 240]}}
+comparisons:
+  - [A2_top5, A2_top5_d2]

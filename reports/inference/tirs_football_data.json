@@ -1,0 +1,327 @@
+{
+  "date": "2026-10-01",
+  "dataset": "ds-2026-09-30-ba2b91f7",
+  "seed": 20260930,
+  "n_resamples": 10000,
+  "trials": 1,
+  "method": "variante − référence, log-loss du total apparié ; positif : la variante est moins bonne",
+  "source_gap": {
+    "2021-2024": {
+      "Premier League": {
+        "team_matches": 3040,
+        "mean_gap": -0.0039,
+        "mean_abs_gap": 0.0066,
+        "share_equal": 0.9944
+      },
+      "La Liga": {
+        "team_matches": 3040,
+        "mean_gap": 0.0079,
+        "mean_abs_gap": 0.0349,
+        "share_equal": 0.9714
+      },
+      "Bundesliga": {
+        "team_matches": 2446,
+        "mean_gap": 0.0973,
+        "mean_abs_gap": 0.2453,
+        "share_equal": 0.7829
+      },
+      "Serie A": {
+        "team_matches": 3038,
+        "mean_gap": 0.0003,
+        "mean_abs_gap": 0.0365,
+        "share_equal": 0.9674
+      },
+      "Ligue 1": {
+        "team_matches": 2744,
+        "mean_gap": 0.0011,
+        "mean_abs_gap": 0.0281,
+        "share_equal": 0.9756
+      }
+    },
+    "2015-2024": {
+      "Premier League": {
+        "team_matches": 7598,
+        "mean_gap": -0.0026,
+        "mean_abs_gap": 0.019,
+        "share_equal": 0.9833
+      },
+      "La Liga": {
+        "team_matches": 7598,
+        "mean_gap": 0.0036,
+        "mean_abs_gap": 0.0372,
+        "share_equal": 0.967
+      },
+      "Bundesliga": {
+        "team_matches": 6116,
+        "mean_gap": 0.059,
+        "mean_abs_gap": 0.1637,
+        "share_equal": 0.8571
+      },
+      "Serie A": {
+        "team_matches": 7598,
+        "mean_gap": 0.264,
+        "mean_abs_gap": 0.3203,
+        "share_equal": 0.7928
+      },
+      "Ligue 1": {
+        "team_matches": 7100,
+        "mean_gap": 0.0027,
+        "mean_abs_gap": 0.0373,
+        "share_equal": 0.9665
+      }
+    }
+  },
+  "variants": {
+    "saison_S": {
+      "significant": false,
+      "pooled": {
+        "mean": -1.742457877885504e-05,
+        "low": -0.0002133033075657689,
+        "high": 0.0001816450885764888,
+        "n": 7156,
+        "n_blocks": 736,
+        "excludes_zero": false
+      },
+      "per_fold": {
+        "2021": {
+          "mean": -2.9124973696601504e-05,
+          "low": -0.00040098415187583803,
+          "high": 0.000346602281761877,
+          "n": 1826,
+          "n_blocks": 186
+        },
+        "2022": {
+          "mean": -0.00028812348297692456,
+          "low": -0.0007801359410800723,
+          "high": 0.00018335477421622563,
+          "n": 1826,
+          "n_blocks": 186
+        },
+        "2023": {
+          "mean": -9.294904275447483e-05,
+          "low": -0.0005531675976396626,
+          "high": 0.0003229495266606915,
+          "n": 1752,
+          "n_blocks": 182
+        },
+        "2024": {
+          "mean": 0.00035242700859030354,
+          "low": 0.00011534660963876261,
+          "high": 0.0005928482430280952,
+          "n": 1752,
+          "n_blocks": 182
+        }
+      },
+      "per_league": {
+        "Premier League": {
+          "mean": 5.358299250317552e-05,
+          "low": -5.659353373103632e-05,
+          "high": 0.0001615243768741917,
+          "n": 1520,
+          "n_blocks": 152,
+          "excludes_zero": false,
+          "dm_p_value": 0.34391074876597494,
+          "holm_p_value": 1.0
+        },
+        "La Liga": {
+          "mean": 7.571465708196878e-05,
+          "low": -8.94187767476048e-05,
+          "high": 0.0002454587120610284,
+          "n": 1520,
+          "n_blocks": 152,
+          "excludes_zero": false,
+          "dm_p_value": 0.3824753288323348,
+          "holm_p_value": 1.0
+        },
+        "Bundesliga": {
+          "mean": -0.0003565692469821953,
+          "low": -0.0014004444755923665,
+          "high": 0.000697288438564274,
+          "n": 1224,
+          "n_blocks": 136,
+          "excludes_zero": false,
+          "dm_p_value": 0.5088809737326332,
+          "holm_p_value": 1.0
+        },
+        "Serie A": {
+          "mean": 3.583382511483029e-05,
+          "low": -0.00023343582844534037,
+          "high": 0.00029762195885969035,
+          "n": 1520,
+          "n_blocks": 152,
+          "excludes_zero": false,
+          "dm_p_value": 0.7938281906700757,
+          "holm_p_value": 1.0
+        },
+        "Ligue 1": {
+          "mean": 4.427888558364363e-05,
+          "low": -0.0001354514381725689,
+          "high": 0.0002257792179501535,
+          "n": 1372,
+          "n_blocks": 144,
+          "excludes_zero": false,
+          "dm_p_value": 0.6309436736783516,
+          "holm_p_value": 1.0
+        }
+      },
+      "matches": {
+        "2021": {
+          "common": 1826,
+          "baseline": 1826,
+          "variant": 1826
+        },
+        "2022": {
+          "common": 1826,
+          "baseline": 1826,
+          "variant": 1826
+        },
+        "2023": {
+          "common": 1752,
+          "baseline": 1752,
+          "variant": 1752
+        },
+        "2024": {
+          "common": 1752,
+          "baseline": 1752,
+          "variant": 1752
+        }
+      },
+      "diebold_mariano": {
+        "statistic": -0.17253757912270368,
+        "p_value": 0.8630149204546569
+      },
+      "changed_rows": {
+        "2021": 0.9765,
+        "2022": 0.9146,
+        "2023": 0.8813,
+        "2024": 0.9635
+      }
+    },
+    "toute_histoire": {
+      "significant": false,
+      "pooled": {
+        "mean": 0.0008599640682325504,
+        "low": -0.00011770041915122653,
+        "high": 0.001886559386929772,
+        "n": 7156,
+        "n_blocks": 736,
+        "excludes_zero": false
+      },
+      "per_fold": {
+        "2021": {
+          "mean": 0.0028608443873781426,
+          "low": -0.0006571096401640797,
+          "high": 0.006473723582491899,
+          "n": 1826,
+          "n_blocks": 186
+        },
+        "2022": {
+          "mean": 0.00023291020336886872,
+          "low": -0.0007119623652736246,
+          "high": 0.0012057205317595545,
+          "n": 1826,
+          "n_blocks": 186
+        },
+        "2023": {
+          "mean": -0.00031991656404988645,
+          "low": -0.001219863237604894,
+          "high": 0.0005317091878937362,
+          "n": 1752,
+          "n_blocks": 182
+        },
+        "2024": {
+          "mean": 0.000607991329785096,
+          "low": 5.8884196906339745e-05,
+          "high": 0.0011853673156628722,
+          "n": 1752,
+          "n_blocks": 182
+        }
+      },
+      "per_league": {
+        "Premier League": {
+          "mean": 0.00011251368417973733,
+          "low": -4.826028699365275e-05,
+          "high": 0.0002759416890454206,
+          "n": 1520,
+          "n_blocks": 152,
+          "excludes_zero": false,
+          "dm_p_value": 0.1811290217299516,
+          "holm_p_value": 0.7245160869198064
+        },
+        "La Liga": {
+          "mean": -0.00012251093409099557,
+          "low": -0.0004067969753980324,
+          "high": 0.0001577712020758839,
+          "n": 1520,
+          "n_blocks": 152,
+          "excludes_zero": false,
+          "dm_p_value": 0.400614895340037,
+          "holm_p_value": 1.0
+        },
+        "Bundesliga": {
+          "mean": -0.0003942352676380857,
+          "low": -0.002405803231261625,
+          "high": 0.00168060786522249,
+          "n": 1224,
+          "n_blocks": 136,
+          "excludes_zero": false,
+          "dm_p_value": 0.7132389986985828,
+          "holm_p_value": 1.0
+        },
+        "Serie A": {
+          "mean": 0.0043637325782682505,
+          "low": 0.00015388056607572206,
+          "high": 0.00850858942499419,
+          "n": 1520,
+          "n_blocks": 152,
+          "excludes_zero": true,
+          "dm_p_value": 0.04643987429476743,
+          "holm_p_value": 0.23219937147383715
+        },
+        "Ligue 1": {
+          "mean": 1.3680131748191439e-05,
+          "low": -0.00025339629403941974,
+          "high": 0.0002895294944162733,
+          "n": 1372,
+          "n_blocks": 144,
+          "excludes_zero": false,
+          "dm_p_value": 0.9220423036865107,
+          "holm_p_value": 1.0
+        }
+      },
+      "matches": {
+        "2021": {
+          "common": 1826,
+          "baseline": 1826,
+          "variant": 1826
+        },
+        "2022": {
+          "common": 1826,
+          "baseline": 1826,
+          "variant": 1826
+        },
+        "2023": {
+          "common": 1752,
+          "baseline": 1752,
+          "variant": 1752
+        },
+        "2024": {
+          "common": 1752,
+          "baseline": 1752,
+          "variant": 1752
+        }
+      },
+      "diebold_mariano": {
+        "statistic": 1.6965620866949334,
+        "p_value": 0.08977948277524986
+      },
+      "changed_rows": {
+        "2021": 1.0,
+        "2022": 1.0,
+        "2023": 1.0,
+        "2024": 1.0
+      }
+    }
+  },
+  "seconds": 28.3
+}

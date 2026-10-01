@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-049 — CI rouge sur un bloc de code d'un Markdown, puis historique local divergent (2026-10-01)
+
+- **Contexte** : PR #65 (API, partie 5, sous-étape 5.6).
+- **Message d'erreur** : CI, étape `ruff format --check .` : `Would reformat: docs/technologies/fastapi.md`.
+- **Cause** : (1) ruff formate aussi les blocs de code Python des fichiers Markdown ; le mini-cours contenait `def matches(...): ...` sur une ligne trop longue, et seuls les fichiers Python avaient été contrôlés avant l'envoi ; (2) la correction a d'abord été faite par `git reset --soft` local, alors que la branche était déjà poussée : l'historique local divergeait de la branche distante, ce qui aurait demandé un `--force` (interdit).
+- **Solution** : branche locale recréée depuis `origin/feat/12-api`, commit de style (`a9ab0ef`) repris par `cherry-pick`, poussée en avance rapide ; CI verte, puis fusion.
+- **Fichiers concernés** : `docs/technologies/fastapi.md`.
+- **Prévention** : `uv run ruff format --check .` (dépôt entier, Markdown compris) avant tout envoi ; une branche poussée ne se corrige que par un nouveau commit, jamais par `reset`.
+- **Test de non-régression** : la CI (`ruff format --check .`) et le hook pre-commit `ruff (formatage)`.
+
 ## E-048 — Échec de test masqué par un tube, puis index manquants dans les modèles ORM (2026-09-30)
 
 - **Contexte** : sous-étape 5.4 (migration 0008).

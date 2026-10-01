@@ -1,17 +1,17 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-09-30 (fin du lot 1 de la partie 5)
-**Partie courante** : 5/6, inférence, API et interface (J7, J8), phase A. **Lot 1 fait** (inférence en rejeu, traçabilité) ; lot 2 (API, effet des tirs de football-data) à la prochaine session. La partie 4 attend sa phase B (test scellé, entraînement final) après la session de gel du **lundi 19 octobre** ; les phases B des parties 2 à 5 se font sur demande.
+**Dernière mise à jour** : 2026-10-01 (fin du lot 2 de la partie 5)
+**Partie courante** : 5/6, inférence, API et interface (J7, J8), phase A. **Lots 1 et 2 faits** (inférence en rejeu, traçabilité, API, effet des tirs de football-data) ; lot 3 (interface, football-data en live, `v1.0.0`) à la prochaine session. La partie 4 attend sa phase B (test scellé, entraînement final) après la session de gel du **lundi 19 octobre** ; les phases B des parties 2 à 5 se font sur demande.
 
-**Reprise de la partie 5 au lot 2, sous-étape 5.8** (clôture du lot 2, branche `docs/12-cloture-lot-2` ; 5.6 faite : API FastAPI ; 5.7 faite : tirs de football-data sans effet significatif, ADR-0041). Relancer le prompt de la partie 5 ; lire d'abord `docs/retours/partie-5-lot1_2026-09-30.md`. Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
+**Reprise de la partie 5 au lot 3, sous-étape 5.9** (interface Streamlit). Relancer le prompt de la partie 5 ; lire d'abord `docs/retours/partie-5-lot2_2026-10-01.md`. Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé
 
-- Cadrage, collecteur v2, collecte P1 à P4 ; partie 1 (PR #15 à #21) ; partie 2, phase A (PR #22 à #31) : référentiel reconstruit par `load`.
-- **Partie 3, phase A** (PR #32 à #42, `docs/retours/partie-3a_2026-09-29.md`) : scellé technique et porte unique (ADR-0028), tirs de football-data (ADR-0029), registre et jeu versionné (ADR-0030), Elo (ADR-0031), glissants et `xg_proxy` (ADR-0032), calendrier et huis clos (ADR-0033), notebooks et LaTeX (ADR-0034).
+- Cadrage, collecteur v2, collecte P1 à P4 ; partie 1 (PR #15 à #21) ; partie 2, phase A (PR #22 à #31) : référentiel reconstruit par `load`. **Partie 3, phase A** (PR #32 à #42, `docs/retours/partie-3a_2026-09-29.md`) : scellé et porte unique (ADR-0028), registre et jeu versionné (ADR-0030), variables (ADR-0029, 0031 à 0033), notebooks (ADR-0034).
 - **Partie 4, phase A** (PR #43 à #58, `docs/retours/partie-4a_2026-09-30.md`) : tirs d'API-FOOTBALL et jeu **`ds-2026-09-30-ba2b91f7`** (ADR-0035) ; cotes (migration 0007, ADR-0036) ; protocole figé (ADR-0037, tag `protocole-v1`) ; structure M3 (ADR-0038) ; **modèle MVP H1 : M3 sur G0 + G1 + G2, top 5** (ADR-0039), +0,0179 [+0,0133 ; +0,0226] sur B1 ; code du test scellé, **tag `pre-scelle-h1`**.
 - **Partie 5, lot 1** (2026-09-30, PR #59 à #64, `docs/retours/partie-5-lot1_2026-09-30.md`) : architecture (ADR-0040), groupes `api` et `ui` ; `inference/` : variables par la fonction de l'entraînement (622 lignes identiques au bit près), modèles de rejeu par pli (écart nul avec l'évaluation), disponibilité et prédiction, **migration 0008** (`ops.prediction`, `ops.model_registry`).
+- **Partie 5, lot 2** (2026-10-01, PR #65 à #67, `docs/retours/partie-5-lot2_2026-10-01.md`) : **API FastAPI locale** (`api/`, 7 routes) ; **tirs de football-data en live** : écart de log-loss −0,00002 [−0,00021 ; +0,00018], non significatif, pas de recalibration (ADR-0041).
 
 ## En cours
 
@@ -36,11 +36,11 @@
 
 **Session de gel, lundi 19 octobre** : suivre `docs/realisation/03_collecte/gel.md` (code du tag `v0.2.0`).
 
-**Départ du lot 2 de la partie 5** :
+**Départ du lot 3 de la partie 5** :
 ```bash
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
 uv run alembic current ; uv run python -m foot_predictor.collect.api_football lock-status   # 0008 ; libre
-uv run pytest -q > /tmp/pt.txt; echo $? ; tail -1 /tmp/pt.txt   # 0 ; 616 réussis, 2 sautés (jamais « | tail && »)
+uv run pytest -q > /tmp/pt.txt; echo $? ; tail -1 /tmp/pt.txt   # 0 ; 634 réussis, 2 sautés (jamais « | tail && »)
 ```
 
 **Reprise de la partie 2 à la phase B après la session de gel** : 2.10 (`load` sur le brut définitif, recopie des CSV), 2.11 (chemins gelés, dont E-036), 2.12 (tag `v0.3.0`). Commandes : `docs/realisation/04_referentiel/README.md`, section « Phase B ».
@@ -73,7 +73,7 @@ uv run python -m foot_predictor.modeling train --final experiments/scelle_h1.yam
 # ADR de clôture, tag v0.5.0, retour docs/retours/partie-4_<date>.md
 ```
 
-**Long terme** : 5. inférence, API et interface, `v1.0.0` (J7, J8) ; 6. version intermédiaire (J9).
+**Long terme** : fin de la partie 5, `v1.0.0` (J7, J8) ; 6. version intermédiaire (J9).
 
 ## Commandes de la session de gel (19 octobre)
 

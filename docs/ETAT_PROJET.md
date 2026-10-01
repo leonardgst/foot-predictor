@@ -3,7 +3,7 @@
 **Dernière mise à jour** : 2026-09-30 (fin du lot 1 de la partie 5)
 **Partie courante** : 5/6, inférence, API et interface (J7, J8), phase A. **Lot 1 fait** (inférence en rejeu, traçabilité) ; lot 2 (API, effet des tirs de football-data) à la prochaine session. La partie 4 attend sa phase B (test scellé, entraînement final) après la session de gel du **lundi 19 octobre** ; les phases B des parties 2 à 5 se font sur demande.
 
-**Reprise de la partie 5 au lot 2, sous-étape 5.6** (API, branche `feat/12-api`). Relancer le prompt de la partie 5 ; lire d'abord `docs/retours/partie-5-lot1_2026-09-30.md`. Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
+**Reprise de la partie 5 au lot 2, sous-étape 5.7** (effet des tirs de football-data, branche `exp/11-tirs-football-data` ; 5.6 faite : API FastAPI). Relancer le prompt de la partie 5 ; lire d'abord `docs/retours/partie-5-lot1_2026-09-30.md`. Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé

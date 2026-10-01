@@ -64,6 +64,8 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - **Même fonction** : l'inférence n'a aucune formule de variable propre ; elle appelle `features.dataset.build_frame` sur l'historique tronqué au jour du match, un jour à la fois (ADR-0040). Tout écart entre entraînement et inférence est un défaut.
 - **Disponibilité** : une variable requise est présente, manquante (raison) ou périmée (source en retard) ; une seule non présente ⇒ `unavailable`, aucune prédiction, jamais de valeur de remplacement.
 - **Rejeu** : modèle du pli de la saison, jamais un modèle qui a vu la saison ; saisons 2021-22 à 2024-25 tant que le test scellé n'est pas fait. **Live** : prédiction écrite avant le coup d'envoi seulement.
+- **API** (`uv run python -m foot_predictor.api serve`) : liaison `127.0.0.1` seulement, aucun chemin ni secret dans une réponse ; l'interface l'appelle en HTTP, jamais par un import (ADR-0040). Tirs de football-data en live : pris tels quels (ADR-0041).
+- `ruff format` formate aussi les blocs Python des fichiers Markdown : contrôler `ruff format --check .` sur tout le dépôt avant un envoi (E-049).
 
 ## Commandes principales
 

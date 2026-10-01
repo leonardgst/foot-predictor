@@ -12,8 +12,7 @@ Une route est une fonction décorée ; ses paramètres typés deviennent des par
 
 ```python
 @app.get("/matches", response_model=list[schemas.MatchSummary])
-def matches(date: dt.date, mode: schemas.Mode = "replay") -> list[dict]:
-    ...
+def matches(date: dt.date, mode: schemas.Mode = "replay") -> list[dict]: ...
 ```
 
 - `date: dt.date` : FastAPI refuse `?date=hier` (422) sans une ligne de code ;

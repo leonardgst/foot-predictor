@@ -44,7 +44,7 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Contrôles de l'inférence sur données réelles | [`../reports/inference/`](../reports/inference/) |
 | Mini-cours des technologies | [`technologies/`](technologies/README.md) |
 | Cartes d'identité des modèles entraînés | [`../reports/model_cards/`](../reports/model_cards/) |
-| Résultats lisibles (références, puis modèles) | [`resultats/`](resultats/) : [`references.md`](resultats/references.md), [`modeles.md`](resultats/modeles.md), [`ablations.md`](resultats/ablations.md) |
+| Résultats lisibles (références, puis modèles) | [`resultats/`](resultats/) : [`references.md`](resultats/references.md), [`modeles.md`](resultats/modeles.md), [`ablations.md`](resultats/ablations.md), [`tirs_live.md`](resultats/tirs_live.md) (tirs de football-data en live) |
 | Rapports d'expériences (JSON) et index de tous les essais | [`../reports/experiments/INDEX.md`](../reports/experiments/INDEX.md) |
 | Chapitres mathématiques LaTeX (compilation sur Overleaf) | [`latex/mathematiques/`](latex/mathematiques/) |
 | Anciens récaps, RECAP_PROJET, guide d'abonnement | [`archives/`](archives/) (non maintenus) |

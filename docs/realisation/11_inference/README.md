@@ -51,6 +51,14 @@ Codes de sortie de `predict` : 0 (réponses rendues, disponibles ou non), 3 (dat
 | `replay` : modèles de rejeu contre l'évaluation | `reports/inference/rejeu_2026-09-30.md` | écart nul, 4 saisons, 7 156 matchs |
 | `predictions` : journées de rejeu contre l'évaluation | `reports/inference/predictions_2026-09-30.md` | 8 journées, λ à 9e-16 près, log-loss identique |
 
+## Tirs de football-data en live (`shots_check`, 5.7)
+
+```bash
+uv run python -m foot_predictor.inference.shots_check   # 30 s : écrit reports/inference/tirs_football_data.json et docs/resultats/tirs_live.md
+```
+
+Effet, sur les 4 plis de développement, d'un historique dont les tirs viennent de football-data (décision 12, ADR-0035) : la saison S seule (situation du live) ou toute l'histoire (extrême), même modèle de rejeu. Résultat du 2026-10-01 : écart de log-loss −0,00002 [−0,00021 ; +0,00018] pour le live, +0,00086 [−0,00012 ; +0,00189] pour l'extrême ; aucun championnat significatif après correction de Holm. Pas de recalibration (ADR-0041) ; mesure à refaire avec la même règle quand l'historique de football-data s'allongera.
+
 ## Temps mesurés (portable, 2026-09-30)
 
 | Opération | Temps |

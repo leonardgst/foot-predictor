@@ -1,0 +1,44 @@
+{
+  "freeze": "2024-02-15",
+  "today": "2024-03-09",
+  "season": 2023,
+  "matches_after_freeze": 335,
+  "results_restored": 335,
+  "score_mismatches": 0,
+  "issues": [],
+  "freshness": {
+    "39": "2024-03-08",
+    "40": "2024-03-08",
+    "61": "2024-03-08",
+    "62": "2024-03-08",
+    "78": "2024-03-08",
+    "79": "2024-03-08",
+    "135": "2024-03-08",
+    "136": "2024-03-08",
+    "140": "2024-03-08",
+    "141": "2024-03-08"
+  },
+  "rows": 104,
+  "same_matches": true,
+  "differing_columns": {
+    "xgp_for_ewm_h60": 60,
+    "opp_xgp_for_ewm_h60": 60,
+    "xgp_for_ewm_h120": 60,
+    "opp_xgp_for_ewm_h120": 60,
+    "xgp_for_ewm_h240": 60,
+    "opp_xgp_for_ewm_h240": 60,
+    "xgp_against_ewm_h60": 61,
+    "opp_xgp_against_ewm_h60": 61,
+    "xgp_against_ewm_h120": 61,
+    "opp_xgp_against_ewm_h120": 61,
+    "xgp_against_ewm_h240": 61,
+    "opp_xgp_against_ewm_h240": 61
+  },
+  "goals_and_elo_identical": true,
+  "statuses": {
+    "out_of_scope": 52,
+    "available": 20
+  },
+  "overlay_seconds": 0.28,
+  "date": "2026-10-04"
+}

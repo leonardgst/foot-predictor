@@ -59,6 +59,32 @@ uv run python -m foot_predictor.inference.shots_check   # 30 s : écrit reports/
 
 Effet, sur les 4 plis de développement, d'un historique dont les tirs viennent de football-data (décision 12, ADR-0035) : la saison S seule (situation du live) ou toute l'histoire (extrême), même modèle de rejeu. Résultat du 2026-10-01 : écart de log-loss −0,00002 [−0,00021 ; +0,00018] pour le live, +0,00086 [−0,00012 ; +0,00189] pour l'extrême ; aucun championnat significatif après correction de Holm. Pas de recalibration (ADR-0041) ; mesure à refaire avec la même règle quand l'historique de football-data s'allongera.
 
+## Sources live : football-data (5.10, ADR-0042)
+
+Après le gel, le calendrier 2026-27 de `staging` reste figé (identifiants justes, dates souvent fausses, aucun résultat). Le live le complète par football-data, **en mémoire** (`inference/live_sources.py`) : `load` et le référentiel ne changent pas.
+
+```bash
+# collecte (bruts externes, ADR-0024 ; plafond obligatoire, verrou, journal, aucun écrasement)
+uv run python -m foot_predictor.collect.football_data.live fixtures --max-requests 1          # prochains matchs
+uv run python -m foot_predictor.collect.football_data.live season --season 2026 --max-requests 10   # phase B seulement
+uv run python -m foot_predictor.collect.football_data.live fixtures --max-requests 1 --dry-run   # plan, rien d'envoyé
+# répétition sur la période de développement (gel simulé, « aujourd'hui » simulé)
+uv run python -m foot_predictor.inference check --only live
+```
+
+| Étape | Règle |
+|---|---|
+| Fichiers | prochains matchs : toutes les versions de `football_data/fixtures/` (la plus récente fait foi) ; résultats : dernière version de `football_data/csv/season=S/<div>__*.csv` |
+| Appariement | (championnat, saison, domicile, extérieur), **sans la date**, matchs de saison régulière seulement ; noms par `football_data_team_ids.yaml` |
+| Jamais deviné | nom absent du YAML, affiche ambiguë, match introuvable : ligne comptée, matchs candidats `unavailable` avec la raison |
+| Superposition | match déjà joué dans `staging` : valeurs de l'API ; sinon buts, tirs et date réelle de football-data ; match à venir : date et heure réelles (heure de Londres convertie en UTC), cote avant clôture comme référence |
+| Fraîcheur | par championnat : complet jusqu'à la veille du premier match sans résultat ; sinon variables « périmées », pas de prédiction |
+| Scellé | `season` refuse 2025-26 et après tant que le test scellé n'est pas fait |
+
+**Répétition du 2026-10-04** (`reports/inference/live_repetition_2026-10-04.md`) : gel simulé au 15/02/2024, « aujourd'hui » le 09/03/2024 : 335 résultats rétablis sur 335, 0 score différent de l'API, 0 ligne inutilisable ; lignes du jour identiques pour les buts et l'Elo, seules les variables de tirs diffèrent (attendu, ADR-0041) ; 20 matchs du top 5 sur 20 disponibles ; superposition en 0,3 s.
+
+Le branchement sur l'API et l'interface en mode live (commande `live --days`) est la sous-étape 5.14, en phase B.
+
 ## Temps mesurés (portable, 2026-09-30)
 
 | Opération | Temps |
@@ -72,6 +98,7 @@ Effet, sur les 4 plis de développement, d'un historique dont les tirs viennent 
 
 ## Limites connues
 
-- Le live réel attend la phase B (après le test scellé) ; en phase A il est testé sur des données synthétiques, avec un « aujourd'hui » simulé.
+- Le live réel attend la phase B (après le test scellé) ; en phase A il est testé sur des données synthétiques et par la répétition sur la période de développement, avec un « aujourd'hui » simulé.
+- Fraîcheur par championnat, règle prudente : un match reporté sans nouvelle date bloque son championnat jusqu'à son résultat (ADR-0042, critère de révision).
 - Un seul jour est calculé à la fois (règle d'exactitude) : une plage de dates coûte quelques secondes par jour à froid.
 - Les identifiants de championnat de `--competition` sont internes ; l'API (étape 12) les liste.

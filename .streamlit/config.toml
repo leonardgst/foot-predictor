@@ -1,0 +1,13 @@
+# Configuration de l'interface Streamlit (partie 5, sous-étape 5.9 ; ADR-0040).
+# Lue par `streamlit run` lancé depuis la racine du dépôt.
+
+[server]
+# Liaison locale seulement, comme l'API : sans cette ligne, Streamlit écoute sur toutes les interfaces.
+address = "127.0.0.1"
+port = 8501
+headless = true
+
+[browser]
+# Aucune statistique d'usage envoyée à Streamlit (projet local, aucun appel réseau non nécessaire).
+gatherUsageStats = false
+serverAddress = "127.0.0.1"

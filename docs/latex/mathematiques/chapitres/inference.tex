@@ -1,0 +1,148 @@
+% Chapitre « Inférence et disponibilité » (partie 5, sous-étape 5.11, jalons J7 et J8).
+% Sources : ADR-0009, ADR-0010, ADR-0011, ADR-0040, ADR-0041, ADR-0042 ; code de
+% src/foot_predictor/inference/ (rows.py, models.py, availability.py, predict.py, live_sources.py)
+% et de src/foot_predictor/modeling/ (distributions.py, metrics.py). En cas d'écart, le code fait foi.
+
+\chapter{Inférence et disponibilité}
+\label{chap:inference}
+
+Les chapitres précédents évaluent des modèles sur des saisons entières. Ce chapitre décrit ce qui se
+passe pour \emph{un} match : calculer ses variables à la date de référence, décider s'il peut être
+prédit, produire la loi du total et l'intervalle annoncé. Deux exigences guident tout : la
+\emph{même fonction} qu'à l'entraînement (aucune formule propre à l'inférence) et \emph{aucune valeur
+inventée} (une variable absente bloque la prédiction).
+
+% ---------------------------------------------------------------------------------------------
+\section{Variables d'un match quelconque}
+\label{sec:inference-variables}
+
+Notons \(\Phi\) la fonction qui construit le jeu d'entraînement (\code{features.dataset.build\_frame}) :
+elle reçoit une table de matchs et renvoie une ligne par couple (match, équipe). Pour prédire les
+matchs \(C_J\) d'un jour \(J\), on l'applique à la table
+\[
+  \hist_J = \{ m : d(m) \le J \}
+  \quad \text{où les matchs de } C_J \text{ sont marqués joués, score } 0\text{-}0, \text{ sans statistiques,}
+\]
+puis on garde les lignes de \(C_J\) et l'on retire les colonnes d'après-match (buts, source des tirs).
+
+\paragraph{Pourquoi c'est exact.} L'Elo d'avant-match du jour \(J\) n'utilise que les matchs terminés
+avant \(J\) (les variations d'un jour s'appliquent ensemble, en fin de jour) ; les moyennes glissantes
+et le calendrier ne lisent que les jours strictement antérieurs. Pour toute variable \(x_v\) d'un
+match de \(C_J\), \(x_v\big(\hist_J^{(s)}\big)\) ne dépend donc pas du score fictif \(s\) attribué aux
+matchs de \(C_J\), ni d'un match postérieur à \(J\). Les tests le vérifient en changeant ces scores ou
+ces matchs, et en comparant les lignes obtenues à celles du jeu d'entraînement : identiques au bit
+près sur 17 jours et 622 lignes.
+
+\paragraph{Un jour à la fois.} Calculer deux jours \(J < J'\) d'un coup ferait entrer le score fictif
+d'un match de \(J\) dans les variables de \(J'\) (l'Elo de fin de \(J\), la moyenne glissante de
+\(J'\)). On applique donc \(\Phi\) jour par jour, avec un cache par (jour, version des données).
+
+\paragraph{Modèle de rejeu.} Pour une date de la saison \(S\), le modèle est celui du pli \(S\) :
+\(\hat\theta_S\) appris sur les saisons 2015-16 à \(S - 1\) par la procédure de l'évaluation, jamais
+un modèle qui a vu la saison \(S\) (ADR-0011, règle 1). Ses prédictions reproduisent celles de
+l'évaluation à la précision machine (écart maximal de \(\lambda\) de l'ordre de \(10^{-15}\)).
+
+% ---------------------------------------------------------------------------------------------
+\section{Loi du total et quantités publiées}
+\label{sec:inference-loi}
+
+Le modèle M3 donne, pour chaque équipe, \(\lambda_e = \exp(x_e^\top \hat\beta)\). Sous l'indépendance
+conditionnelle des deux équipes (chapitre~\ref{chap:modeles}), le total suit
+\(T \sim \mathcal{P}(\lambda_{\mathrm{dom}} + \lambda_{\mathrm{ext}})\), replié sur
+\(\{0, \dots, 9, \ge 10\}\) :
+\[
+  \hat p_k = e^{-\lambda}\frac{\lambda^k}{k!} \ (k \le 9),
+  \qquad
+  \hat p_{10} = 1 - \sum_{k=0}^{9} \hat p_k,
+  \qquad \lambda = \lambda_{\mathrm{dom}} + \lambda_{\mathrm{ext}} .
+\]
+On publie \(E[T] = \lambda\) (espérance de la loi non repliée), \(\hat P(T > 2{,}5) = 1 - \hat p_0 -
+\hat p_1 - \hat p_2\), la loi \((\hat p_k)\) et l'intervalle de la section suivante.
+
+% ---------------------------------------------------------------------------------------------
+\section{Intervalle et couverture annoncée}
+\label{sec:inference-intervalle}
+
+Avec \(\hat F(k) = \sum_{j \le k} \hat p_j\), les bornes sont les plus petits entiers qui atteignent
+les niveaux 10~\% et 90~\% :
+\[
+  q_{10} = \min\{k : \hat F(k) \ge 0{,}10\},
+  \qquad
+  q_{90} = \min\{k : \hat F(k) \ge 0{,}90\},
+\]
+la borne 10 signifiant \og 10 et plus \fg{}. La loi étant discrète, \([q_{10} ; q_{90}]\) ne couvre pas
+exactement 80~\% ; on publie sa \emph{couverture annoncée}
+\[
+  \hat c = \hat P\big(T \in [q_{10} ; q_{90}]\big) = \hat F(q_{90}) - \hat F(q_{10} - 1) .
+\]
+Comme \(\hat F(q_{90}) \ge 0{,}90\) et \(\hat F(q_{10} - 1) < 0{,}10\), on a toujours \(\hat c > 0{,}80\) :
+annoncer \og 80~\% \fg{} serait faux, d'où l'obligation de publier \(\hat c\) (ADR-0009). Le contrôle
+compare la couverture observée à la moyenne des \(\hat c\), à \(\pm 3\) points.
+
+\paragraph{Exemple.} Pour \(\lambda_{\mathrm{dom}} = 1{,}6\) et \(\lambda_{\mathrm{ext}} = 1{,}2\) :
+
+\begin{center}
+\begin{tabular}{lccccccccccc}
+\toprule
+\(k\) & 0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & \(\ge 10\) \\
+\midrule
+\(\hat p_k\) & 0,061 & 0,170 & 0,238 & 0,222 & 0,156 & 0,087 & 0,041 & 0,016 & 0,006 & 0,002 & 0,001 \\
+\(\hat F(k)\) & 0,061 & 0,231 & 0,470 & 0,692 & 0,848 & 0,935 & 0,976 & 0,992 & 0,998 & 0,999 & 1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\(E[T] = 2{,}8\), \(\hat P(T > 2{,}5) = 0{,}531\), \(q_{10} = 1\), \(q_{90} = 5\) et
+\(\hat c = 0{,}935 - 0{,}061 = 0{,}874\) : l'intervalle \([1 ; 5]\) est annoncé à 87,4~\%.
+
+% ---------------------------------------------------------------------------------------------
+\section{Matrice de disponibilité}
+\label{sec:inference-disponibilite}
+
+Pour chaque variable requise \(v\) du modèle et chaque équipe \(e\) d'un match du jour \(J\), un statut :
+
+\begin{itemize}
+  \item \textbf{présente} : la valeur \(x_{v,e}\) est calculée ;
+  \item \textbf{manquante} : \(\Phi\) la laisse vide, avec la raison (aucun match de championnat dans les
+        730 jours, aucun tir connu, équipe inconnue du référentiel) ;
+  \item \textbf{périmée} : variable d'historique dont la source n'est complète que jusqu'au jour
+        \(C < J - 1\) ; il manque peut-être des matchs antérieurs à \(J\) (ADR-0011, règle 5).
+\end{itemize}
+
+Le match est \code{available} si toutes ses variables sont présentes, \code{unavailable} sinon (raisons
+listées, aucune prédiction) ; \code{out\_of\_scope} hors du top 5 ou hors saison régulière ;
+\code{excluded} pour un match annulé ou abandonné ; \code{h2\_unavailable} pour l'horizon avec
+composition. \emph{Aucune valeur de remplacement} : remplacer une variable par une moyenne ou par
+zéro produirait un \(\lambda\) faux présenté avec la même confiance qu'un vrai.
+
+% ---------------------------------------------------------------------------------------------
+\section{Le live : sources superposées et fraîcheur}
+\label{sec:inference-live}
+
+Après le gel, le calendrier de la saison courante est figé dans \code{staging}. football-data le
+complète en mémoire (ADR-0042). Un match du fichier est apparié au calendrier par la clé
+\[
+  \kappa(m) = (\text{championnat}, \text{saison}, \text{équipe à domicile}, \text{équipe à l'extérieur}),
+\]
+unique en saison régulière ; la date n'y entre pas, car celle du calendrier figé est souvent fausse.
+Une clé ambiguë ou un nom inconnu n'est jamais résolu au hasard. La fraîcheur est propre à chaque
+championnat \(L\) :
+\[
+  C_L = \min\{ d(m) : m \in L,\ m \text{ sans résultat} \} - 1 ,
+\]
+où \(d(m)\) est la date réelle si elle est connue, la date figée sinon ; une ligne de résultat
+inutilisable abaisse \(C_L\) à la veille de sa date. Un match de \(L\) au jour \(J\) a ses variables
+d'historique périmées dès que \(C_L < J - 1\). Une répétition sur 2023-24 (gel simulé au 15 février,
+\og aujourd'hui \fg{} le 9 mars) rétablit 335 résultats sur 335 sans écart de score, et redonne des
+variables de buts et d'Elo identiques à celles du jeu ; seules les variables de tirs changent, l'écart
+de log-loss correspondant n'étant pas significatif (ADR-0041).
+
+% ---------------------------------------------------------------------------------------------
+\section{Traçabilité}
+\label{sec:inference-tracabilite}
+
+Chaque prédiction créée est écrite dans \code{ops.prediction} : match, modèle, horizon, mode
+(\code{replay} ou \code{live}, séparés), date de référence, \(\lambda\), loi du total, intervalle et
+couverture annoncée, variables utilisées et manquantes, statut, raisons, fraîcheur. La création est
+idempotente (une seconde demande renvoie la ligne existante). En live, une prédiction n'est acceptée
+qu'avant le coup d'envoi : c'est la condition de l'évaluation prospective de la saison 2026-27.

@@ -65,6 +65,8 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - **Disponibilité** : une variable requise est présente, manquante (raison) ou périmée (source en retard) ; une seule non présente ⇒ `unavailable`, aucune prédiction, jamais de valeur de remplacement.
 - **Rejeu** : modèle du pli de la saison, jamais un modèle qui a vu la saison ; saisons 2021-22 à 2024-25 tant que le test scellé n'est pas fait. **Live** : prédiction écrite avant le coup d'envoi seulement.
 - **API** (`uv run python -m foot_predictor.api serve`) : liaison `127.0.0.1` seulement, aucun chemin ni secret dans une réponse ; l'interface l'appelle en HTTP, jamais par un import (ADR-0040). Tirs de football-data en live : pris tels quels (ADR-0041).
+- **Interface** (`uv run streamlit run src/foot_predictor/ui/app.py`) : `ui/` n'importe que `foot_predictor.ui` (test d'architecture) ; `.streamlit/config.toml` la lie à `127.0.0.1` et coupe la télémétrie.
+- **Live** (ADR-0042) : football-data est superposé **en mémoire** à la table des matchs (`inference/live_sources.py`), jamais écrit dans `staging` ; appariement sans la date, saison régulière seulement ; un nom inconnu ou une clé ambiguë n'est jamais deviné. Collecteur `collect.football_data.live` : `--max-requests` obligatoire, `season` refusé avant le test scellé. Les pages de football-data se lisent avec `curl` et le `User-Agent` du projet (son `robots.txt` bloque les robots d'IA, E-052).
 - `ruff format` formate aussi les blocs Python des fichiers Markdown : contrôler `ruff format --check .` sur tout le dépôt avant un envoi (E-049).
 
 ## Commandes principales
@@ -81,6 +83,9 @@ uv run python -m foot_predictor.ingestion check-referentiel   # rapport chiffré
 uv run python -m foot_predictor.features build                 # jeu de données versionné (J4)
 uv run python -m foot_predictor.features check --invariance    # contrôle du jeu, anti-fuite sur données réelles
 uv run python -m foot_predictor.modeling evaluate experiments/<nom>.yaml   # expérience sur les 4 plis (J5)
+uv run python -m foot_predictor.inference check [--only rows|replay|predictions|live]   # contrôles de l'inférence
+uv run python -m foot_predictor.api serve                 # API locale (127.0.0.1:8000)
+uv run streamlit run src/foot_predictor/ui/app.py         # interface (127.0.0.1:8501), API lancée
 pre-commit run --all-files                # hooks : secrets, ruff, caractères de contrôle
 ```
 

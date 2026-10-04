@@ -15,6 +15,34 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-052 — football-data redirige `www` vers le domaine nu ; ses pages bloquent les robots d'IA (2026-10-04)
+
+- **Contexte** : sous-étape 5.10 (sources live), lecture des conditions d'utilisation.
+- **Message d'erreur** : `curl https://www.football-data.co.uk/robots.txt` : `HTTP/2 302`, `location: https://football-data.co.uk/robots.txt`.
+- **Cause** : le site a changé de domaine principal ; le téléchargeur historique (`download.py`, gelé) vise encore `www`, si bien que chacune de ses requêtes en devient deux (redirection suivie par `requests`). Par ailleurs, le `robots.txt` bloque les robots d'IA (ClaudeBot, Claude-Web, GPTBot…).
+- **Solution** : le collecteur live vise `https://football-data.co.uk` ; les pages documentaires ont été lues avec `curl` et le `User-Agent` du projet, jamais par un outil web d'IA. `download.py` n'est pas modifié (règle 3 du gel).
+- **Fichiers concernés** : `src/foot_predictor/collect/football_data/live.py` ; à reprendre après le gel : `src/foot_predictor/collect/football_data/download.py` (`BASE_URL`).
+- **Prévention** : relire `robots.txt` et suivre les redirections (`curl -I`) avant toute nouvelle collecte ; consigner le domaine dans l'ADR de la source (ADR-0042).
+
+## E-051 — Barrages dans la même compétition-saison : clé du live ambiguë (2026-10-04)
+
+- **Contexte** : sous-étape 5.10, répétition du live sur 2023-24 (`inference check --only live`).
+- **Message d'erreur** : « Lignes inutilisables : 13 », toutes « appariement ambigu : plusieurs matchs du calendrier API ont cette affiche dans la saison », en D2 anglaise, italienne et espagnole ; buts et Elo en écart sur 18 lignes du jour.
+- **Cause** : l'API range les barrages dans la même compétition-saison que la saison régulière ; une demi-finale ou une finale répète une affiche de la saison, et la clé (championnat, saison, domicile, extérieur) n'est plus unique. Le code refusait (à juste titre) de choisir. Le même défaut avait d'abord été masqué en test : l'index gardait silencieusement le dernier match d'une clé répétée.
+- **Solution** : l'index ne porte que sur les matchs de saison régulière (football-data ne publie qu'elle, et le modèle ne couvre qu'elle) ; une clé encore répétée est déclarée ambiguë et jamais résolue. Répétition : 335 résultats rétablis sur 335, 0 ligne inutilisable.
+- **Fichiers concernés** : `src/foot_predictor/inference/live_sources.py`, `tests/inference/test_live_sources.py`.
+- **Prévention** : toute clé d'appariement se teste avec un doublon (barrage, match rejoué) et sur données réelles avant usage.
+- **Test de non-régression** : `test_play_offs_repeating_a_regular_season_fixture_do_not_make_the_key_ambiguous`, `test_an_ambiguous_key_is_never_resolved_at_random`.
+
+## E-050 — Bases injoignables au départ : Docker Desktop arrêté (2026-10-04)
+
+- **Contexte** : vérifications de départ du lot 3 de la partie 5.
+- **Message d'erreur** : `uv run alembic current` sans réponse pendant deux minutes, puis `connection refused` (port 5440) ; `docker ps` : `failed to connect to the docker API … dockerDesktopLinuxEngine`.
+- **Cause** : Docker Desktop ne tournait plus (portable redémarré) ; les conteneurs `foot-predictor-dev` et `foot-predictor-test` étaient donc arrêtés.
+- **Solution** : lancement de Docker Desktop (aucune commande `docker compose`) ; les deux conteneurs, en `restart: unless-stopped`, sont revenus seuls avec leurs volumes ; bases en 0008, 634 tests réussis.
+- **Fichiers concernés** : aucun.
+- **Prévention** : au départ d'une session, `docker ps` (ou le port 5440) avant `alembic current` ; commande ajoutée au départ de la phase B dans `ETAT_PROJET.md`.
+
 ## E-049 — CI rouge sur un bloc de code d'un Markdown, puis historique local divergent (2026-10-01)
 
 - **Contexte** : PR #65 (API, partie 5, sous-étape 5.6).

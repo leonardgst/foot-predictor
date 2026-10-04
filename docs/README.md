@@ -26,7 +26,7 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Constats du palier P3 | [`realisation/05_controle_qualite/constats_P3.md`](realisation/05_controle_qualite/constats_P3.md) |
 | Collisions d'identifiants de joueurs (P1 à P3) | [`realisation/05_controle_qualite/constats_collisions.md`](realisation/05_controle_qualite/constats_collisions.md) |
 | Rapports de contrôle datés (versionnés) | [`../reports/data_quality/`](../reports/data_quality/README.md) |
-| Retours de session (bilan, écarts, reste à faire) | [`retours/`](retours/) : [`partie-1_2026-09-29.md`](retours/partie-1_2026-09-29.md), [`partie-2a_2026-09-29.md`](retours/partie-2a_2026-09-29.md), [`partie-3a_2026-09-29.md`](retours/partie-3a_2026-09-29.md), [`partie-4-lot1_2026-09-30.md`](retours/partie-4-lot1_2026-09-30.md), [`partie-4-lot2_2026-09-30.md`](retours/partie-4-lot2_2026-09-30.md), [`partie-4a_2026-09-30.md`](retours/partie-4a_2026-09-30.md), [`partie-5-lot1_2026-09-30.md`](retours/partie-5-lot1_2026-09-30.md), [`partie-5-lot2_2026-10-01.md`](retours/partie-5-lot2_2026-10-01.md) |
+| Retours de session (bilan, écarts, reste à faire) | [`retours/`](retours/) : [`partie-1_2026-09-29.md`](retours/partie-1_2026-09-29.md), [`partie-2a_2026-09-29.md`](retours/partie-2a_2026-09-29.md), [`partie-3a_2026-09-29.md`](retours/partie-3a_2026-09-29.md), [`partie-4-lot1_2026-09-30.md`](retours/partie-4-lot1_2026-09-30.md), [`partie-4-lot2_2026-09-30.md`](retours/partie-4-lot2_2026-09-30.md), [`partie-4a_2026-09-30.md`](retours/partie-4a_2026-09-30.md), [`partie-5-lot1_2026-09-30.md`](retours/partie-5-lot1_2026-09-30.md), [`partie-5-lot2_2026-10-01.md`](retours/partie-5-lot2_2026-10-01.md), [`partie-5a_2026-10-04.md`](retours/partie-5a_2026-10-04.md) |
 | Équations des modèles A (Poisson) et B (Dixon-Coles) | [`MODELE_MATHEMATIQUE.md`](MODELE_MATHEMATIQUE.md) |
 | Résultats historiques A contre B, recalibration | [`RESULTATS_MODELE.md`](RESULTATS_MODELE.md) et [`model_results.json`](model_results.json) |
 | Environnement : ruff, pre-commit, CI, bases, workflow Git (ADR-0022) | [`realisation/02_environnement/README.md`](realisation/02_environnement/README.md) |
@@ -44,6 +44,8 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Contrôles de l'inférence sur données réelles | [`../reports/inference/`](../reports/inference/) |
 | API locale : démarrage, routes, exemple `curl`, temps mesurés | [`realisation/12_api/README.md`](realisation/12_api/README.md) |
 | Interface Streamlit : démarrage, trois écrans, pastilles, erreurs | [`realisation/13_interface/README.md`](realisation/13_interface/README.md) |
+| Bout en bout : test automatisé, procédure manuelle sur une journée réelle de rejeu | [`realisation/14_tests_bout_en_bout/README.md`](realisation/14_tests_bout_en_bout/README.md) |
+| Inférence et disponibilité (formules) : chapitre LaTeX | [`latex/mathematiques/chapitres/inference.tex`](latex/mathematiques/chapitres/inference.tex) |
 | Mini-cours des technologies | [`technologies/`](technologies/README.md) |
 | Cartes d'identité des modèles entraînés | [`../reports/model_cards/`](../reports/model_cards/) |
 | Résultats lisibles (références, puis modèles) | [`resultats/`](resultats/) : [`references.md`](resultats/references.md), [`modeles.md`](resultats/modeles.md), [`ablations.md`](resultats/ablations.md), [`tirs_live.md`](resultats/tirs_live.md) (tirs de football-data en live) |

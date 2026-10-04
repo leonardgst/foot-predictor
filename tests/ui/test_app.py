@@ -111,6 +111,7 @@ def test_model_screen_shows_card_validation_and_freshness(api):
     assert "`is_home`" in page and "Horizon H1 : aucune information de composition." in page
     assert "API : ok" in page
     assert len(at.dataframe) >= 3  # validation, comparaisons, fraîcheur
+    assert at.get("image")  # courbe d'apport (figure versionnée de docs/resultats/figures/)
     assert {("GET", "/models/active"), ("GET", "/data/freshness"), ("GET", "/health")} <= {c[:2] for c in api.calls}
 
 

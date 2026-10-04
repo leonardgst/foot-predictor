@@ -42,6 +42,8 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Modèle MVP H1, test scellé, entraînement final, carte d'identité | [`realisation/10_selection_et_entrainement_final/README.md`](realisation/10_selection_et_entrainement_final/README.md) |
 | Inférence : variables d'un match, rejeu, disponibilité, prédiction, `ops.prediction` | [`realisation/11_inference/README.md`](realisation/11_inference/README.md) |
 | Contrôles de l'inférence sur données réelles | [`../reports/inference/`](../reports/inference/) |
+| API locale : démarrage, routes, exemple `curl`, temps mesurés | [`realisation/12_api/README.md`](realisation/12_api/README.md) |
+| Interface Streamlit : démarrage, trois écrans, pastilles, erreurs | [`realisation/13_interface/README.md`](realisation/13_interface/README.md) |
 | Mini-cours des technologies | [`technologies/`](technologies/README.md) |
 | Cartes d'identité des modèles entraînés | [`../reports/model_cards/`](../reports/model_cards/) |
 | Résultats lisibles (références, puis modèles) | [`resultats/`](resultats/) : [`references.md`](resultats/references.md), [`modeles.md`](resultats/modeles.md), [`ablations.md`](resultats/ablations.md), [`tirs_live.md`](resultats/tirs_live.md) (tirs de football-data en live) |

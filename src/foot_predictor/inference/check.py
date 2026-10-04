@@ -315,3 +315,168 @@ def render_predictions(report: dict) -> str:
     if reasons:
         lines += ["", "Raisons rencontrées (matchs non prédits) :", ""] + [f"- {reason}" for reason in reasons]
     return "\n".join(lines) + "\n"
+
+
+# ------------------------------------------------------------------------------ répétition du live
+
+LIVE_FREEZE = dt.date(2024, 2, 15)
+LIVE_TODAY = dt.date(2024, 3, 9)
+STAT_COLUMNS = (
+    "home_shots_api", "home_sot_api", "home_xg_api", "away_shots_api", "away_sot_api", "away_xg_api",
+    "home_shots_fd", "home_sot_fd", "away_shots_fd", "away_sot_fd",
+)  # fmt: skip
+
+
+def freeze_table(matches: pd.DataFrame, freeze: dt.date, season: int) -> pd.DataFrame:
+    """Table des matchs telle que `staging` la verrait après un gel au jour `freeze` (copie).
+
+    Matchs des 10 championnats de la saison, à partir de `freeze` : non joués, sans buts ni
+    statistiques (le calendrier API figé). La suite vient de football-data, comme en live.
+    """
+    from foot_predictor.features.leagues import LADDERS
+
+    table = matches.copy()
+    after = (
+        (table["season_year"] == season) & table["api_league_id"].isin(list(LADDERS)) & (table["match_day"] >= freeze)
+    )
+    table.loc[after, "status"] = "scheduled"
+    for column in ("home_goals_90", "away_goals_90", *STAT_COLUMNS):
+        if column in table.columns:
+            table[column] = pd.to_numeric(table[column], errors="coerce").astype("Float64")
+            table.loc[after, column] = pd.NA
+    return table
+
+
+def _compare_columns(got: pd.DataFrame, expected: pd.DataFrame) -> dict[str, int] | None:
+    """Nombre de lignes en écart par colonne (valeurs manquantes égales entre elles) ; None si les matchs diffèrent."""
+    keys = ["match_id", "team_id"]
+    got, expected = got.sort_values(keys).reset_index(drop=True), expected.sort_values(keys).reset_index(drop=True)
+    if len(got) != len(expected) or not got[keys].equals(expected[keys]):
+        return None
+    counts = {}
+    for column in got.columns:
+        a, b = got[column], expected[column]
+        same = (a == b).fillna(False).astype(bool) | (a.isna() & b.isna())
+        counts[column] = int((~same).sum())
+    return counts
+
+
+def run_live_rehearsal(
+    matches: pd.DataFrame | None = None,
+    raw_dir: Path = REPO_ROOT / "data" / "raw",
+    maps=None,
+    freeze: dt.date = LIVE_FREEZE,
+    today: dt.date = LIVE_TODAY,
+) -> dict:
+    """Répétition du live sur la période de développement (sous-étape 5.10, ADR-0042).
+
+    Gel simulé au jour `freeze`, « aujourd'hui » simulé `today` : les CSV historiques de football-data
+    de la saison, coupés aux matchs d'avant `today` (comme un fichier téléchargé ce matin-là), sont
+    superposés à la table gelée. Les lignes des matchs de `today` sont comparées à celles de la vraie
+    table : buts et Elo doivent être identiques (même fonction, mêmes résultats) ; seules les variables
+    de tirs peuvent différer (tirs de football-data au lieu de ceux de l'API, ADR-0041).
+    """
+    from foot_predictor.features.sources import load_matches
+    from foot_predictor.inference import live_sources as L
+    from foot_predictor.inference.availability import match_availability
+    from foot_predictor.modeling.models.team import M3
+
+    if matches is None:
+        matches = load_matches()
+    if maps is None:
+        maps = L.TeamMaps.from_yaml(_api_to_internal())
+    season = L.season_of(today)
+    fetched = dt.datetime.combine(today, dt.time(8), tzinfo=dt.UTC)
+    results = {}
+    for division, source in L.season_files(raw_dir, season).items():
+        rows = [r for r in source.rows if (L.parse_date(r.get("Date") or "") or today) < today]
+        results[division] = L.SourceFile(rows, fetched, source.name)
+    frozen = freeze_table(matches, freeze, season)
+    started = time.perf_counter()
+    live = L.overlay(frozen, maps, season, [], results, today)
+    overlay_seconds = time.perf_counter() - started
+
+    truth = matches[["match_id", "home_goals_90", "away_goals_90"]]
+    window = live.matches.merge(truth, on="match_id", suffixes=("", "_api"))
+    window = window[
+        (window["season_year"] == season)
+        & window["api_league_id"].isin(list(maps.division_to_league.values()))
+        & (window["match_day"] >= freeze)
+        & (window["match_day"] < today)
+    ]
+    played = window[window["status"] == "played"]
+    mismatches = (played["home_goals_90"] != played["home_goals_90_api"]) | (
+        played["away_goals_90"] != played["away_goals_90_api"]
+    )
+
+    got = rows_for_day(live.matches, today)
+    columns = _compare_columns(got, rows_for_day(matches, today))
+    differing = {c: n for c, n in (columns or {}).items() if n}
+    features = tuple(M3(("G0", "G1", "G2"), 240).features)
+    statuses: dict[str, int] = {}
+    for _, match in live.matches[live.matches["match_day"] == today].iterrows():
+        rows = got[got["match_id"] == match["match_id"]]
+        status = match_availability(match, rows, features, live.freshness.get(int(match["api_league_id"]))).status
+        statuses[status] = statuses.get(status, 0) + 1
+    history = ("goals_", "opp_goals_", "elo", "opp_elo")
+    return {
+        "freeze": freeze.isoformat(),
+        "today": today.isoformat(),
+        "season": season,
+        "matches_after_freeze": int(len(window)),
+        "results_restored": int(len(played)),
+        "score_mismatches": int(mismatches.sum()),
+        "issues": [
+            {"division": i.division, "date": i.date.isoformat() if i.date else None, "reason": i.reason}
+            for i in live.issues
+        ],
+        "freshness": {str(k): v.complete_until.isoformat() for k, v in live.freshness.items()},
+        "rows": int(len(got)),
+        "same_matches": columns is not None,
+        "differing_columns": differing,
+        "goals_and_elo_identical": columns is not None and not any(c.startswith(history) for c in differing),
+        "statuses": statuses,
+        "overlay_seconds": round(overlay_seconds, 2),
+    }
+
+
+def render_live(report: dict) -> str:
+    statuses = ", ".join(f"{k} {v}" for k, v in sorted(report["statuses"].items()))
+    lines = [
+        f"# Répétition du live sur la période de développement — {report['date']}",
+        "",
+        "Produit par `python -m foot_predictor.inference check --only live` (sous-étape 5.10, ADR-0042). Gel simulé au "
+        f"{report['freeze']}, « aujourd'hui » simulé {report['today']} : les CSV historiques de football-data de la "
+        "saison, coupés aux matchs d'avant ce jour, complètent la table gelée (superposition en mémoire).",
+        "",
+        f"- Matchs des 10 championnats entre le gel et ce jour : {report['matches_after_freeze']} ; résultats "
+        f"rétablis par football-data : **{report['results_restored']}** ; scores différents de l'API : "
+        f"**{report['score_mismatches']}**.",
+        f"- Lignes inutilisables (jamais devinées) : {len(report['issues'])}.",
+        f"- Lignes des matchs du {report['today']} : {report['rows']} ; buts et Elo identiques à ceux de la vraie "
+        f"table : **{'oui' if report['goals_and_elo_identical'] else 'NON'}**.",
+        f"- Statuts de disponibilité des matchs du jour : {statuses}.",
+        f"- Durée de la superposition : {report['overlay_seconds']:.1f} s.",
+        "",
+        "| Variable en écart (tirs de football-data au lieu de ceux de l'API) | Lignes |",
+        "|---|---|",
+    ]
+    lines += [f"| `{c}` | {n} |" for c, n in sorted(report["differing_columns"].items())] or ["| aucune | 0 |"]
+    freshness = ", ".join(f"{k} : {v}" for k, v in sorted(report["freshness"].items()))
+    lines += ["", f"Fraîcheur par championnat (identifiant API : complet jusqu'au) : {freshness}."]
+    if report["issues"]:
+        lines += ["", "Lignes inutilisables :", ""]
+        lines += [f"- {i['division']} {i['date']} : {i['reason']}" for i in report["issues"][:20]]
+    return "\n".join(lines) + "\n"
+
+
+def _api_to_internal() -> dict[int, int]:
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+
+    from foot_predictor.db.models import Team
+    from foot_predictor.db.session import get_engine
+
+    with Session(get_engine()) as session:
+        pairs = session.execute(select(Team.id, Team.api_team_id)).all()
+    return {api: internal for internal, api in pairs if api is not None}

@@ -2,7 +2,7 @@
 
     python -m foot_predictor.inference predict --date 2024-05-19 --mode replay [--competition <id>] [--match <id>] [--json]
     python -m foot_predictor.inference models
-    python -m foot_predictor.inference check [--only rows|replay|predictions]
+    python -m foot_predictor.inference check [--only rows|replay|predictions|live]
 
 `predict` : réponses d'un jour (disponibilité, prédiction ou raisons), en rejeu (saisons 2021-22 à
 2024-25) ou en live ; les dates à partir du 1er juillet 2025 sont refusées tant que le test scellé
@@ -35,7 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="inscrit dans ops.model_registry le modèle actif (actif s'il n'y en a pas) et les modèles de rejeu en cache",
     )  # fmt: skip
     check = sub.add_parser("check", help="contrôles sur données réelles (période de développement)")
-    check.add_argument("--only", choices=["rows", "replay", "predictions"], help="un seul contrôle")
+    check.add_argument("--only", choices=["rows", "replay", "predictions", "live"], help="un seul contrôle")
     return parser
 
 
@@ -151,6 +151,13 @@ def cmd_check(args) -> int:
         _, md_path = check.write_report(report, f"predictions_{today}", check.render_predictions(report))
         print(f"Prédictions : {'reproduites' if report['all_reproduced'] else 'ÉCART'} ; {md_path}")
         ok &= report["all_reproduced"]
+    if args.only in (None, "live"):
+        report = check.run_live_rehearsal()
+        report["date"] = today
+        _, md_path = check.write_report(report, f"live_repetition_{today}", check.render_live(report))
+        verdict = report["goals_and_elo_identical"] and report["score_mismatches"] == 0
+        print(f"Répétition du live : {'buts et Elo identiques' if verdict else 'ÉCART'} ; {md_path}")
+        ok &= verdict
     return 0 if ok else 1
 
 

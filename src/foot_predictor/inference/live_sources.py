@@ -156,8 +156,14 @@ class LiveOverlay:
 
 
 def _key_index(matches: pd.DataFrame, season: int, leagues: set[int]) -> tuple[dict[tuple, int], set[tuple]]:
-    """(clé → position, clés ambiguës). Une clé portée par deux matchs n'est jamais résolue au hasard."""
+    """(clé → position, clés ambiguës). Une clé portée par deux matchs n'est jamais résolue au hasard.
+
+    Saison régulière seulement : les barrages (même compétition-saison dans l'API) répètent des affiches
+    de la saison, ne figurent pas dans les CSV de football-data et sont hors du périmètre du modèle.
+    """
     scope = matches[(matches["season_year"] == season) & matches["api_league_id"].isin(list(leagues))]
+    if "is_regular_season" in scope.columns:
+        scope = scope[scope["is_regular_season"].fillna(True).astype(bool)]
     index: dict[tuple, int] = {}
     ambiguous: set[tuple] = set()
     for position, row in zip(scope.index, scope.itertuples(), strict=True):

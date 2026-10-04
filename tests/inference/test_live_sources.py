@@ -145,6 +145,19 @@ def test_an_ambiguous_key_is_never_resolved_at_random():
     assert live.freshness[39].complete_until <= repeated["match_day"] - dt.timedelta(days=1)
 
 
+def test_play_offs_repeating_a_regular_season_fixture_do_not_make_the_key_ambiguous(frozen):
+    original, table, played_later = frozen
+    match = played_later.iloc[0]
+    play_off = table[table["match_id"] == match["match_id"]].copy()
+    play_off["match_id"], play_off["is_regular_season"] = 10_000, False
+    play_off["round"] = "Promotion Play-offs - Final"
+    with_play_off = pd.concat([table, play_off], ignore_index=True)
+    live = L.overlay(with_play_off, maps(original), SEASON, [], {"E0": source([result_line(match)])},
+                     today=dt.date(2024, 6, 30))  # fmt: skip
+    assert not live.issues and live.counts["resultats_superposes"] == 1
+    assert live.matches.set_index("match_id").at[10_000, "status"] == "scheduled"  # le barrage n'est pas touché
+
+
 def test_kickoff_is_london_time_converted_to_utc():
     assert L.kickoff_utc(dt.date(2026, 10, 10), "15:00") == pd.Timestamp("2026-10-10 14:00", tz="UTC")  # BST
     assert L.kickoff_utc(dt.date(2027, 1, 16), "15:00") == pd.Timestamp("2027-01-16 15:00", tz="UTC")  # GMT
@@ -242,3 +255,24 @@ def test_with_overlay_combines_versions_and_empties_the_rows_cache(frozen):
     ctx = L.with_overlay(base, live)
     assert ctx.data_version == f"v-test+{live.data_version}" and ctx._rows is None
     assert ctx.matches is live.matches and ctx.league_freshness == live.freshness
+
+
+def test_live_rehearsal_restores_goals_and_elo_after_a_simulated_freeze(tmp_path):
+    from foot_predictor.inference.check import freeze_table, run_live_rehearsal
+
+    original = round_robin_matches()
+    season = original[(original["season_year"] == SEASON) & (original["api_league_id"] == 39)]
+    days = sorted(season["match_day"].unique())
+    freeze, today = days[2], days[5]
+    frozen_table = freeze_table(original, freeze, SEASON)
+    assert frozen_table.loc[frozen_table["match_day"] >= freeze, "home_goals_90"].isna().all()
+    for division, league in (("E0", 39), ("E1", 40)):  # comme en vrai : un fichier par division suivie
+        lines = [result_line(m) for _, m in original[original["season_year"] == SEASON].iterrows()
+                 if m["api_league_id"] == league]  # fmt: skip
+        data = "\r\n".join([HEADER, *lines]).encode()
+        raw_bytes.write_bytes(tmp_path, f"football_data/csv/season={SEASON}", division, ".csv", data,
+                              dt.datetime(2024, 1, 1, tzinfo=dt.UTC))  # fmt: skip
+    report = run_live_rehearsal(original, tmp_path, maps(original), freeze=freeze, today=today)
+    assert report["score_mismatches"] == 0 and not report["issues"] and report["same_matches"]
+    assert report["results_restored"] == 12  # 2 championnats, 3 journées de 2 matchs entre le gel et ce jour
+    assert report["goals_and_elo_identical"] and not report["differing_columns"]  # tirs identiques ici

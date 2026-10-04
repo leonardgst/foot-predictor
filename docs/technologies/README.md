@@ -5,6 +5,6 @@ Un mini-cours par technologie, écrit au moment où elle entre dans le projet (r
 | Technologie | Entrée | Mini-cours |
 |---|---|---|
 | FastAPI, uvicorn, httpx | partie 5, sous-étape 5.6 (ADR-0040) | [`fastapi.md`](fastapi.md) |
-| Streamlit | partie 5, sous-étape 5.9 (ADR-0040) | `streamlit.md` (à venir en 5.9) |
+| Streamlit | partie 5, sous-étape 5.9 (ADR-0040) | [`streamlit.md`](streamlit.md) |
 
 Les technologies entrées avant la partie 5 (uv, Git, Docker Compose, PostgreSQL, SQLAlchemy et Alembic, pytest, pandas et Parquet, statsmodels et scikit-learn, ruff et pre-commit, LaTeX) sont décrites dans les modes d'emploi de `docs/realisation/` et dans les ADR ; leurs mini-cours restent à écrire.

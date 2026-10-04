@@ -3,7 +3,7 @@
 **Dernière mise à jour** : 2026-10-01 (fin du lot 2 de la partie 5)
 **Partie courante** : 5/6, inférence, API et interface (J7, J8), phase A. **Lots 1 et 2 faits** (inférence en rejeu, traçabilité, API, effet des tirs de football-data) ; lot 3 (interface, football-data en live, `v1.0.0`) à la prochaine session. La partie 4 attend sa phase B (test scellé, entraînement final) après la session de gel du **lundi 19 octobre** ; les phases B des parties 2 à 5 se font sur demande.
 
-**Reprise de la partie 5 au lot 3, sous-étape 5.9** (interface Streamlit). Relancer le prompt de la partie 5 ; lire d'abord `docs/retours/partie-5-lot2_2026-10-01.md`. Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
+**Reprise de la partie 5 au lot 3, sous-étape 5.10** (football-data en live, branche `feat/04-football-data-live`). 5.9 faite (PR #68 : interface Streamlit, `docs/realisation/13_interface/README.md`). Relancer le prompt de la partie 5 ; lire d'abord `docs/retours/partie-5-lot2_2026-10-01.md`. Partie 4 : reprise à la phase B (4.16, 4.17), commandes plus bas.
 **Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
 
 ## Terminé

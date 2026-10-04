@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 
 from foot_predictor.inference import models as model_store
-from foot_predictor.inference.availability import Freshness, match_availability
+from foot_predictor.inference.availability import AVAILABLE, UNAVAILABLE, Freshness, match_availability
 from foot_predictor.inference.rows import RowsCache, as_day
 from foot_predictor.modeling import metrics
 from foot_predictor.seal import SEAL_DATE
@@ -55,6 +55,10 @@ class InferenceContext:
     sealed_log: object = None
     replay_root: object = None
     active_version: str | None = None
+    league_freshness: dict[int, Freshness] | None = None
+    """Live : fraîcheur de football-data par championnat (`inference/live_sources.py`) ; sinon `freshness`."""
+    live_blocked: dict[int, list[str]] = field(default_factory=dict)
+    """Live : matchs indisponibles faute d'appariement sûr (nom d'équipe absent des YAML), avec la raison."""
     _rows: RowsCache | None = None
     _models: dict = field(default_factory=dict)
 
@@ -63,6 +67,11 @@ class InferenceContext:
         if self._rows is None:
             self._rows = RowsCache(self.matches, self.data_version)
         return self._rows
+
+    def freshness_for(self, match: pd.Series) -> Freshness:
+        if self.league_freshness:
+            return self.league_freshness.get(int(match["api_league_id"]), self.freshness)
+        return self.freshness
 
     def model(self, day: dt.date, mode: str) -> model_store.LoadedModel:
         key = (mode, model_store.season_of(day) if mode == "replay" else "actif")
@@ -145,7 +154,12 @@ def _market_reference(match_id: int, match_date: pd.Timestamp, context: Inferenc
 def predict_match(match: pd.Series, rows: pd.DataFrame, model, context: InferenceContext, mode: str,
                   horizon: str = "H1") -> dict:  # fmt: skip
     """Réponse complète pour un match : informations, disponibilité, prédiction ou raisons."""
-    availability = match_availability(match, rows, tuple(model.features), context.freshness, horizon)
+    freshness = context.freshness_for(match)
+    availability = match_availability(match, rows, tuple(model.features), freshness, horizon)
+    blocked = context.live_blocked.get(int(match["match_id"]))
+    if blocked and availability.status in (AVAILABLE, UNAVAILABLE):
+        availability.status = UNAVAILABLE
+        availability.reasons = availability.reasons + [r for r in blocked if r not in availability.reasons]
     result = {
         **_match_info(match, context),
         "mode": mode,
@@ -155,7 +169,7 @@ def predict_match(match: pd.Series, rows: pd.DataFrame, model, context: Inferenc
         "availability": availability.to_dict()["variables"],
         "model_version": model.version,
         "data_version": context.data_version,
-        "data_complete_until": context.freshness.complete_until.isoformat(),
+        "data_complete_until": freshness.complete_until.isoformat(),
         "prediction": None,
         "actual_score": None,
         "market_reference": None,

@@ -49,6 +49,7 @@ pre-commit run --all-files     # tout vérifier (5 minutes la première fois : i
 | mixed-line-ending (`--fix=no`) | commit | signale un fichier qui mélange LF et CRLF, sans rien réécrire |
 | ruff, ruff-format | commit | versions de `uv.lock` |
 | caractères de contrôle | commit | tabulations et caractères de contrôle dans `.md`, `.py`, `.yaml`, `.cmd` (E-029) |
+| antislash LaTeX | commit | refuse une ligne de `.tex` finie par un seul antislash au lieu de `\\` (E-053) |
 | tests sans base | push | `uv run pytest -m "not db" -q` |
 
 - **Pourquoi pre-commit hors du projet** : le hook doit rester utilisable quand le worktree passe sur un ancien tag (session de gel, tag `v0.2.0`).

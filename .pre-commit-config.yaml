@@ -50,6 +50,11 @@ repos:
         language: system
         files: \.(md|py|ya?ml|cmd)$
         exclude: ^docs/archives/
+      - id: latex-antislash
+        name: fin de ligne « \ » au lieu de « \\ » dans les .tex (E-053)
+        entry: uv run python -m foot_predictor.outils.latex
+        language: system
+        files: \.tex$
       - id: tests-sans-base
         name: tests sans base avant push (rapport J.2)
         entry: uv run pytest -m "not db" -q

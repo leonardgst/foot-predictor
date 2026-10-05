@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-053 — Fins de ligne `\` au lieu de `\\` dans la correction de Dixon-Coles (2026-10-05)
+
+- **Contexte** : relecture du document LaTeX des mathématiques, chapitre « Modèles et évaluation » (section M5).
+- **Message d'erreur** : aucun ; le document compile, mais les cinq cas de \(\tau(a, b)\) s'affichent collés sur une seule ligne.
+- **Cause** : même famille que E-029 et les `"\n"` cassés de `cli.py` (antislash perdu à l'écriture). Le fichier a été écrit par un outil qui interprète les antislashs : chaque `\\` de l'environnement `cases` (lignes 215 à 218) est devenu `\`, que LaTeX lit comme une espace, sans erreur.
+- **Solution** : les quatre fins de ligne corrigées à l'éditeur. Recherche sur tous les `.tex` suivis : aucune autre occurrence.
+- **Fichiers concernés** : `docs/latex/mathematiques/chapitres/modeles.tex`, `src/foot_predictor/outils/latex.py`, `.pre-commit-config.yaml`.
+- **Prévention** : hook pre-commit `latex-antislash`, qui refuse une ligne de `.tex` finie par un nombre impair d'antislashs ; les `.tex` s'écrivent à l'éditeur, comme les autres fichiers à antislashs (E-029).
+- **Test de non-régression** : `tests/outils/test_latex.py`, dont `test_tracked_tex_files_are_clean` sur tout le dépôt (tourne aussi en CI).
+
 ## E-052 — football-data redirige `www` vers le domaine nu ; ses pages bloquent les robots d'IA (2026-10-04)
 
 - **Contexte** : sous-étape 5.10 (sources live), lecture des conditions d'utilisation.

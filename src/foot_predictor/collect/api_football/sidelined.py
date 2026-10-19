@@ -13,6 +13,7 @@ alors tous les détails du top 5 (environ 40 s) à chaque fois ; après un
 lots sont figés : un joueur déjà présent dans une tâche `sidelined` n'est
 jamais remis en lot.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -34,7 +35,7 @@ class SidelinedPlan:
 
     def tasks(self, limit: int | None = None) -> list[tasks.Task]:
         size = tasks.SIDELINED_BATCH_MAX
-        planned = [tasks.sidelined_batch_task(TIER, self.new[i:i + size]) for i in range(0, len(self.new), size)]
+        planned = [tasks.sidelined_batch_task(TIER, self.new[i : i + size]) for i in range(0, len(self.new), size)]
         return planned if limit is None else planned[:limit]
 
 
@@ -48,8 +49,9 @@ def queued_players(queue: WorkQueue) -> set[int]:
     return players
 
 
-def build_sidelined_plan(config: CollectConfig, raw_dir: Path, queue: WorkQueue | None,
-                         source_tier: str = "P1", block_name: str = "top5") -> SidelinedPlan:
+def build_sidelined_plan(
+    config: CollectConfig, raw_dir: Path, queue: WorkQueue | None, source_tier: str = "P1", block_name: str = "top5"
+) -> SidelinedPlan:
     """Titulaires du bloc source (par défaut P1/top5, toutes ses saisons) pas encore demandés.
 
     `queue` à None : aucune file encore (simulation), personne n'a été demandé."""
@@ -66,10 +68,11 @@ def build_sidelined_plan(config: CollectConfig, raw_dir: Path, queue: WorkQueue 
 
 def plan_lines(plan: SidelinedPlan, limit: int | None = None, queued: int | None = None) -> list[str]:
     requests = len(plan.tasks(limit))
-    lines = [f"Titulaires du bloc source : {plan.starters} ; déjà demandés : {plan.already} ; "
-             f"nouveaux : {len(plan.new)}",
-             f"Lots de {tasks.SIDELINED_BATCH_MAX} (1 requête chacun) : {requests}"
-             + (f" (plafond --limit {limit})" if limit is not None else "")]
+    lines = [
+        f"Titulaires du bloc source : {plan.starters} ; déjà demandés : {plan.already} ; nouveaux : {len(plan.new)}",
+        f"Lots de {tasks.SIDELINED_BATCH_MAX} (1 requête chacun) : {requests}"
+        + (f" (plafond --limit {limit})" if limit is not None else ""),
+    ]
     if queued is not None:
         lines.append(f"Tâches ajoutées à la file (palier {TIER}) : {queued}.")
     return lines

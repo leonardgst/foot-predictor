@@ -62,7 +62,7 @@ def test_season_code_and_url():
     assert season_code(2000) == "0001"
     assert season_code(2026) == "2627"
     assert season_code(2099) == "9900"
-    assert file_url("E0", 2023) == "https://www.football-data.co.uk/mmz4281/2324/E0.csv"
+    assert file_url("E0", 2023) == "https://football-data.co.uk/mmz4281/2324/E0.csv"  # domaine nu (E-052)
 
 
 def test_looks_like_csv():

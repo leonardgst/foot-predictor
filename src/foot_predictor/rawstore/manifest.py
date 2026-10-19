@@ -5,6 +5,7 @@ reconstruit entièrement en relisant les fichiers bruts (`rebuild`), à une
 exception près, `duration_ms`, qui n'est pas dans l'enveloppe et vaut alors
 `null`.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -92,9 +93,7 @@ def read_manifest_file(path: Path) -> list[dict]:
         return [json.loads(line) for line in handle if line.strip()]
 
 
-def rebuild(
-    raw_dir: Path, source: str, extra_fields: ExtraFields | None = None
-) -> tuple[Path, list[dict]]:
+def rebuild(raw_dir: Path, source: str, extra_fields: ExtraFields | None = None) -> tuple[Path, list[dict]]:
     """Reconstruit le journal à partir des fichiers bruts.
 
     Le résultat est écrit dans un **nouveau** fichier
@@ -117,7 +116,7 @@ def rebuild(
         )
     entries.sort(key=lambda entry: (entry["timestamp"], entry["file"]))
 
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     target = Path(raw_dir) / MANIFEST_DIR / f"{source}.rebuilt-{stamp}.jsonl"
     target.parent.mkdir(parents=True, exist_ok=True)
     with open(target, "x", encoding="utf-8", newline="\n") as handle:

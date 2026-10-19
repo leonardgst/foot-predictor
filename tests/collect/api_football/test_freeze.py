@@ -1,4 +1,5 @@
 """Commande `freeze` (gel des données) et sauvegarde sous verrou, sans aucun appel réseau."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -31,17 +32,51 @@ def setup(tmp_path, real):
 
 
 def freeze(tmp_path, raw, config, *extra):
-    return cli.main(["--raw-dir", str(raw), "--config", str(config), "freeze",
-                     "--dest", str(tmp_path / "externe" / "raw"), "--restore-to", str(tmp_path / "restauration" / "raw"),
-                     "--report-dir", str(tmp_path / "rapports"), "--doc", str(tmp_path / "docs" / "DATA_FREEZE.md"),
-                     *extra])
+    return cli.main(
+        [
+            "--raw-dir",
+            str(raw),
+            "--config",
+            str(config),
+            "freeze",
+            "--dest",
+            str(tmp_path / "externe" / "raw"),
+            "--restore-to",
+            str(tmp_path / "restauration" / "raw"),
+            "--report-dir",
+            str(tmp_path / "rapports"),
+            "--doc",
+            str(tmp_path / "docs" / "DATA_FREEZE.md"),
+            *extra,
+        ]
+    )
+
+
+def mentions_number(text: str, number: int) -> bool:
+    """Le nombre figure-t-il tel quel dans le texte (E-036) ?
+
+    `\\b` ne suffit pas : un point décimal est une limite de mot, et « 0.174 s » contenait
+    alors l'identifiant 174. Ici, le nombre ne doit toucher ni lettre ni chiffre, ni suivre
+    un séparateur décimal, ni en précéder un suivi d'un chiffre : « (174) » et « joueur 174. »
+    le contiennent ; « 0.174 s », « 174,5 », « 1174 » et un sha256 « …e174f… » non.
+    """
+    return re.search(rf"(?<![\w.,]){number}(?!\w|[.,]\d)", text) is not None
 
 
 def hold_lock(raw):
     path = lock_path(raw)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"pid": os.getpid(), "command": "run", "host": socket.gethostname(),
-                                "started_at": dt.datetime.now(dt.timezone.utc).isoformat()}), encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            {
+                "pid": os.getpid(),
+                "command": "run",
+                "host": socket.gethostname(),
+                "started_at": dt.datetime.now(dt.UTC).isoformat(),
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_freeze_checks_saves_restores_and_drafts_data_freeze(tmp_path, setup, real, capsys):
@@ -62,8 +97,15 @@ def test_freeze_checks_saves_restores_and_drafts_data_freeze(tmp_path, setup, re
     assert "Sauvegarde : " in out and "restauration" in out and "Durée totale" in out
 
     doc = (tmp_path / "docs" / "DATA_FREEZE.md").read_text(encoding="utf-8")
-    for section in ("## Périmètre", "## Volumes", "## Contrôle du brut", "## Trous connus", "## Quota consommé",
-                    "## Journal et sauvegarde", "## À compléter à la main"):
+    for section in (
+        "## Périmètre",
+        "## Volumes",
+        "## Contrôle du brut",
+        "## Trous connus",
+        "## Quota consommé",
+        "## Journal et sauvegarde",
+        "## À compléter à la main",
+    ):
         assert section in doc
     assert "Brouillon généré le" in doc and "sha256 `" in doc
     assert "Matchs terminés avec détail : **5 / 5**" in doc
@@ -71,7 +113,23 @@ def test_freeze_checks_saves_restores_and_drafts_data_freeze(tmp_path, setup, re
     names = {e["player"]["name"] for item in real for team in item["players"] for e in team["players"]}
     assert [n for n in names if n in doc] == []
     ids = {e["player"]["id"] for item in real for team in item["players"] for e in team["players"]}
-    assert [i for i in ids if re.search(rf"\b{i}\b", doc)] == []
+    assert [i for i in ids if mentions_number(doc, i)] == []
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("raw_check 0.174 s", False),  # la durée qui faisait échouer le test (E-036)
+        ("174,5 Mo", False),
+        ("1174 fichiers", False),
+        ("sha256 `e174f0`", False),
+        ("joueur 174.", True),
+        ("(174)", True),
+        ("174 : nom", True),
+    ],
+)
+def test_mentions_number_ignores_decimals_longer_numbers_and_hashes(text, expected):
+    assert mentions_number(text, 174) is expected
 
 
 def test_blocking_verdict_stops_the_freeze_before_any_copy(tmp_path, real, capsys):

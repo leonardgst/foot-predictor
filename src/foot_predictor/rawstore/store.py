@@ -9,6 +9,7 @@ présent dès la première version : une recollecte crée simplement un nouveau
 fichier à côté, et le chargeur prend la version la plus récente (le tri
 alphabétique des noms suit l'ordre chronologique).
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -55,7 +56,7 @@ def build_envelope(
 
 
 def versioned_name(stem: str, fetched_at: dt.datetime) -> str:
-    stamp = fetched_at.astimezone(dt.timezone.utc).strftime(TIMESTAMP_FORMAT)
+    stamp = fetched_at.astimezone(dt.UTC).strftime(TIMESTAMP_FORMAT)
     return f"{stem}{VERSION_SEPARATOR}{stamp}{SUFFIX}"
 
 
@@ -66,9 +67,7 @@ def encode_envelope(envelope: dict) -> bytes:
     return gzip.compress(payload, mtime=0)
 
 
-def write_envelope(
-    raw_dir: Path, relative_dir: str, stem: str, envelope: dict, fetched_at: dt.datetime
-) -> StoredFile:
+def write_envelope(raw_dir: Path, relative_dir: str, stem: str, envelope: dict, fetched_at: dt.datetime) -> StoredFile:
     """Écrit l'enveloppe de façon atomique, sans jamais écraser.
 
     Étapes : écriture complète dans `<nom>.tmp`, `fsync` (les octets sont sur

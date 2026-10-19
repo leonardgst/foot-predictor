@@ -1,4 +1,5 @@
 """Runner de bout en bout contre une fausse API : stockage, statuts, reprise."""
+
 from __future__ import annotations
 
 import gzip
@@ -11,16 +12,40 @@ from foot_predictor.collect.api_football.queue import WorkQueue
 from foot_predictor.collect.api_football.runner import Runner, dry_run_lines
 from foot_predictor.rawstore import manifest, store
 
-from .fakes import TEST_KEY, FakeApi, FakeClock, FakeResponse, FakeSession, fixture_item, load_real_fixtures, make_client
+from .fakes import (
+    TEST_KEY,
+    FakeApi,
+    FakeClock,
+    FakeResponse,
+    FakeSession,
+    fixture_item,
+    load_real_fixtures,
+    make_client,
+)
 
 REAL_IDS = sorted(f["fixture"]["id"] for f in load_real_fixtures())
 LISTING = ("/fixtures", (("league", 39), ("season", 2015)))
 
 
 def make_config(endpoints=("fixtures_list", "fixtures_detail")):
-    return parse_config({"reserve": 500, "tiers": {"P1": {"blocks": [{
-        "name": "top5", "kind": "league", "leagues": [39], "seasons": {"first": 2015, "last": 2015},
-        "endpoints": list(endpoints)}]}}})
+    return parse_config(
+        {
+            "reserve": 500,
+            "tiers": {
+                "P1": {
+                    "blocks": [
+                        {
+                            "name": "top5",
+                            "kind": "league",
+                            "leagues": [39],
+                            "seasons": {"first": 2015, "last": 2015},
+                            "endpoints": list(endpoints),
+                        }
+                    ]
+                }
+            },
+        }
+    )
 
 
 @pytest.fixture
@@ -98,7 +123,9 @@ def test_errors_give_failed_without_retry(tmp_path, api):
     (listing,) = all_tasks(tmp_path)
     assert listing.status == "failed" and "plan" in listing.last_error
     assert listing.file is not None  # réponse stockée pour la traçabilité
-    assert manifest.read_entries(tmp_path, "api_football")[-1]["errors"] == {"plan": "Free plans do not have access to this season"}
+    assert manifest.read_entries(tmp_path, "api_football")[-1]["errors"] == {
+        "plan": "Free plans do not have access to this season"
+    }
     _, session = run_once(tmp_path, api, make_config())
     assert [c[0] for c in session.calls] == ["/status"]
 

@@ -23,6 +23,7 @@ session est ouverte (verrouillée, cela suffit).
 Aucune requête API ici : les scripts `.cmd` lancés par les tâches portent
 leurs plafonds (`--max-requests`).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -58,15 +59,33 @@ def build_tasks() -> list[ScheduledTask]:
       vendredi et lundi à 16:00 (matchs du soir).
     """
     tasks = [
-        ScheduledTask(f"{PREFIX}refresh_{day}", dt.datetime.fromisoformat(f"{day}T08:00"), "refresh_run.cmd", day,
-                      "foot-predictor : refresh de la saison 2026 puis run plafonné (250 requêtes)")
+        ScheduledTask(
+            f"{PREFIX}refresh_{day}",
+            dt.datetime.fromisoformat(f"{day}T08:00"),
+            "refresh_run.cmd",
+            day,
+            "foot-predictor : refresh de la saison 2026 puis run plafonné (250 requêtes)",
+        )
         for day in ("2026-10-05", "2026-10-12")
     ]
-    for day, hour in (("2026-10-09", "16:00"), ("2026-10-10", "09:30"), ("2026-10-11", "09:30"),
-                      ("2026-10-12", "16:00"), ("2026-10-16", "16:00"), ("2026-10-17", "09:30"),
-                      ("2026-10-18", "09:30")):
-        tasks.append(ScheduledTask(f"{PREFIX}t60_{day}", dt.datetime.fromisoformat(f"{day}T{hour}"), "t60.cmd", day,
-                                   "foot-predictor : journal T-60 du top 5 (80 requêtes au plus)"))
+    for day, hour in (
+        ("2026-10-09", "16:00"),
+        ("2026-10-10", "09:30"),
+        ("2026-10-11", "09:30"),
+        ("2026-10-12", "16:00"),
+        ("2026-10-16", "16:00"),
+        ("2026-10-17", "09:30"),
+        ("2026-10-18", "09:30"),
+    ):
+        tasks.append(
+            ScheduledTask(
+                f"{PREFIX}t60_{day}",
+                dt.datetime.fromisoformat(f"{day}T{hour}"),
+                "t60.cmd",
+                day,
+                "foot-predictor : journal T-60 du top 5 (80 requêtes au plus)",
+            )
+        )
     return sorted(tasks, key=lambda t: t.start)
 
 

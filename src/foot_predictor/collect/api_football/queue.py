@@ -18,6 +18,7 @@ La table `deferred_fixtures` liste les matchs à statut non terminal (à venir,
 reportés, interrompus...) : ils ne sont pas mis en lot, et serviront à une
 recollecte ultérieure.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -70,7 +71,7 @@ CREATE TABLE IF NOT EXISTS planned_tiers (
 
 
 def _now() -> str:
-    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    return dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
 
 
 @dataclass(frozen=True)
@@ -117,8 +118,19 @@ class WorkQueue:
         """Ajoute les tâches absentes (clé canonique) ; renvoie le nombre ajouté."""
         now = _now()
         rows = [
-            (t.key, t.tier, t.task_type, t.endpoint, t.params_json(), t.rel_dir, t.stem,
-             int(t.expects_results), t.priority, now, now)
+            (
+                t.key,
+                t.tier,
+                t.task_type,
+                t.endpoint,
+                t.params_json(),
+                t.rel_dir,
+                t.stem,
+                int(t.expects_results),
+                t.priority,
+                now,
+                now,
+            )
             for t in tasks
         ]
         before = self._conn.total_changes
@@ -140,9 +152,7 @@ class WorkQueue:
 
     def list_pending(self, exclude_ids: Iterable[int] = ()) -> list[QueuedTask]:
         excluded = set(exclude_ids)
-        rows = self._conn.execute(
-            "SELECT * FROM tasks WHERE status = 'pending' ORDER BY tier, priority, id"
-        ).fetchall()
+        rows = self._conn.execute("SELECT * FROM tasks WHERE status = 'pending' ORDER BY tier, priority, id").fetchall()
         return [self._to_task(row) for row in rows if row["id"] not in excluded]
 
     def params_of_type(self, task_type: str) -> list[dict]:
@@ -235,9 +245,7 @@ class WorkQueue:
 
     def remove_deferred(self, fixture_ids: Iterable[int]) -> None:
         with self._conn:
-            self._conn.executemany(
-                "DELETE FROM deferred_fixtures WHERE fixture_id = ?", [(i,) for i in fixture_ids]
-            )
+            self._conn.executemany("DELETE FROM deferred_fixtures WHERE fixture_id = ?", [(i,) for i in fixture_ids])
 
     def overdue_deferred(self, season: int, leagues: Iterable[int], now: dt.datetime) -> dict[int, int]:
         """Matchs non terminaux dont la date est passée, par compétition.
@@ -257,7 +265,7 @@ class WorkQueue:
             except ValueError:
                 continue
             if kickoff.tzinfo is None:
-                kickoff = kickoff.replace(tzinfo=dt.timezone.utc)
+                kickoff = kickoff.replace(tzinfo=dt.UTC)
             if kickoff < now:
                 counts[league] = counts.get(league, 0) + 1
         return counts

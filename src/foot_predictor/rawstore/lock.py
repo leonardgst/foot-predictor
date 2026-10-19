@@ -23,6 +23,7 @@ Vérification avant un `git pull` dans le dossier principal :
 Code de retour 0 : libre (ou périmé) ; 1 : une commande tourne, ne pas faire
 de `git pull`.
 """
+
 # Remarque : `lock-status` ne supprime jamais un verrou ; seul `acquire`
 # remplace un verrou périmé, au moment où une commande en a besoin.
 from __future__ import annotations
@@ -105,13 +106,17 @@ def read_lock(raw_dir: Path) -> LockInfo | None:
     path = lock_path(raw_dir)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return LockInfo(int(data["pid"]), str(data["command"]),
-                        dt.datetime.fromisoformat(data["started_at"]), str(data.get("host", "?")))
+        return LockInfo(
+            int(data["pid"]),
+            str(data["command"]),
+            dt.datetime.fromisoformat(data["started_at"]),
+            str(data.get("host", "?")),
+        )
     except FileNotFoundError:
         return None
     except (OSError, ValueError, KeyError, TypeError):
         try:
-            mtime = dt.datetime.fromtimestamp(path.stat().st_mtime, dt.timezone.utc)
+            mtime = dt.datetime.fromtimestamp(path.stat().st_mtime, dt.UTC)
         except FileNotFoundError:
             return None
         return LockInfo(0, "inconnue (verrou illisible)", mtime, "?")
@@ -153,7 +158,7 @@ class CollectLock:
         *,
         wait: dt.timedelta = dt.timedelta(0),
         poll_seconds: float = 30.0,
-        now: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.timezone.utc),
+        now: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.UTC),
         sleep: Callable[[float], None] = time.sleep,
         alive: Callable[[int], bool] = pid_alive,
         pid: int | None = None,
@@ -187,13 +192,22 @@ class CollectLock:
                         path.unlink(missing_ok=True)
                     continue
                 if self._now() >= deadline:
-                    raise LockHeldError(f"Dossier brut occupé par {info.describe()}. "
-                                        "Attendre la fin de cette commande (voir lock-status).") from None
+                    raise LockHeldError(
+                        f"Dossier brut occupé par {info.describe()}. "
+                        "Attendre la fin de cette commande (voir lock-status)."
+                    ) from None
                 self._sleep(self.poll_seconds)
                 continue
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
-                json.dump({"pid": self.pid, "command": self.command, "host": socket.gethostname(),
-                           "started_at": self._now().isoformat()}, handle)
+                json.dump(
+                    {
+                        "pid": self.pid,
+                        "command": self.command,
+                        "host": socket.gethostname(),
+                        "started_at": self._now().isoformat(),
+                    },
+                    handle,
+                )
             self.acquired = True
             return
 

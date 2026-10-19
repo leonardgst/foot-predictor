@@ -18,6 +18,7 @@ suivant :
 Cette commande n'envoie aucune requête : elle modifie la file, et c'est `run`
 qui consomme le quota. Elle affiche d'abord ce coût.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -103,7 +104,7 @@ def build_refresh_plan(
     redemander une seule liste (MLS 2017) sans refaire toutes celles de la
     saison.
     """
-    now = now or dt.datetime.now(dt.timezone.utc)
+    now = now or dt.datetime.now(dt.UTC)
     planner = Planner(config, raw_dir, queue)
     candidates: dict[str, Task] = {}
     for tier in tiers:
@@ -112,8 +113,11 @@ def build_refresh_plan(
                 continue
             candidates.setdefault(task.key, task)  # une même requête n'existe qu'une fois dans la file
     items = [RefreshItem(task, queue.status_of(task)) for task in candidates.values()]
-    refreshed_leagues = {item.task.params["league"] for item in items
-                         if item.task.task_type == "fixtures_list" and item.queued_by_refresh}
+    refreshed_leagues = {
+        item.task.params["league"]
+        for item in items
+        if item.task.task_type == "fixtures_list" and item.queued_by_refresh
+    }
     return RefreshPlan(season, tiers, items, queue.overdue_deferred(season, refreshed_leagues, now))
 
 
@@ -127,10 +131,15 @@ def apply_refresh(queue: WorkQueue, plan: RefreshPlan) -> tuple[int, int]:
 
 def plan_lines(plan: RefreshPlan) -> list[str]:
     """Résumé affiché avant confirmation : tâches concernées et coût estimé."""
-    lines = [f"Rafraîchissement de la saison {plan.season} ({', '.join(plan.tiers)}) : "
-             "cette commande n'envoie aucune requête ; c'est le prochain run qui les enverra.", ""]
+    lines = [
+        f"Rafraîchissement de la saison {plan.season} ({', '.join(plan.tiers)}) : "
+        "cette commande n'envoie aucune requête ; c'est le prochain run qui les enverra.",
+        "",
+    ]
     if not plan.items:
-        return lines + ["Aucune tâche concernée : saison hors des blocs de ces paliers, ou non couverte d'après /leagues."]
+        return lines + [
+            "Aucune tâche concernée : saison hors des blocs de ces paliers, ou non couverte d'après /leagues."
+        ]
 
     table: dict[tuple[str, str], Counter] = {}
     for item in plan.items:

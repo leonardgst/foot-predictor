@@ -34,7 +34,7 @@ from foot_predictor.collect.football_data import SOURCE
 from foot_predictor.rawstore.lock import CollectLock
 from foot_predictor.rawstore.manifest import append_entry
 
-BASE_URL = "https://www.football-data.co.uk/mmz4281"
+BASE_URL = "https://football-data.co.uk/mmz4281"  # sans www : le site redirige www vers ce domaine (E-052)
 USER_AGENT = "foot-predictor-research-bot/1.0 (personal educational project)"
 SUFFIX = ".csv"
 MIN_INTERVAL_SECONDS = 1.0

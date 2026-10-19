@@ -30,6 +30,7 @@ La collecte s'arrête quand la file est vide et que le plan n'ajoute plus
 rien, ou proprement sur la réserve de quota, le quota du jour épuisé, ou
 `--max-requests`.
 """
+
 from __future__ import annotations
 
 import logging
@@ -200,8 +201,14 @@ class Runner:
             self.queue.mark_suspect(task.id, reason or "", stored.relative_path)
         self.report.outcomes[status] += 1
         log = logger.info if status == "done" else logger.warning
-        log("%s : %s (%s résultats, quota du jour restant %s)%s", label, status, response.results,
-            self.client.remaining_day, f" ; {reason}" if reason else "")
+        log(
+            "%s : %s (%s résultats, quota du jour restant %s)%s",
+            label,
+            status,
+            response.results,
+            self.client.remaining_day,
+            f" ; {reason}" if reason else "",
+        )
 
     def _enqueue_next_pages(self, task: QueuedTask, response: ApiResponse) -> None:
         paging = response.body.get("paging") or {}

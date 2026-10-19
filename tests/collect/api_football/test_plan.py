@@ -1,4 +1,5 @@
 """Planification : lots de 20, matchs déjà présents, statuts, coupes, couverture."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -19,28 +20,45 @@ from foot_predictor.rawstore import manifest, store
 
 from .fakes import api_body, fixture_item, leagues_response, load_real_fixtures
 
-T0 = dt.datetime(2026, 10, 2, 8, 0, tzinfo=dt.timezone.utc)
+T0 = dt.datetime(2026, 10, 2, 8, 0, tzinfo=dt.UTC)
 REAL_IDS = sorted(f["fixture"]["id"] for f in load_real_fixtures())  # 192297 à 192301
 
 
 def config(*blocks, tier="P1", terminal=("FT", "AET", "PEN", "AWD", "WO")):
-    return parse_config({"reserve": 500, "terminal_statuses": list(terminal), "tiers": {tier: {"blocks": list(blocks)}}})
+    return parse_config(
+        {"reserve": 500, "terminal_statuses": list(terminal), "tiers": {tier: {"blocks": list(blocks)}}}
+    )
 
 
 def league_block(endpoints=("fixtures_list", "fixtures_detail"), leagues=(39,), first=2015, last=2015, **extra):
-    return {"name": "top5", "kind": "league", "leagues": list(leagues),
-            "seasons": {"first": first, "last": last}, "endpoints": list(endpoints), **extra}
+    return {
+        "name": "top5",
+        "kind": "league",
+        "leagues": list(leagues),
+        "seasons": {"first": first, "last": last},
+        "endpoints": list(endpoints),
+        **extra,
+    }
 
 
 def save(raw_dir, task, response_items, *, when=T0, errors=None):
     """Stocke une réponse comme le ferait le runner (fichier + journal)."""
     envelope = store.build_envelope(
-        endpoint=task.endpoint, params=task.params, fetched_at=when, http_status=200,
-        headers_quota={}, body=api_body(response_items, errors=errors),
+        endpoint=task.endpoint,
+        params=task.params,
+        fetched_at=when,
+        http_status=200,
+        headers_quota={},
+        body=api_body(response_items, errors=errors),
     )
     stored = store.write_envelope(raw_dir, task.rel_dir, task.stem, envelope, when)
-    manifest.append_entry(raw_dir, "api_football", manifest.entry_for_stored(
-        envelope, stored, source="api_football", duration_ms=1, extra=manifest_extra(envelope)))
+    manifest.append_entry(
+        raw_dir,
+        "api_football",
+        manifest.entry_for_stored(
+            envelope, stored, source="api_football", duration_ms=1, extra=manifest_extra(envelope)
+        ),
+    )
 
 
 @pytest.fixture
@@ -111,9 +129,16 @@ def test_detail_with_errors_does_not_count_as_present(tmp_path, queue):
 
 
 def test_non_terminal_fixtures_are_listed_apart(tmp_path, queue):
-    items = [fixture_item(1, status="FT"), fixture_item(2, status="AET"), fixture_item(3, status="PEN"),
-             fixture_item(4, status="AWD"), fixture_item(5, status="WO"), fixture_item(6, status="NS"),
-             fixture_item(7, status="PST"), fixture_item(8, status="1H")]
+    items = [
+        fixture_item(1, status="FT"),
+        fixture_item(2, status="AET"),
+        fixture_item(3, status="PEN"),
+        fixture_item(4, status="AWD"),
+        fixture_item(5, status="WO"),
+        fixture_item(6, status="NS"),
+        fixture_item(7, status="PST"),
+        fixture_item(8, status="1H"),
+    ]
     save(tmp_path, tasks.fixtures_list_task("P1", 39, 2026), items)
 
     report = Planner(config(league_block(first=2026, last=2026)), tmp_path, queue).plan("P1")
@@ -125,13 +150,21 @@ def test_non_terminal_fixtures_are_listed_apart(tmp_path, queue):
 
 def test_cup_details_only_for_matches_with_a_followed_team(tmp_path, queue):
     league_items = [fixture_item(10, home=33, away=47), fixture_item(11, home=50, away=51)]
-    cup_items = [fixture_item(20, league=45, home=33, away=900),  # Man United : suivi
-                 fixture_item(21, league=45, home=901, away=902),  # deux clubs amateurs
-                 fixture_item(22, league=45, home=903, away=51)]   # équipe 51 : suivie
+    cup_items = [
+        fixture_item(20, league=45, home=33, away=900),  # Man United : suivi
+        fixture_item(21, league=45, home=901, away=902),  # deux clubs amateurs
+        fixture_item(22, league=45, home=903, away=51),
+    ]  # équipe 51 : suivie
     save(tmp_path, tasks.fixtures_list_task("P1", 39, 2015), league_items)
     save(tmp_path, tasks.fixtures_list_task("P1", 45, 2015), cup_items)
-    cup = {"name": "coupes", "kind": "cup", "leagues": [45], "seasons": {"first": 2015, "last": 2015},
-           "endpoints": ["fixtures_list", "fixtures_detail"], "detail_teams_from": "P1"}
+    cup = {
+        "name": "coupes",
+        "kind": "cup",
+        "leagues": [45],
+        "seasons": {"first": 2015, "last": 2015},
+        "endpoints": ["fixtures_list", "fixtures_detail"],
+        "detail_teams_from": "P1",
+    }
 
     report = Planner(config(league_block(), cup), tmp_path, queue).plan("P1")
 
@@ -141,8 +174,14 @@ def test_cup_details_only_for_matches_with_a_followed_team(tmp_path, queue):
 
 def test_cup_waits_while_league_listing_is_pending(tmp_path, queue):
     save(tmp_path, tasks.fixtures_list_task("P1", 45, 2015), [fixture_item(20, league=45)])
-    cup = {"name": "coupes", "kind": "cup", "leagues": [45], "seasons": {"first": 2015, "last": 2015},
-           "endpoints": ["fixtures_list", "fixtures_detail"], "detail_teams_from": "P1"}
+    cup = {
+        "name": "coupes",
+        "kind": "cup",
+        "leagues": [45],
+        "seasons": {"first": 2015, "last": 2015},
+        "endpoints": ["fixtures_list", "fixtures_detail"],
+        "detail_teams_from": "P1",
+    }
 
     report = Planner(config(league_block(), cup), tmp_path, queue).plan("P1")
 
@@ -177,10 +216,23 @@ def test_coverage_filters_seasons_and_endpoints(tmp_path, queue):
 
 def test_p2_keeps_only_old_seasons_with_lineups(tmp_path, queue):
     coverage = coverage_from_body(api_body(leagues_response()))
-    cfg = parse_config({"tiers": {"P2": {"blocks": [{
-        "name": "historique", "kind": "league", "leagues": [39],
-        "seasons": {"last": 2014, "requires_coverage": "fixtures.lineups"},
-        "endpoints": ["fixtures_list"]}]}}})
+    cfg = parse_config(
+        {
+            "tiers": {
+                "P2": {
+                    "blocks": [
+                        {
+                            "name": "historique",
+                            "kind": "league",
+                            "leagues": [39],
+                            "seasons": {"last": 2014, "requires_coverage": "fixtures.lineups"},
+                            "endpoints": ["fixtures_list"],
+                        }
+                    ]
+                }
+            }
+        }
+    )
 
     report = Planner(cfg, tmp_path, queue, coverage=coverage).plan("P2")
 
@@ -207,13 +259,16 @@ def test_empty_tier_warns(tmp_path, queue):
     assert any("aucun bloc" in w for w in Planner(cfg, tmp_path, queue).plan("P4").warnings)
 
 
-@pytest.mark.parametrize("bad", [
-    {"endpoints": ["inconnu"]},
-    {"endpoints": ["coachs"]},  # coachs sans teams
-    {"kind": "autre"},
-    {"seasons": {"first": 2015}},  # last manquant
-    {"detail_teams_from": "P9"},
-])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"endpoints": ["inconnu"]},
+        {"endpoints": ["coachs"]},  # coachs sans teams
+        {"kind": "autre"},
+        {"seasons": {"first": 2015}},  # last manquant
+        {"detail_teams_from": "P9"},
+    ],
+)
 def test_invalid_config_is_rejected(bad):
     with pytest.raises(ConfigError):
         config({**league_block(), **bad})

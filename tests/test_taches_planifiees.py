@@ -1,4 +1,5 @@
 """Tâches planifiées de la partie 1 (`scripts/taches_planifiees/`), sans rien créer sous Windows."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -52,9 +53,13 @@ def test_task_xml_has_the_expected_settings(module):
     assert text("t:Triggers/t:TimeTrigger/t:StartBoundary") == "2026-10-05T08:00:00"
     assert text("t:Triggers/t:TimeTrigger/t:EndBoundary") == "2026-10-05T23:00:00"
     assert text("t:Principals/t:Principal/t:LogonType") == "InteractiveToken"  # aucun mot de passe stocké
-    for setting, value in (("StartWhenAvailable", "true"), ("WakeToRun", "true"),
-                           ("DisallowStartIfOnBatteries", "false"), ("StopIfGoingOnBatteries", "false"),
-                           ("MultipleInstancesPolicy", "IgnoreNew")):
+    for setting, value in (
+        ("StartWhenAvailable", "true"),
+        ("WakeToRun", "true"),
+        ("DisallowStartIfOnBatteries", "false"),
+        ("StopIfGoingOnBatteries", "false"),
+        ("MultipleInstancesPolicy", "IgnoreNew"),
+    ):
         assert text(f"t:Settings/t:{setting}") == value, setting
     assert text("t:Actions/t:Exec/t:Command").replace("\\", "/").endswith("scripts/taches_planifiees/refresh_run.cmd")
     assert text("t:Actions/t:Exec/t:Arguments") == "2026-10-05"

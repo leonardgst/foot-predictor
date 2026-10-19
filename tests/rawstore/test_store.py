@@ -1,4 +1,5 @@
 """Écriture atomique et absence d'écrasement du brut (ADR-0003)."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -9,7 +10,7 @@ import pytest
 
 from foot_predictor.rawstore import store
 
-FETCHED_AT = dt.datetime(2026, 10, 2, 8, 15, 30, 123456, tzinfo=dt.timezone.utc)
+FETCHED_AT = dt.datetime(2026, 10, 2, 8, 15, 30, 123456, tzinfo=dt.UTC)
 
 
 def _envelope(body=None):
@@ -27,9 +28,7 @@ def test_write_envelope_creates_versioned_file_and_roundtrips(tmp_path):
     envelope = _envelope()
     stored = store.write_envelope(tmp_path, "api_football/fixtures_list/league=39", "season=2023", envelope, FETCHED_AT)
 
-    assert stored.relative_path == (
-        "api_football/fixtures_list/league=39/season=2023__20261002T081530123456Z.json.gz"
-    )
+    assert stored.relative_path == ("api_football/fixtures_list/league=39/season=2023__20261002T081530123456Z.json.gz")
     assert store.read_envelope(stored.path) == envelope
     assert set(envelope) == {"request", "fetched_at", "http_status", "headers_quota", "body"}
     assert stored.sha256 == hashlib.sha256(stored.path.read_bytes()).hexdigest()

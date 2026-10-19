@@ -71,22 +71,11 @@ markers = [
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-# Chemins gelés jusqu'à la session de gel du 19 octobre (partie 2, règles du gel) :
-# le code du collecteur, du brut et des tâches planifiées ne change pas avant.
-# Les fichiers ajoutés dans ces dossiers (collect/football_data/...) sont contrôlés.
+# Les chemins gelés jusqu'au gel du 19 octobre (collecteur, brut, tâches planifiées) sont
+# contrôlés depuis la partie 2, phase B (2.11) ; seules les migrations appliquées restent exclues.
 # force-exclude : l'exclusion vaut aussi quand pre-commit passe les fichiers un à un.
 force-exclude = true
 extend-exclude = [
-    "src/foot_predictor/collect/__init__.py",
-    "src/foot_predictor/collect/api_football",
-    "src/foot_predictor/rawstore",
-    "src/foot_predictor/quality/raw_check.py",
-    "scripts/taches_planifiees",
-    "tests/collect/__init__.py",
-    "tests/collect/api_football",
-    "tests/rawstore",
-    "tests/quality",
-    "tests/test_taches_planifiees.py",
     # Migrations déjà appliquées : jamais réécrites, même pour le formatage (partie 2, 2.4).
     "migrations/versions/0001_create_schemas.py",
     "migrations/versions/0002_create_tables.py",

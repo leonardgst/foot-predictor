@@ -2,3 +2,5 @@
 # en local : git config blame.ignoreRevsFile .git-blame-ignore-revs).
 # style: formate le code non gelé avec ruff format (partie 2, 2.1)
 6a10cd6118c5ec56ddfb0cb5705df44c034a3e20
+# style(collecte): formate les chemins gelés avec ruff format (partie 2, 2.11)
+ad555e94051e0093f5c0c3dd750391d4b6b9e1b3

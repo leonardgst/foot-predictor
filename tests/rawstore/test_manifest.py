@@ -1,11 +1,12 @@
 """Journal des requêtes : ajout, lecture et reconstruction (rapport G.8)."""
+
 from __future__ import annotations
 
 import datetime as dt
 
 from foot_predictor.rawstore import manifest, store
 
-T0 = dt.datetime(2026, 10, 2, 8, 0, 0, tzinfo=dt.timezone.utc)
+T0 = dt.datetime(2026, 10, 2, 8, 0, 0, tzinfo=dt.UTC)
 
 
 def _write(raw_dir, rel_dir, stem, body, fetched_at, duration_ms=120):

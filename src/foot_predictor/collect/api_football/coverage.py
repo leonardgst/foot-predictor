@@ -10,6 +10,7 @@ Cet index sert à deux choses :
 - le planificateur, qui ne crée pas de tâche pour une saison inexistante ou
   non couverte (ADR-0002 : on ne collecte pas une saison sans compositions).
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -151,7 +152,7 @@ def render_markdown(
 
     lines += ["## Détail par compétition", ""]
     seen: set[int] = set()
-    for tier, blocks in tiers.items():
+    for blocks in tiers.values():
         for block in blocks:
             for league_id in block.leagues:
                 if league_id in seen or league_id not in coverage:

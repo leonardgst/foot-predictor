@@ -62,7 +62,7 @@ Le périmètre attendu, c'est-à-dire les championnat-saisons de chaque palier, 
 - **Noms** : l'API abrège les noms dans les compositions (« S. Romero ») et les donne en entier ailleurs (« Sergio Romero »). Deux noms sont jugés compatibles s'ils partagent un mot significatif : pas une initiale, pas une particule comme « de » ou « van ». La comparaison ignore les accents et translittère ø, ł, ß... Seuls les identifiants dont les noms forment plusieurs groupes incompatibles sont listés.
 - **Doublons** : la date de naissance vient uniquement des profils `/players` ; les détails de match n'en ont pas.
 - **Plusieurs paliers ensemble** (`--palier P1 --palier P2 --palier P3`) : doublons et collisions se calculent sur l'ensemble. Un cas qui réunit deux paliers est étiqueté « P1+P3 » dans le tableau de la section 5 du résumé.
-- **Collisions**, trois types (constats : [`constats_collisions.md`](constats_collisions.md)) :
+- **Collisions**, trois types (constats : [`constats_collisions.md`](constats_collisions.md)). Depuis la partie 2, phase B (2.11), la détection est celle du chargeur, partagée dans `ingestion/collisions.py` (ADR-0020) ; `raw_check` y ajoute le texte des cas et les compteurs. Sur le brut définitif, résumé et détails sont restés identiques octet pour octet (hors en-tête) :
   - *même jour* : un identifiant chez deux équipes le même jour (date UTC du match). L'équipe d'un joueur est celle de sa composition, sinon celle de ses statistiques ;
   - *même match* : l'identifiant chez les deux équipes, ou avec deux numéros de maillot dans la même équipe ;
   - *deux naissances* : deux dates dans les profils. Une date qui change **une fois** d'une saison à l'autre est une correction de l'API, listée à part.
@@ -71,7 +71,8 @@ Le périmètre attendu, c'est-à-dire les championnat-saisons de chaque palier, 
   - les matchs dont les statistiques sont rattachées à l'équipe adverse (au moins 5 joueurs dans ce cas) ;
   - la même entrée répétée (même équipe, même numéro).
 - **Coût** : aucune passe de plus sur le brut. Les présences (joueur, jour, équipe, match) sont relevées pendant la lecture des détails, puis regroupées une fois avec numpy : environ 160 Mo de mémoire pour P1 à P3 et 10 % de temps en plus.
-- **sha256** : la vérification porte sur tout le dossier brut, pas seulement sur le palier. Elle relit tous les fichiers : compter environ une minute par Go.
+- **sha256** : la vérification porte sur tout le dossier brut, pas seulement sur le palier, et sur tous ses journaux. Depuis la recopie des CSV football-data (2026-10-19), elle compte donc 17 607 fichiers au lieu des 17 336 du gel. Elle relit tous les fichiers : compter environ une minute par Go.
+- **Le jour même d'un rapport versionné**, écrire un nouveau contrôle ailleurs (`--output-dir`) : le nom du fichier ne porte que la date, et le résumé du gel (`raw_check_tous_2026-10-19.md`) serait écrasé.
 
 ## Quand le lancer
 

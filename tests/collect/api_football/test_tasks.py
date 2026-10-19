@@ -1,4 +1,5 @@
 """Clés canoniques et emplacements des fichiers bruts (rapport G.6, G.7)."""
+
 from __future__ import annotations
 
 import pytest

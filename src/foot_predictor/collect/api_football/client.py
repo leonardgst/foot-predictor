@@ -24,6 +24,7 @@ n'apparaît jamais dans les messages, le journal ou les fichiers.
 Horloge, pause et session HTTP sont injectables : les tests ne font ni appel
 réseau, ni pause réelle.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -80,7 +81,7 @@ class HttpError(Exception):
 
 
 def utc_now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 def normalize_errors(errors: object) -> dict | list:
@@ -165,9 +166,7 @@ class ApiFootballClient:
                     timeout=self._timeout,
                 )
             except (requests.Timeout, requests.ConnectionError) as exc:
-                transient_failures = self._transient(
-                    transient_failures, endpoint, params, type(exc).__name__
-                )
+                transient_failures = self._transient(transient_failures, endpoint, params, type(exc).__name__)
                 continue
             duration_ms = int((self._clock() - started) * 1000)
             headers_quota = self._read_quota(response.headers)
@@ -200,9 +199,7 @@ class ApiFootballClient:
                     self.remaining_day = 0
                     raise DailyQuotaExhausted(f"Quota du jour épuisé (errors.requests) : {errors['requests']}")
                 if "token" in errors:
-                    raise AuthenticationError(
-                        "Clé API refusée (errors.token) : vérifier API_FOOTBALL_KEY dans .env."
-                    )
+                    raise AuthenticationError("Clé API refusée (errors.token) : vérifier API_FOOTBALL_KEY dans .env.")
 
             return ApiResponse(
                 endpoint=endpoint,
@@ -232,9 +229,7 @@ class ApiFootballClient:
 
     def _check_can_send(self) -> None:
         if self.max_requests is not None and self.requests_made >= self.max_requests:
-            raise RequestBudgetExhausted(
-                f"Nombre maximal de requêtes du lancement atteint ({self.max_requests})."
-            )
+            raise RequestBudgetExhausted(f"Nombre maximal de requêtes du lancement atteint ({self.max_requests}).")
         if self.remaining_day is not None and self.remaining_day <= self.reserve:
             raise QuotaReserveReached(
                 f"Quota du jour restant ({self.remaining_day}) <= réserve ({self.reserve}) : arrêt propre."

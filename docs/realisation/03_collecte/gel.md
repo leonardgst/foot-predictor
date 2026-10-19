@@ -151,3 +151,23 @@ uv run python -m foot_predictor.collect.api_football --raw-dir D:/foot-predictor
 ```
 
 **Au-delà du 21 octobre au soir, plus aucune recollecte n'est possible.** Si le test de restauration n'a pas réussi le 21, garder les deux copies existantes (portable et `D:`), et consigner l'état exact dans `DATA_FREEZE.md` et dans le journal des erreurs.
+
+## Retour d'expérience du 19 octobre
+
+Durées réelles de `freeze` (16 421 fichiers à la répétition, 17 336 le jour du gel) :
+
+| Étape | Répétition (disque interne) | Gel (vers `D:`) |
+|---|---|---|
+| `raw_check` | 74 s | 201 s |
+| Sauvegarde | 218 s | 628 s |
+| Restauration | 252 s | 311 s |
+| **Total** | **9 min 18 s** | **1 160 s (19 min 20 s)** |
+
+Le disque externe triple la durée de la sauvegarde, mais le total reste sous les 30 minutes prévues. Autres durées mesurées : `run` : 67 s pour 70 requêtes ; tests sans base sur le tag `v0.2.0` : 288 réussis en 48 s ; CI de la PR du gel : 1 min 42 s.
+
+Ce qui a différé de la procédure :
+
+- Les commandes du collecteur qui écrivent (`requeue`, `refresh`, `run`, `freeze`, `creer_taches.py --delete`) ont été **lancées par l'utilisateur** avec `!`, l'assistant n'ayant pas la permission de les exécuter (E-055). Prévoir la règle d'autorisation avant une session de ce type.
+- La liste de la Liga en échec depuis le 12 octobre (E-054) a été réparée dès le premier essai ; les trois essais espacés n'ont pas servi.
+- Le disque `D:` n'était plus visible depuis le terminal après le gel (E-056) : recompter ses fichiers avant de le ranger.
+- Le verdict À REGARDER n'a rien de bloquant : d'après la légende du résumé, il désigne des anomalies « souvent des données telles que l'API les fournit », alors que BLOQUANT désigne une collecte incomplète ou un fichier corrompu. Le jour du gel, 15 contrôles étaient À REGARDER, aucun BLOQUANT.

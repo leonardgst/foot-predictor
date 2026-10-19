@@ -37,12 +37,20 @@ from foot_predictor.collect.api_football import SOURCE
 from foot_predictor.collect.api_football.client import ApiFootballClient
 from foot_predictor.collect.api_football.coverage import coverage_from_body, render_markdown
 from foot_predictor.collect.api_football.freeze import FreezeError, render_data_freeze, run_freeze
-from foot_predictor.collect.api_football.plan import DEFAULT_CONFIG_PATH, CollectConfig, ConfigError, Planner, load_config
+from foot_predictor.collect.api_football.plan import (
+    DEFAULT_CONFIG_PATH,
+    CollectConfig,
+    ConfigError,
+    Planner,
+    load_config,
+)
 from foot_predictor.collect.api_football.profiles import (
     apply_profile_plan,
     build_profile_plan,
-    plan_lines as profile_plan_lines,
     profile_blocks,
+)
+from foot_predictor.collect.api_football.profiles import (
+    plan_lines as profile_plan_lines,
 )
 from foot_predictor.collect.api_football.queue import QUEUE_RELATIVE_PATH, WorkQueue
 from foot_predictor.collect.api_football.refresh import apply_refresh, build_refresh_plan, plan_lines
@@ -212,7 +220,7 @@ def cmd_coverage(args, config: CollectConfig, client_factory: ClientFactory) -> 
         config.tiers,
         status_body=status_response.body,
         source_file=stored.relative_path,
-        generated_at=dt.datetime.now(dt.timezone.utc),
+        generated_at=dt.datetime.now(dt.UTC),
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(markdown + "\n", encoding="utf-8")
@@ -382,7 +390,7 @@ def cmd_lock_status(args, config: CollectConfig, client_factory: ClientFactory) 
     if info is None:
         print("Verrou libre : aucune commande n'écrit dans le dossier brut. git pull possible.")
         return 0
-    if is_stale(info, dt.datetime.now(dt.timezone.utc)):
+    if is_stale(info, dt.datetime.now(dt.UTC)):
         print(f"Verrou périmé (processus terminé ou trop ancien) : {info.describe()}.")
         print("Il sera remplacé par la prochaine commande. git pull possible.")
         return 0
@@ -423,7 +431,7 @@ def cmd_freeze(args, config: CollectConfig, client_factory: ClientFactory) -> in
 
 def cmd_backup(args, config: CollectConfig, client_factory: ClientFactory) -> int:
     info = read_lock(args.raw_dir)
-    if info is not None and not is_stale(info, dt.datetime.now(dt.timezone.utc)):
+    if info is not None and not is_stale(info, dt.datetime.now(dt.UTC)):
         raise ValueError(f"Copie refusée : une commande écrit dans le dossier brut ({info.describe()}).")
     report = backup_mod.backup(args.raw_dir, args.dest)
     print(f"Copie de {args.raw_dir} vers {args.dest}")
@@ -472,7 +480,7 @@ COMMANDS = {
 
 
 def status_lines(raw_dir: Path, today: dt.date | None = None) -> list[str]:
-    today = today or dt.datetime.now(dt.timezone.utc).date()
+    today = today or dt.datetime.now(dt.UTC).date()
     lines = [quota_line(read_entries(raw_dir, SOURCE), today), ""]
 
     with WorkQueue.in_raw_dir(raw_dir) as queue:

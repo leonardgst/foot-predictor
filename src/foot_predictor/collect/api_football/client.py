@@ -80,7 +80,7 @@ class HttpError(Exception):
 
 
 def utc_now() -> dt.datetime:
-    return dt.datetime.now(dt.timezone.utc)
+    return dt.datetime.now(dt.UTC)
 
 
 def normalize_errors(errors: object) -> dict | list:

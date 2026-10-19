@@ -7,7 +7,7 @@ import pytest
 
 from foot_predictor.rawstore import backup, manifest, store
 
-T0 = dt.datetime(2026, 10, 19, 8, 0, 0, tzinfo=dt.timezone.utc)
+T0 = dt.datetime(2026, 10, 19, 8, 0, 0, tzinfo=dt.UTC)
 
 
 @pytest.fixture

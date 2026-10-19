@@ -19,7 +19,7 @@ from foot_predictor.rawstore import manifest, store
 
 from .fakes import api_body, fixture_item, leagues_response, load_real_fixtures
 
-T0 = dt.datetime(2026, 10, 2, 8, 0, tzinfo=dt.timezone.utc)
+T0 = dt.datetime(2026, 10, 2, 8, 0, tzinfo=dt.UTC)
 REAL_IDS = sorted(f["fixture"]["id"] for f in load_real_fixtures())  # 192297 à 192301
 
 

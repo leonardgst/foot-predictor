@@ -9,7 +9,7 @@ import pytest
 
 from foot_predictor.rawstore import store
 
-FETCHED_AT = dt.datetime(2026, 10, 2, 8, 15, 30, 123456, tzinfo=dt.timezone.utc)
+FETCHED_AT = dt.datetime(2026, 10, 2, 8, 15, 30, 123456, tzinfo=dt.UTC)
 
 
 def _envelope(body=None):

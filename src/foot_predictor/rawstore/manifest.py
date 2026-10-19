@@ -117,7 +117,7 @@ def rebuild(
         )
     entries.sort(key=lambda entry: (entry["timestamp"], entry["file"]))
 
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
     target = Path(raw_dir) / MANIFEST_DIR / f"{source}.rebuilt-{stamp}.jsonl"
     target.parent.mkdir(parents=True, exist_ok=True)
     with open(target, "x", encoding="utf-8", newline="\n") as handle:

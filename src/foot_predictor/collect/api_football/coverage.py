@@ -151,7 +151,7 @@ def render_markdown(
 
     lines += ["## Détail par compétition", ""]
     seen: set[int] = set()
-    for tier, blocks in tiers.items():
+    for blocks in tiers.values():
         for block in blocks:
             for league_id in block.leagues:
                 if league_id in seen or league_id not in coverage:

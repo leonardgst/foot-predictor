@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS planned_tiers (
 
 
 def _now() -> str:
-    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    return dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
 
 
 @dataclass(frozen=True)
@@ -257,7 +257,7 @@ class WorkQueue:
             except ValueError:
                 continue
             if kickoff.tzinfo is None:
-                kickoff = kickoff.replace(tzinfo=dt.timezone.utc)
+                kickoff = kickoff.replace(tzinfo=dt.UTC)
             if kickoff < now:
                 counts[league] = counts.get(league, 0) + 1
         return counts

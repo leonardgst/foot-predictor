@@ -11,7 +11,16 @@ from foot_predictor.collect.api_football.queue import WorkQueue
 from foot_predictor.collect.api_football.runner import Runner, dry_run_lines
 from foot_predictor.rawstore import manifest, store
 
-from .fakes import TEST_KEY, FakeApi, FakeClock, FakeResponse, FakeSession, fixture_item, load_real_fixtures, make_client
+from .fakes import (
+    TEST_KEY,
+    FakeApi,
+    FakeClock,
+    FakeResponse,
+    FakeSession,
+    fixture_item,
+    load_real_fixtures,
+    make_client,
+)
 
 REAL_IDS = sorted(f["fixture"]["id"] for f in load_real_fixtures())
 LISTING = ("/fixtures", (("league", 39), ("season", 2015)))

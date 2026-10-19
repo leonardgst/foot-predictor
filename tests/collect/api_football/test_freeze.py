@@ -41,7 +41,7 @@ def hold_lock(raw):
     path = lock_path(raw)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"pid": os.getpid(), "command": "run", "host": socket.gethostname(),
-                                "started_at": dt.datetime.now(dt.timezone.utc).isoformat()}), encoding="utf-8")
+                                "started_at": dt.datetime.now(dt.UTC).isoformat()}), encoding="utf-8")
 
 
 def test_freeze_checks_saves_restores_and_drafts_data_freeze(tmp_path, setup, real, capsys):

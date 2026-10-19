@@ -641,7 +641,7 @@ class RawChecker:
         return CheckResult(
             tiers=self.tiers,
             raw_dir=self.raw_dir,
-            generated_at=now or dt.datetime.now(dt.timezone.utc),
+            generated_at=now or dt.datetime.now(dt.UTC),
             coverage_file=leagues_file.relative_to(self.raw_dir).as_posix() if leagues_file else None,
             notes=notes,
             seasons=seasons,

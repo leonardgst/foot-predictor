@@ -23,8 +23,8 @@ from foot_predictor.quality.raw_check import BLOCK, OK, WATCH, RawChecker
 from foot_predictor.rawstore import manifest, store
 
 FIXTURES_FILE = Path(__file__).resolve().parents[1] / "fixtures" / "api_football" / "payloads_fixtures.jsonl"
-T0 = dt.datetime(2026, 10, 8, 8, 0, 0, tzinfo=dt.timezone.utc)
-NOW = dt.datetime(2026, 10, 8, 20, 0, 0, tzinfo=dt.timezone.utc)
+T0 = dt.datetime(2026, 10, 8, 8, 0, 0, tzinfo=dt.UTC)
+NOW = dt.datetime(2026, 10, 8, 20, 0, 0, tzinfo=dt.UTC)
 
 CONFIG = {
     "tiers": {
@@ -642,7 +642,8 @@ def test_two_birth_dates_are_a_collision_but_a_later_correction_is_set_apart(tmp
     [birth] = together.collisions_of(raw_check.BIRTH)
     assert (birth.player, birth.tiers) == (701, ("P1", "P3"))
     assert [c.player for c in together.birth_corrections] == [702]
-    assert "1 date(s) corrigée(s)" in next(l.detail for l in together.checks if l.label.startswith("Collisions : deux dates"))
+    assert "1 date(s) corrigée(s)" in next(
+        line.detail for line in together.checks if line.label.startswith("Collisions : deux dates"))
     assert alone.collisions_of(raw_check.BIRTH) == []  # la seconde date de 701 est en P3
     assert [c.player for c in alone.birth_corrections] == [702]
 
@@ -668,7 +669,7 @@ def test_inter_tier_duplicates_are_flagged(tmp_path, multi_config):
 
     assert [ids for _, ids in together.duplicates] == [[801, 802]]
     assert together.duplicate_tiers([801, 802]) == ("P1+P3", True)
-    assert "dont 1 inter-paliers" in next(l.detail for l in together.checks if l.label.startswith("Doublons"))
+    assert "dont 1 inter-paliers" in next(line.detail for line in together.checks if line.label.startswith("Doublons"))
     assert alone.duplicates == []
 
 

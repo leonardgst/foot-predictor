@@ -111,7 +111,7 @@ def read_lock(raw_dir: Path) -> LockInfo | None:
         return None
     except (OSError, ValueError, KeyError, TypeError):
         try:
-            mtime = dt.datetime.fromtimestamp(path.stat().st_mtime, dt.timezone.utc)
+            mtime = dt.datetime.fromtimestamp(path.stat().st_mtime, dt.UTC)
         except FileNotFoundError:
             return None
         return LockInfo(0, "inconnue (verrou illisible)", mtime, "?")
@@ -153,7 +153,7 @@ class CollectLock:
         *,
         wait: dt.timedelta = dt.timedelta(0),
         poll_seconds: float = 30.0,
-        now: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.timezone.utc),
+        now: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.UTC),
         sleep: Callable[[float], None] = time.sleep,
         alive: Callable[[int], bool] = pid_alive,
         pid: int | None = None,

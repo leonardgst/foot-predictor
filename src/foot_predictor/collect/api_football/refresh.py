@@ -103,7 +103,7 @@ def build_refresh_plan(
     redemander une seule liste (MLS 2017) sans refaire toutes celles de la
     saison.
     """
-    now = now or dt.datetime.now(dt.timezone.utc)
+    now = now or dt.datetime.now(dt.UTC)
     planner = Planner(config, raw_dir, queue)
     candidates: dict[str, Task] = {}
     for tier in tiers:

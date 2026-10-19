@@ -66,7 +66,7 @@ def run_freeze(config: CollectConfig, raw_dir: Path, dest: Path, restore_to: Pat
                *, allow_blocking: bool = False, now: dt.datetime | None = None) -> FreezeReport:
     """Étapes 2 à 4 (le verrou est pris par la CLI). Lève `FreezeError` à la première étape en échec."""
     raw_dir, dest, restore_to = Path(raw_dir), Path(dest), Path(restore_to)
-    report = FreezeReport(now or dt.datetime.now(dt.timezone.utc), raw_dir, dest, restore_to)
+    report = FreezeReport(now or dt.datetime.now(dt.UTC), raw_dir, dest, restore_to)
     report.source_files = sum(1 for _ in raw_dir.rglob(f"*{SUFFIX}"))
 
     tiers = list(config.tiers)
@@ -134,7 +134,7 @@ def render_data_freeze(report: FreezeReport, config: CollectConfig) -> str:
         problems = queue.problems(50)
     deferred_text = ", ".join(f"{status or '?'} {n}" for status, n in deferred)
     per_tier: dict[str, Counter] = {}
-    for tier, task_type, status, count in counts:
+    for tier, _task_type, status, count in counts:
         per_tier.setdefault(tier, Counter())[status] += count
 
     lines = [

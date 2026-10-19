@@ -17,7 +17,7 @@ from foot_predictor.rawstore import manifest
 from .fakes import FakeApi, FakeClock, FakeSession, fixture_item, leagues_response, load_real_fixtures, make_client
 
 REAL_IDS = sorted(f["fixture"]["id"] for f in load_real_fixtures())
-NOW = dt.datetime(2026, 10, 10, 8, 0, tzinfo=dt.timezone.utc)
+NOW = dt.datetime(2026, 10, 10, 8, 0, tzinfo=dt.UTC)
 CONFIG = {"reserve": 500, "tiers": {"P1": {"blocks": [
     {"name": "top5", "kind": "league", "leagues": [39], "seasons": {"first": 2015, "last": 2015},
      "endpoints": ["fixtures_list", "fixtures_detail", "teams", "injuries"]},

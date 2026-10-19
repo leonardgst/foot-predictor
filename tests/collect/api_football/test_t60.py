@@ -23,7 +23,7 @@ from foot_predictor.rawstore.lock import lock_path
 from .fakes import FakeClock, FakeResponse, FakeSession, make_client, ok, status_body
 
 DAY = dt.date(2026, 10, 10)
-NOON = dt.datetime(2026, 10, 10, 12, 0, tzinfo=dt.timezone.utc)
+NOON = dt.datetime(2026, 10, 10, 12, 0, tzinfo=dt.UTC)
 
 
 class DayClock(FakeClock):
@@ -184,7 +184,7 @@ def hold_lock(raw, pid):
     path = lock_path(raw)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"pid": pid, "command": "run", "host": socket.gethostname(),
-                                "started_at": dt.datetime.now(dt.timezone.utc).isoformat()}), encoding="utf-8")
+                                "started_at": dt.datetime.now(dt.UTC).isoformat()}), encoding="utf-8")
 
 
 def test_write_commands_refuse_a_held_lock_but_dry_runs_do_not(tmp_path, config_file, capsys):

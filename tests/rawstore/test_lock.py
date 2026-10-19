@@ -19,7 +19,7 @@ from foot_predictor.rawstore.lock import (
     read_lock,
 )
 
-NOW = dt.datetime(2026, 10, 10, 9, 0, tzinfo=dt.timezone.utc)
+NOW = dt.datetime(2026, 10, 10, 9, 0, tzinfo=dt.UTC)
 
 
 def alive(pid: int) -> bool:
@@ -85,7 +85,7 @@ def test_unreadable_lock_is_held_for_a_minute_then_replaced(tmp_path):
     path = lock_path(tmp_path)
     path.parent.mkdir(parents=True)
     path.write_text("", encoding="utf-8")  # créé, pas encore écrit
-    mtime = dt.datetime.fromtimestamp(path.stat().st_mtime, dt.timezone.utc)
+    mtime = dt.datetime.fromtimestamp(path.stat().st_mtime, dt.UTC)
     with pytest.raises(LockHeldError):
         make_lock(tmp_path, now=mtime + dt.timedelta(seconds=10)).acquire()
     with make_lock(tmp_path, now=mtime + dt.timedelta(minutes=5)):

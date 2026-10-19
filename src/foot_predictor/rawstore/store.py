@@ -55,7 +55,7 @@ def build_envelope(
 
 
 def versioned_name(stem: str, fetched_at: dt.datetime) -> str:
-    stamp = fetched_at.astimezone(dt.timezone.utc).strftime(TIMESTAMP_FORMAT)
+    stamp = fetched_at.astimezone(dt.UTC).strftime(TIMESTAMP_FORMAT)
     return f"{stem}{VERSION_SEPARATOR}{stamp}{SUFFIX}"
 
 

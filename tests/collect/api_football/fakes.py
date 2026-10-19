@@ -40,7 +40,7 @@ class FakeClock:
         FakeClock._created += 1
         self.monotonic = 1000.0
         self.sleeps: list[float] = []
-        self.utc = dt.datetime(2026, 10, 2, 8, 0, 0, tzinfo=dt.timezone.utc) + dt.timedelta(hours=FakeClock._created)
+        self.utc = dt.datetime(2026, 10, 2, 8, 0, 0, tzinfo=dt.UTC) + dt.timedelta(hours=FakeClock._created)
 
     def clock(self) -> float:
         return self.monotonic

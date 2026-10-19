@@ -34,7 +34,7 @@ CONFIG = {"reserve": 500, "tiers": {
          "endpoints": ["fixtures_list", "fixtures_detail", "players"]},
     ]},
 }}
-T0 = dt.datetime(2026, 9, 29, 8, 0, tzinfo=dt.timezone.utc)
+T0 = dt.datetime(2026, 9, 29, 8, 0, tzinfo=dt.UTC)
 
 
 class Raw:

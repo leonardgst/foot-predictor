@@ -67,9 +67,9 @@ class Match:
 def kickoff_of(item: dict) -> dt.datetime | None:
     fixture = item.get("fixture") or {}
     if fixture.get("timestamp") is not None:
-        return dt.datetime.fromtimestamp(int(fixture["timestamp"]), dt.timezone.utc)
+        return dt.datetime.fromtimestamp(int(fixture["timestamp"]), dt.UTC)
     try:
-        return dt.datetime.fromisoformat(str(fixture.get("date"))).astimezone(dt.timezone.utc)
+        return dt.datetime.fromisoformat(str(fixture.get("date"))).astimezone(dt.UTC)
     except ValueError:
         return None
 
@@ -129,7 +129,7 @@ class T60Collector:
         *,
         lead: dt.timedelta = DEFAULT_LEAD,
         interval: dt.timedelta = DEFAULT_INTERVAL,
-        now: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.timezone.utc),
+        now: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.UTC),
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.client = client

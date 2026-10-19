@@ -78,8 +78,8 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 - **Contexte** : sous-étape 5.10 (sources live), lecture des conditions d'utilisation.
 - **Message d'erreur** : `curl https://www.football-data.co.uk/robots.txt` : `HTTP/2 302`, `location: https://football-data.co.uk/robots.txt`.
 - **Cause** : le site a changé de domaine principal ; le téléchargeur historique (`download.py`, gelé) vise encore `www`, si bien que chacune de ses requêtes en devient deux (redirection suivie par `requests`). Par ailleurs, le `robots.txt` bloque les robots d'IA (ClaudeBot, Claude-Web, GPTBot…).
-- **Solution** : le collecteur live vise `https://football-data.co.uk` ; les pages documentaires ont été lues avec `curl` et le `User-Agent` du projet, jamais par un outil web d'IA. `download.py` n'est pas modifié (règle 3 du gel).
-- **Fichiers concernés** : `src/foot_predictor/collect/football_data/live.py` ; à reprendre après le gel : `src/foot_predictor/collect/football_data/download.py` (`BASE_URL`).
+- **Solution** : le collecteur live vise `https://football-data.co.uk` ; les pages documentaires ont été lues avec `curl` et le `User-Agent` du projet, jamais par un outil web d'IA. `download.py`, gelé (règle 3), est corrigé après le gel : `BASE_URL` vise le domaine nu depuis le 2026-10-19 (partie 2, phase B, 2.11).
+- **Fichiers concernés** : `src/foot_predictor/collect/football_data/live.py`, `src/foot_predictor/collect/football_data/download.py` (`BASE_URL`), `tests/collect/football_data/test_football_data.py`.
 - **Prévention** : relire `robots.txt` et suivre les redirections (`curl -I`) avant toute nouvelle collecte ; consigner le domaine dans l'ADR de la source (ADR-0042).
 
 ## E-051 — Barrages dans la même compétition-saison : clé du live ambiguë (2026-10-04)
@@ -229,10 +229,10 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 - **Contexte** : suite complète des tests (partie 3, sous-étape 3.4) ; environ un échec sur trois.
 - **Message d'erreur** : `assert [174] == []` dans `tests/collect/api_football/test_freeze.py::test_freeze_checks_saves_restores_and_drafts_data_freeze`.
 - **Cause** : le test cherche, par l'expression `\b<identifiant>\b`, des identifiants de joueurs synthétiques dans le brouillon `DATA_FREEZE.md`. Une durée affichée (« 0.174 s », par exemple) contient parfois le nombre cherché.
-- **Solution** : aucune dans le code, gelé jusqu'au gel (règle 3). `gel.md`, étape 4 : relancer les tests si seul celui-ci échoue avec ce message.
-- **Fichiers concernés** : `tests/collect/api_football/test_freeze.py` (gelé), `docs/realisation/03_collecte/gel.md`.
-- **Prévention** : chercher un identifiant avec des délimiteurs qui excluent un chiffre voisin et un point décimal ; à corriger en phase B de la partie 2 (2.11, chemins gelés).
-- **Test de non-régression** : à écrire en phase B.
+- **Solution** : jusqu'au gel, aucune dans le code, gelé (règle 3) ; `gel.md`, étape 4 : relancer les tests si seul celui-ci échoue avec ce message. **Corrigé le 2026-10-19** (partie 2, phase B, 2.11) : `mentions_number` exige que le nombre ne touche ni lettre ni chiffre, ne suive pas un séparateur décimal et n'en précède pas un suivi d'un chiffre ; 12 exécutions de suite réussies.
+- **Fichiers concernés** : `tests/collect/api_football/test_freeze.py`, `docs/realisation/03_collecte/gel.md`.
+- **Prévention** : chercher un identifiant avec des délimiteurs qui excluent un chiffre voisin et un point décimal (`\b` ne suffit pas : un point est une limite de mot).
+- **Test de non-régression** : `tests/collect/api_football/test_freeze.py::test_mentions_number_ignores_decimals_longer_numbers_and_hashes`, dont le cas « 0.174 s ».
 
 ## E-035 — `could not resize shared memory segment` en lisant tous les matchs (2026-09-29)
 

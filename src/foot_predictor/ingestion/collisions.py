@@ -1,10 +1,9 @@
 """Collisions d'identifiants de joueurs : détection partagée par le chargeur et le contrôle (ADR-0020).
 
 Une collision est un identifiant API qui désigne deux personnes (ADR-0008,
-règle 3). Ce module reprend **exactement** la règle de `quality/raw_check.py`
-(partie 1), sans modifier ce dernier (règles du gel) : `raw_check` l'appellera
-après le gel (partie 2, phase B). Un test vérifie que les deux donnent les
-mêmes collisions.
+règle 3). Ce module reprend **exactement** la règle écrite dans
+`quality/raw_check.py` en partie 1. Depuis la partie 2, phase B (2.11),
+`raw_check` l'appelle : le contrôle et le chargeur ne peuvent plus diverger.
 
 Trois types :
 
@@ -84,7 +83,7 @@ def _add(places: dict[int, list[Place]], result: MatchPlayers, player_id: object
 
 
 def classify_match(lineups: list[dict], teams_stats: list[dict]) -> MatchPlayers:
-    """Règle « même match » de `raw_check._record_appearances`, sur un détail de match.
+    """Règle « même match » (celle de `raw_check` depuis la partie 1), sur un détail de match.
 
     Sources : compositions (titulaires et remplaçants) puis statistiques joueurs,
     chacune rattachée à son équipe et à un numéro. Les événements sont écartés

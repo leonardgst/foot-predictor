@@ -1,4 +1,4 @@
-"""Détection partagée des collisions : mêmes résultats que raw_check (sans le modifier), et option 2b."""
+"""Détection partagée des collisions : mêmes résultats que raw_check (qui l'appelle depuis 2.11), et option 2b."""
 
 from __future__ import annotations
 

@@ -22,7 +22,8 @@ Contrôles, par championnat-saison du palier (sauf mention contraire) :
   l'ensemble des paliers contrôlés ensemble : même identifiant chez deux
   équipes le même jour, deux fois dans un même match, ou avec deux dates de
   naissance dans les profils (une date corrigée d'une saison à l'autre est
-  classée à part) ;
+  classée à part). La détection est celle du chargeur, partagée dans
+  `ingestion/collisions.py` (ADR-0020) ;
 - plausibilité : minutes entre 0 et 130, note entre 3 et 10 ;
 - journal, sur tout le dossier brut : tâches failed et suspect, fichiers dont
   le sha256 ne correspond pas au journal.
@@ -61,6 +62,17 @@ from foot_predictor.collect.api_football import SOURCE, tasks
 from foot_predictor.collect.api_football.coverage import LeagueCoverage, latest_leagues_file, load_coverage
 from foot_predictor.collect.api_football.plan import DEFAULT_CONFIG_PATH, Block, CollectConfig, ConfigError, load_config
 from foot_predictor.collect.api_football.queue import QUEUE_RELATIVE_PATH
+from foot_predictor.ingestion.collisions import (
+    BIRTH,
+    REPEATED_ENTRY,
+    SAME_TEAM,
+    SWAPPED_STATS,
+    TWO_TEAMS,
+    UNKNOWN_PLAYER_ID,
+    classify_births,
+    classify_match,
+    same_day_collisions,
+)
 from foot_predictor.rawstore.manifest import MANIFEST_DIR
 from foot_predictor.rawstore.store import SUFFIX, VERSION_SEPARATOR, latest_version, read_envelope, sha256_file
 
@@ -387,8 +399,14 @@ def probable_duplicates(profiles: dict[int, Profile]) -> list[tuple[str, list[in
 # Une collision est un identifiant qui désigne deux personnes. Elle se repère au
 # comportement, pas au nom : une personne ne joue pas pour deux équipes le même
 # jour, n'apparaît pas deux fois dans un match, n'a qu'une date de naissance.
+#
+# Les règles sont celles du chargeur, dans `ingestion/collisions.py` (ADR-0020) :
+# classement des joueurs d'un match (`classify_match`), présences chez deux équipes
+# le même jour (`same_day_collisions`), dates de naissance (`classify_births`).
+# Ce module y ajoute le texte de chaque cas (nominatif, fichier non versionné), les
+# paliers en cause et les compteurs du rapport.
 
-SAME_DAY, SAME_MATCH, BIRTH = "same_day", "same_match", "birth"
+SAME_DAY, SAME_MATCH = "same_day", "same_match"  # BIRTH : celui de ingestion/collisions.py
 COLLISION_LABELS = {
     SAME_DAY: "deux équipes le même jour",
     SAME_MATCH: "deux fois dans un même match",
@@ -401,18 +419,14 @@ COLLISION_LABELS = {
 # - SAME_TEAM : deux numéros de maillot différents dans la même équipe.
 # Deux causes de faux positifs, comptées à part et exclues des collisions :
 # - SWAPPED_STATS : dans tout le match, les statistiques sont rattachées à
-#   l'équipe adverse (au moins SWAP_MIN_PLAYERS joueurs dans ce cas) ;
+#   l'équipe adverse (au moins `collisions.SWAP_MIN_PLAYERS` joueurs dans ce cas) ;
 # - REPEATED_ENTRY : la même entrée répétée (même équipe, même numéro).
-TWO_TEAMS, SAME_TEAM = "two_teams", "same_team"
-SWAPPED_STATS, REPEATED_ENTRY = "swapped_stats", "repeated_entry"
+# L'identifiant UNKNOWN_PLAYER_ID (0) est celui que l'API donne à des joueurs qu'elle
+# ne connaît pas : ce n'est pas un joueur, il est écarté des collisions et compté à part.
 FALSE_POSITIVE_LABELS = {
     SWAPPED_STATS: "statistiques rattachées à l'équipe adverse dans tout le match",
     REPEATED_ENTRY: "même entrée répétée (même équipe, même numéro)",
 }
-SWAP_MIN_PLAYERS = 5
-# L'API donne l'identifiant 0 à des joueurs qu'elle ne connaît pas : ce n'est
-# pas un joueur. Il est écarté des collisions et compté à part.
-UNKNOWN_PLAYER_ID = 0
 
 
 @dataclass(frozen=True)
@@ -462,41 +476,33 @@ class Appearances:
     def same_day_groups(self) -> list[list[tuple[int, int, int, int, int]]]:
         """Groupes (même joueur, même jour) où figurent au moins deux équipes.
 
-        Chaque groupe est la liste de ses présences (joueur, jour, équipe, match, palier).
+        Chaque groupe est la liste de ses présences (joueur, jour, équipe, match, palier),
+        triées par (joueur, jour, équipe), puis dans l'ordre d'ajout. Les présences en cause
+        sont celles du chargeur (`same_day_collisions`) : seules les présences de leurs
+        joueurs sont relues (quelques milliers, sur environ 4 millions).
         """
         if not len(self):
             return []
         cols = {name: np.frombuffer(values, dtype=np.int64) for name, values in self.columns.items()}
-        order = np.lexsort((cols["team"], cols["day"], cols["player"]))  # dernière clé = clé principale
-        player, day, team = (cols[name][order] for name in ("player", "day", "team"))
-        new_key = np.ones(len(order), dtype=bool)
-        new_key[1:] = (player[1:] != player[:-1]) | (day[1:] != day[:-1])
-        group = np.cumsum(new_key) - 1
-        other_team = np.zeros(len(order), dtype=bool)
-        other_team[1:] = (team[1:] != team[:-1]) & ~new_key[1:]
-        flagged = set(np.unique(group[other_team]).tolist())
-        groups: dict[int, list[tuple[int, int, int, int, int]]] = defaultdict(list)
-        for position in np.flatnonzero(np.isin(group, list(flagged))).tolist():
-            row = int(order[position])
-            groups[int(group[position])].append(tuple(int(cols[name][row]) for name in self.columns))
-        return [groups[key] for key in sorted(groups)]
-
-
-def classify_births(seasons_by_birth: dict[str, set[int]]) -> str | None:
-    """Plusieurs dates de naissance pour un identifiant : collision ou correction ?
-
-    - une seule date : `None` (rien à signaler) ;
-    - deux dates qui se succèdent dans le temps (la première dans des saisons
-      toutes antérieures à celles de la seconde) : « correction », une donnée
-      corrigée par l'API d'une saison à l'autre ;
-    - sinon (dates qui alternent, même saison, plus de deux dates) : collision.
-    """
-    if len(seasons_by_birth) < 2:
-        return None
-    if len(seasons_by_birth) > 2:
-        return BIRTH
-    first, second = sorted(seasons_by_birth.values(), key=lambda seasons: (min(seasons), max(seasons)))
-    return "correction" if max(first) < min(second) else BIRTH
+        flagged = same_day_collisions(cols["player"], cols["day"], cols["team"], cols["fixture"])
+        if not flagged:
+            return []
+        players = np.fromiter({player for player, _ in flagged}, dtype=np.int64)
+        rows = np.array(
+            [
+                row
+                for row in np.flatnonzero(np.isin(cols["player"], players)).tolist()
+                if (int(cols["player"][row]), int(cols["fixture"][row])) in flagged
+            ],
+            dtype=np.int64,
+        )
+        # Tri stable (np.lexsort, dernière clé = clé principale) : à clé égale, l'ordre d'ajout.
+        order = rows[np.lexsort((cols["team"][rows], cols["day"][rows], cols["player"][rows]))]
+        groups: dict[tuple[int, int], list[tuple[int, int, int, int, int]]] = {}
+        for row in order.tolist():
+            presence = tuple(int(cols[name][row]) for name in self.columns)
+            groups.setdefault(presence[:2], []).append(presence)
+        return list(groups.values())
 
 
 def fixture_day(item: dict) -> int | None:
@@ -945,76 +951,30 @@ class RawChecker:
     ) -> None:
         """Présences d'un match, pour les collisions « même match » et « même jour ».
 
-        Sources : compositions (titulaires et remplaçants) et statistiques
-        joueurs, chacune rattachée à son équipe et à un numéro de maillot. Les
-        événements sont écartés : un but contre son camp y est rattaché à
-        l'équipe adverse.
+        Le classement des joueurs du match est celui du chargeur (`classify_match`,
+        ADR-0020) : sources (compositions et statistiques, chacune avec son équipe et un
+        numéro de maillot ; événements écartés), collisions, faux positifs, présence
+        normale. Ici, on garde le texte de chaque cas et les présences normales, pour la
+        règle « même jour ». Un identifiant absent est déjà compté dans « player.id
+        présent partout ».
 
-        Le cas courant (une présence, ou une composition et des statistiques de
-        la même équipe) passe par un chemin court : cette méthode est appelée
-        pour chacun des 100 000 matchs.
+        Les dictionnaires de `classify_match` sont parcourus dans leur ordre d'insertion
+        (cas tranchés pendant le parcours des joueurs, puis statistiques rattachées à
+        l'équipe adverse) : c'est l'ordre des listes du rapport détaillé.
         """
-        places: dict[int, list[tuple[str, int | None, object]]] = {}
-        for lineup in lineups:
-            team = lineup.get("team") or {}
-            self._remember_team(team)
-            for entry in [*(lineup.get("startXI") or []), *(lineup.get("substitutes") or [])]:
-                player = (entry or {}).get("player") or {}
-                self._add_place(places, player.get("id"), ("L", team.get("id"), player.get("number")))
-        for block in teams_stats:
-            team = block.get("team") or {}
-            self._remember_team(team)
-            for entry in block.get("players") or []:
-                entry = entry or {}
-                games = (((entry.get("statistics") or [{}])[0]) or {}).get("games") or {}
-                self._add_place(
-                    places, (entry.get("player") or {}).get("id"), ("S", team.get("id"), games.get("number"))
-                )
-
-        tier = self._tier_index[ls.tier]
-        mismatched: list[tuple[int, list]] = []  # composition d'une équipe, statistiques de l'autre
-        for player_id, found in places.items():
-            first = found[0]
-            if len(found) == 1 or (len(found) == 2 and found[1][0] != first[0] and found[1][1] == first[1]):
-                if day is not None and first[1] is not None:
-                    self.appearances.add(player_id, day, first[1], fid, tier)
-                continue
-            lineup = {(team, number) for source, team, number in found if source == "L"}
-            stats = {(team, number) for source, team, number in found if source == "S"}
-            lineup_teams, stats_teams = {team for team, _ in lineup}, {team for team, _ in stats}
-            if len(lineup) > 1 or len(stats) > 1:
-                # Deux entrées différentes dans une même source : deux personnes.
-                subtype = TWO_TEAMS if len(lineup_teams | stats_teams) > 1 else SAME_TEAM
-                self.same_match.append(self._same_match_case(ls, fid, player_id, found, subtype))
-            elif lineup_teams and stats_teams and lineup_teams != stats_teams:
-                mismatched.append((player_id, found))  # tranché après la boucle
-            else:
-                # Même entrée répétée : une seule personne.
-                self.false_positives.append(self._same_match_case(ls, fid, player_id, found, REPEATED_ENTRY))
-                team = next(iter(lineup_teams or stats_teams))
-                if day is not None and team is not None:
-                    self.appearances.add(player_id, day, team, fid, tier)
-
-        # Si beaucoup de joueurs du match sont dans ce cas, ce sont les statistiques
-        # qui sont rattachées à l'équipe adverse : faux positif. Sinon, homonyme
-        # probable dont les statistiques portent l'identifiant de l'autre : collision.
-        swapped = len(mismatched) >= SWAP_MIN_PLAYERS
-        for player_id, found in mismatched:
-            if swapped:
-                self.false_positives.append(self._same_match_case(ls, fid, player_id, found, SWAPPED_STATS))
-                team = next(team for source, team, _ in found if source == "L")  # la composition fait foi
-                if day is not None and team is not None:
-                    self.appearances.add(player_id, day, team, fid, tier)
-            else:
-                self.same_match.append(self._same_match_case(ls, fid, player_id, found, TWO_TEAMS))
-
-    def _add_place(self, places: dict, player_id: object, place: tuple) -> None:
-        if player_id is None:
-            return  # déjà compté dans « player.id présent partout »
-        if player_id == UNKNOWN_PLAYER_ID:
-            self.unknown_id_entries += 1
+        for block in [*lineups, *teams_stats]:
+            self._remember_team(block.get("team") or {})
+        match = classify_match(lineups, teams_stats)
+        self.unknown_id_entries += match.unknown_entries
+        for player_id, subtype in match.collisions.items():
+            self.same_match.append(self._same_match_case(ls, fid, player_id, match.places[player_id], subtype))
+        for player_id, cause in match.false_positives.items():
+            self.false_positives.append(self._same_match_case(ls, fid, player_id, match.places[player_id], cause))
+        if day is None:
             return
-        places.setdefault(int(player_id), []).append(place)
+        tier = self._tier_index[ls.tier]
+        for player_id, team in match.team.items():
+            self.appearances.add(player_id, day, team, fid, tier)
 
     def _remember_team(self, team: dict) -> None:
         if team.get("id") is not None and team.get("name"):

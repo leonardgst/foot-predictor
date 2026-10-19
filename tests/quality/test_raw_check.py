@@ -860,6 +860,26 @@ def test_appearances_group_players_seen_with_two_teams_on_one_day():
     assert raw_check.Appearances().same_day_groups() == []
 
 
+def test_same_day_groups_keep_their_order_after_the_shared_detection():
+    """Ordre fixé avant la partie 2, phase B : groupes par (joueur, jour), présences par
+    équipe puis dans l'ordre d'ajout. Le rapport détaillé en dépend (2.11, ADR-0020)."""
+    appearances = raw_check.Appearances()
+    for row in [
+        (9, 200, 4, 30, 0),
+        (8, 200, 2, 20, 0),
+        (9, 200, 3, 31, 1),
+        (8, 200, 1, 21, 1),
+        (9, 200, 4, 32, 1),  # même joueur, même jour, même équipe que le match 30 : gardé, après lui
+        (8, 199, 1, 22, 0),  # la veille : rien
+        (9, 201, 3, 33, 0),
+    ]:
+        appearances.add(*row)
+    assert appearances.same_day_groups() == [
+        [(8, 200, 1, 21, 1), (8, 200, 2, 20, 0)],
+        [(9, 200, 3, 31, 1), (9, 200, 4, 30, 0), (9, 200, 4, 32, 1)],
+    ]
+
+
 def test_collision_reports_keep_names_and_ids_in_the_details_only(tmp_path, multi_config):
     raw = tmp_path / "raw"
     p1 = [synthetic(1001, "2015-08-15", 1, 2, [501, 601], [601])]

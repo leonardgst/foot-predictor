@@ -7,6 +7,7 @@ Mode d'emploi de `load` et de `check-referentiel`, des YAML de rapprochement et 
 - `staging` n'est **jamais corrigé à la main** : il se reconstruit entièrement depuis le brut par `load`, et toute correction est un YAML de `src/foot_predictor/ingestion/mappings/` (ADR-0008, règle 4).
 - Les entités (joueurs, entraîneurs, équipes, matchs) viennent des **identifiants API-FOOTBALL**. football-data ne crée jamais de joueur ; il s'apparie aux matchs API, et ne crée des matchs qu'hors de la couverture API.
 - Deux chargements du même brut donnent les mêmes tables (empreintes md5 identiques, vérifié le 2026-09-29).
+- Un brut **plus grand** décale des identifiants internes, attribués dans l'ordre des identifiants API : le 2026-10-19, les matchs API gardent le leur, mais les matchs « hors_api » sont décalés de 104 et 924 équipes sur 3 267 changent d'identifiant (E-058). Hors de `staging`, on rapproche par les identifiants API.
 - Le brut n'est lu qu'en **lecture seule**.
 
 ## Bases (ADR-0025)
@@ -30,7 +31,7 @@ APP_ENV=dev uv run alembic upgrade head
 ## Commandes
 
 ```bash
-# Reconstruction complète (environ 13 minutes sur le portable depuis la migration 0007)
+# Reconstruction complète (8 à 13 minutes sur le portable : 778 s le 2026-09-30, 493 s le 2026-10-19)
 APP_ENV=dev uv run python -m foot_predictor.ingestion load \
     --raw-dir C:/foot-predictor/data/raw --external-raw-dir data/raw --confirm-db foot_predictor_travail
 
@@ -82,7 +83,8 @@ FP_RAW_DIR=C:/foot-predictor/data/raw uv run pytest -m raw   # chaque identifian
 
 ## Bruts externes (ADR-0023, ADR-0024)
 
-- **football-data** : CSV tels que téléchargés, dans `C:/fp-travail/data/raw/football_data/csv/season=<année>/<division>__<horodatage>.csv`, journal `_manifest/football_data.jsonl`. 10 divisions (E0, E1, SP1, SP2, D1, D2, I1, I2, F1, F2), saisons 2000-01 à 2026-27 : 270 fichiers, téléchargés le 2026-09-29.
+- **football-data** : CSV tels que téléchargés, dans `C:/fp-travail/data/raw/football_data/csv/season=<année>/<division>__<horodatage>.csv`, journal `_manifest/football_data.jsonl`. 10 divisions (E0, E1, SP1, SP2, D1, D2, I1, I2, F1, F2), saisons 2000-01 à 2026-27 : 270 fichiers, téléchargés le 2026-09-29, plus 1 fichier `fixtures/` (répétition du live, 2026-10-04).
+- **Recopie dans le brut principal** (2026-10-19, phase B, 2.10) : `football_data/` (271 fichiers) et son journal sont aussi dans `C:/foot-predictor/data/raw`, aux sha256 vérifiés. C'est une **archive** du brut au gel. Le dossier du worktree reste le dossier de travail des bruts externes : `load` le lit par `--external-raw-dir data/raw`, et le collecteur live refuse un dossier qui contient le brut API (`collect/football_data/live.py`).
 - **Understat** : écarté, son `robots.txt` refuse tout accès automatisé (ADR-0023).
 
 ```bash
@@ -111,6 +113,7 @@ APP_ENV=dev uv run python -m foot_predictor.ingestion load \
 APP_ENV=dev uv run python -m foot_predictor.ingestion check-referentiel   # appariement >= 99,5 %
 
 # 2.10 Recopie des bruts externes vers le brut principal, avec vérification
+#   (fait le 2026-10-19 par un script ponctuel, sans le backup intermédiaire : voir « Résultats de 2.10 »)
 uv run python -m foot_predictor.collect.api_football --raw-dir data/raw backup --dest C:/fp_bruts_externes_copie
 #   puis copie de football_data/ et de _manifest/football_data.jsonl vers C:/foot-predictor/data/raw
 #   (écriture dans C:/foot-predictor : sur accord), vérification :
@@ -120,6 +123,39 @@ uv run python -c "from foot_predictor.rawstore.backup import verify; r = verify(
 #      (résumé identique octet pour octet, hors date, sur le brut définitif : comparer avant et après)
 # 2.12 Clôture : tag v0.3.0, ETAT_PROJET.md, docs/retours/partie-2_<date>.md
 ```
+
+### Résultats de 2.10 (2026-10-19)
+
+- **Vérifications** : tag `data-freeze-2026-10` présent ; `main` en `546124d`, avec `DATA_FREEZE.md` ; `C:/foot-predictor` sur `546124d`, propre ; verrou libre ; aucune tâche `FootPredictor_*` ; base de travail en 0008.
+- **`load` n° 6** (commit `546124d`) : code 0, 493 s ; 102 554 détails et 4 015 379 présences lus, comme au gel.
+
+| Table | n° 5 (2026-09-30) | n° 6 (2026-10-19) | Écart |
+|---|---|---|---|
+| `match` | 167 876 | 167 980 | +104 (FA Cup +48, Copa del Rey +56) |
+| `team` | 3 267 | 3 272 | +5 |
+| `coach` | 3 622 | 3 652 | +30 |
+| `player` | 67 012 | 67 113 | +101 |
+| `team_match` | 335 752 | 335 960 | +208 |
+| `team_match_stats` | 168 640 | 169 570 | +930 (détails arrivés depuis le 30/09) |
+| `lineup` | 3 984 757 | 4 004 245 | +19 488 |
+| `player_match_stats` | 2 831 343 | 2 850 869 | +19 526 |
+| `match_source_mapping`, `team_match_stats_external`, `match_odds` | 102 397 ; 204 794 ; 120 983 | identiques | 0 (CSV inchangés) |
+
+- **`check-referentiel`** (`reports/data_quality/referentiel_2026-10-19.md`) :
+  - identité des joueurs OK (67 113 joueurs, autant d'identifiants API distincts) ;
+  - appariement football-data **56 715 / 56 729 (99,98 %)**, seuil 99,5 % : OK, identique au 30/09 ; 14 non appariés avant le scellé, 0 après ;
+  - entrées exclues : 812 (compositions) et 929 (statistiques) ; top 5 : 41 matchs sur 29 261 (0,14 %, seuil 1 %) ;
+  - entrées sans identifiant : 1 310 et 1 995 (1 007 et 1 680 le 30/09) ;
+  - tirs (avant le scellé) identiques ; cotes 2026-27 : présence en baisse, les CSV datant du 29/09 (présence seulement).
+- **Identifiants internes** (photo avant et après, lecture seule ; matchs d'avant le 1er juillet 2025 seulement) :
+  - inchangés : compétitions, saisons et les 104 917 matchs API ;
+  - décalés : les 45 682 matchs « hors_api » (+104), 924 équipes sur 3 267 (dont 9 sur 218 dans le top 5), 3 461 entraîneurs sur 3 622, 65 236 joueurs sur 67 012 ;
+  - `ops.prediction` (78 lignes de rejeu) : `match_id` toujours justes, `api_fixture_id` vide partout, 1 équipe à domicile qui désigne désormais une autre équipe (E-058).
+- **Recopie** :
+  - source vérifiée : 271 fichiers au journal et sur le disque, sha256 conformes ;
+  - script ponctuel sous le verrou de collecte du brut principal, qui refuse d'écraser (`copytree` vers un dossier absent, journal ouvert en création exclusive) ;
+  - `verify` : **17 607** fichiers vérifiés (17 336 + 271), 0 différent, 0 absent ; journal API inchangé (sha256 `38c111a0…`) ; journal football-data identique à la source (`3b2fc1fe…`) ;
+  - pas de `backup` intermédiaire : il n'aurait laissé qu'un dossier à supprimer, la vérification de la source donne la même garantie, et une copie existe déjà sur `D:` (`copies-2026-10-19/`).
 
 ## Tests
 

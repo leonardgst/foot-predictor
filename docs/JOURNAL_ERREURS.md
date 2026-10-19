@@ -15,6 +15,18 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-058 — Les identifiants internes changent quand le brut grandit ; `ops.prediction` sans identifiant API (2026-10-19)
+
+- **Contexte** : partie 2, phase B, sous-étape 2.10 : `load` n° 6 sur le brut définitif. Avant et après, photo de la correspondance entre identifiant interne et identifiant API (lecture seule ; matchs d'avant le 1er juillet 2025 seulement).
+- **Message d'erreur** : aucun. Décomptes : compétitions, saisons et 104 917 matchs API inchangés ; 45 682 matchs « hors_api » décalés de 104 ; 924 équipes sur 3 267 (dont 9 sur 218 dans le top 5), 3 461 entraîneurs sur 3 622 et 65 236 joueurs sur 67 012 renumérotés. Dans `ops.prediction` (78 lignes de rejeu), `api_fixture_id` est vide partout, et 1 équipe à domicile désigne désormais une autre équipe.
+- **Cause** : `load_api.py` attribue les identifiants internes dans l'ordre des identifiants API. C'est déterministe pour un même brut, pas pour un brut plus grand : 5 équipes nouvelles et 104 matchs nouveaux (tours de FA Cup et de Copa del Rey) décalent tout ce qui vient après eux, et les matchs « hors_api » sont numérotés après les matchs API. La migration 0008 suppose pourtant que « les identifiants de match sont stables d'un chargement à l'autre » et que l'identifiant API est recopié. Or aucun des deux appelants de `save_prediction` (`api/app.py`, `inference/__main__.py`) ne lui passe `api_fixture_id`.
+- **Solution** : aucune dans le code en 2.10. `features/` et `modeling/` sont gelés par `pre-scelle-h1`, et `inference/` ne fait pas partie de la sous-étape. Le constat est consigné dans le README de l'étape 04 et dans `ETAT_PROJET.md`, avec deux consignes :
+  - 3.11 compare le nouveau jeu à `ds-2026-09-30-ba2b91f7` par identifiants API, et non par `match_id` ni `team_id` ;
+  - la partie 5 passe `api_fixture_id` à `save_prediction` avant le live réel.
+- **Fichiers concernés** : `src/foot_predictor/ingestion/load_api.py`, `src/foot_predictor/inference/store.py`, `src/foot_predictor/api/app.py`, `src/foot_predictor/inference/__main__.py`, `migrations/versions/0008_ops_prediction.py` (docstring, migration appliquée : non modifiée).
+- **Prévention** : hors de `staging`, toute donnée qui survit à un `load` (jeu Parquet, `ops.prediction`, modèles) se rapproche par les identifiants API. La stabilité se mesure avant chaque nouveau `load` sur un brut plus grand, par la même photo.
+- **Test de non-régression** : à écrire avec le correctif de la partie 5 (`save_prediction` appelé avec un `api_fixture_id` non vide).
+
 ## E-057 — Redémarrage de Windows dans la nuit du 14 octobre : sans conséquence sur la collecte (2026-10-19)
 
 - **Contexte** : session de gel, relecture des tâches planifiées et des journaux ; l'utilisateur avait signalé des fenêtres de terminal fermées vers le 14 octobre.

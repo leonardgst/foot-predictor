@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-19 (gel des données fait, tag `data-freeze-2026-10`)
-**Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). Les phases B des parties 2 à 5 se font sur demande, dans cet ordre.
+**Dernière mise à jour** : 2026-10-19 (partie 2, phase B : 2.10 faite, `load` n° 6 sur le brut définitif)
+**Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). Les phases B des parties 2 à 5 se font sur demande, dans cet ordre ; **partie 2, phase B : 2.10 faite** (PR #76).
 
-**Reprise de la partie 2 à la phase B, sous-étape 2.10** (`load` sur le brut définitif), puis 3.11, 4.16, 4.17, puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente (tags `v0.3.0`, `v0.4.0`, `v0.5.0`) ; commandes plus bas.
+**Reprise de la partie 2 à la phase B, sous-étape 2.11** (chemins gelés du collecteur, dont E-036), puis 2.12 (tag `v0.3.0`, retour de la partie 2), puis 3.11, 4.16, 4.17, puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente (tags `v0.3.0`, `v0.4.0`, `v0.5.0`) ; commandes plus bas.
 **Échéance** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC**. Marge de recollecte jusqu'au 21 au soir ; plus rien à collecter, sauf décision contraire (ADR-0005).
 
 ## Terminé
@@ -15,6 +15,11 @@
 - **Partie 5, lot 3** (2026-10-04, PR #68 à #71, `docs/retours/partie-5a_2026-10-04.md`) : **interface Streamlit** (`ui/`, 3 écrans, par l'API seulement) ; **football-data en live**, superposé en mémoire (ADR-0042 ; répétition 2023-24 : 335 résultats sur 335, buts et Elo identiques) ; **bout en bout** en CI (brut → `load` → API → interface → `ops.prediction`) ; chapitre LaTeX « Inférence et disponibilité ».
 
 - **Gel des données** (2026-10-19, PR #73, tag `data-freeze-2026-10` sur `8144bbc`, `docs/DATA_FREEZE.md`) : **17 336 fichiers** (306 Mo) vérifiés dans le brut, la sauvegarde sur `D:` et la restauration ; 102 554 matchs terminés, tous avec détail ; `raw_check` À REGARDER sans point bloquant ; dernier `refresh` : 70 requêtes ; bilan T-60 : 91 matchs, 99,95 % de titulaires identiques (sous le critère de 2 %). 9 tâches planifiées supprimées ; `C:/foot-predictor` à jour sur `main`.
+- **Partie 2, phase B, 2.10** (2026-10-19, PR #76 ; chiffres dans `docs/realisation/04_referentiel/README.md`, « Résultats de 2.10 ») :
+  - **`load` n° 6** sur le brut définitif : 493 s, 167 980 matchs (+104, tours de coupe) ;
+  - `check-referentiel` : appariement football-data 99,98 % (seuil 99,5 %), identité des joueurs OK, top 5 : 0,14 % de matchs avec exclusion (seuil 1 %) ;
+  - **CSV football-data recopiés** dans `C:/foot-predictor/data/raw` : 17 607 fichiers vérifiés, 0 écart ; le dossier du worktree reste celui du live et de `--external-raw-dir` ;
+  - **Constat E-058** : les identifiants internes de `staging` changent quand le brut grandit (équipes, joueurs, matchs « hors_api ») ; `ops.prediction` n'a pas d'`api_fixture_id`.
 
 ## En cours
 
@@ -23,7 +28,8 @@
 ## Bloqué
 
 - Rien. Points de vigilance :
-  - `lock-status` avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure environ 13 minutes (778 s, chargement n° 5) ;
+  - `lock-status` avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure de 8 à 13 minutes (493 s pour le chargement n° 6, 778 s pour le n° 5) ;
+  - **identifiants internes non stables d'un brut à l'autre** (E-058) : en 3.11, comparer le nouveau jeu à `ds-2026-09-30-ba2b91f7` par identifiants API (match, équipe), pas par `match_id` ni `team_id` ; en partie 5, passer `api_fixture_id` à `save_prediction` avant le live réel ;
   - **chemins figés par `pre-scelle-h1`** (`modeling/`, `features/`, `seal.py`, `experiments/`, `tests/modeling`, `tests/features`) jusqu'à la fin du test scellé : on les importe, on ne les modifie pas ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ;
   - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`) ;
@@ -36,11 +42,14 @@
 
 ## Prochaines actions
 
-**Reprise de la partie 2 à la phase B, sous-étape 2.10** : `load` sur le brut définitif et recopie des CSV, puis 2.11 (chemins gelés, dont E-036), 2.12 (tag `v0.3.0`). Commandes : `docs/realisation/04_referentiel/README.md`, section « Phase B ».
+**Reprise de la partie 2 à la phase B, sous-étape 2.11** (2.10 faite) : PR « après gel » sur les chemins gelés du collecteur (règle 3 du gel, ADR-0021), sans toucher aux chemins figés par `pre-scelle-h1` ; puis 2.12 (tag `v0.3.0`, retour `docs/retours/partie-2_<date>.md`). Commandes : `docs/realisation/04_referentiel/README.md`, section « Phase B ».
 ```bash
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
-git tag -l data-freeze-2026-10 ; docker ps                       # tag présent ; deux conteneurs « Up » (E-050)
-uv run python -m foot_predictor.collect.api_football lock-status   # libre, avant tout load
+docker ps                                                          # deux conteneurs « Up » (E-050)
+uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw lock-status   # libre
+git diff --stat pre-scelle-h1..HEAD -- src/foot_predictor/modeling src/foot_predictor/features src/foot_predictor/seal.py experiments tests/modeling tests/features   # VIDE
+# 2.11 : ruff et pre-commit sur les chemins gelés ; E-036 (test_freeze) ; raw_check appelle ingestion/collisions.py,
+#        résumé identique octet pour octet (hors date) avant et après, sur le brut définitif (football_data/ compris)
 ```
 
 **Reprise de la partie 3 à la phase B après la session de gel et la phase B de la partie 2** (3.11, sur demande) :
@@ -49,7 +58,8 @@ cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main &
 git tag -l v0.3.0                                          # phase B de la partie 2 faite
 uv run python -m foot_predictor.features build             # nouveau staging (brut définitif)
 uv run python -m foot_predictor.features check --invariance
-# comparer (matchs d'avant le 2025-07-01) les lignes de la nouvelle version à ds-2026-09-30-ba2b91f7 (ADR-0035)
+# comparer (matchs d'avant le 2025-07-01) les lignes de la nouvelle version à ds-2026-09-30-ba2b91f7 (ADR-0035),
+# rapprochées par identifiants API : match_id des matchs « hors_api » et team_id ont bougé au load n° 6 (E-058)
 # puis tag v0.4.0, ETAT_PROJET.md, docs/retours/partie-3_<date>.md
 ```
 

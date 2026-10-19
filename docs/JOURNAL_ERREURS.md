@@ -15,6 +15,42 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-057 — Redémarrage de Windows dans la nuit du 14 octobre : sans conséquence sur la collecte (2026-10-19)
+
+- **Contexte** : session de gel, relecture des tâches planifiées et des journaux ; l'utilisateur avait signalé des fenêtres de terminal fermées vers le 14 octobre.
+- **Message d'erreur** : aucun. `systeminfo` donne un démarrage du système le 14/10/2026 à 02:21.
+- **Cause** : redémarrage de Windows (cause non établie).
+- **Solution** : aucune nécessaire. Aucune tâche `FootPredictor_*` n'était prévue le 13, le 14 ni le 15 octobre ; les neuf ont un dernier résultat 0 et leurs sept journaux T-60 ont une ligne de fin. Le `refresh` du 5 octobre avait démarré à 08:53 au lieu de 08:00 (cause non établie), sans suite.
+- **Fichiers concernés** : `C:/foot-predictor/data/logs/` (hors Git).
+- **Prévention** : la tâche manquée d'un redémarrage reprend dès que possible le jour même (ADR-0018) ; un journal T-60 coupé reste un trou non rattrapable, d'où le contrôle des lignes de fin avant le gel.
+
+## E-056 — Disque externe `D:` invisible depuis le terminal après le gel (2026-10-19)
+
+- **Contexte** : session de gel, après `freeze` (sauvegarde de 17 336 fichiers sur `D:`, puis restauration depuis `D:`, tous les sha256 conformes) ; recomptage indépendant des fichiers de `D:`.
+- **Message d'erreur** : `ls: cannot access 'D:/': No such file or directory` ; `df -h` ne liste plus que `C:`. Avant le gel, `D:` répondait (885 Go libres).
+- **Cause** : non établie. Disque débranché ou éjecté, ou défaillance du disque : à confirmer par l'utilisateur.
+- **Solution** : **ouverte**. Aucune mesure n'a été prise sur le disque. Le gel reste valide : le contrôle de `freeze` a lu les 17 336 fichiers sur `D:` avant la restauration. À faire par l'utilisateur : rebrancher le disque, recompter les fichiers de `D:/foot-predictor/data-freeze-2026-10/raw` (17 336 attendus) et recalculer le sha256 du journal (`38c111a0…`).
+- **Fichiers concernés** : `D:/foot-predictor/data-freeze-2026-10/raw`.
+- **Prévention** : ne pas débrancher le disque tant que le recomptage n'a pas été fait ; garder `C:/fp_restauration/` (copie vérifiée) jusqu'à ce recomptage.
+
+## E-055 — Les commandes du collecteur sont refusées par les permissions de l'assistant (2026-10-19)
+
+- **Contexte** : session de gel, étape 2 (`requeue`, `refresh`, `run`) puis `freeze` et `creer_taches.py --delete`.
+- **Message d'erreur** : « Permission to use Bash with command … has been denied. » Seuls `status`, `lock-status` et `t60-report` passaient.
+- **Cause** : aucune règle d'autorisation n'existait pour les sous-commandes du collecteur qui écrivent dans le brut ou consomment du quota. Le refus est volontaire côté assistant : il n'a pas été contourné.
+- **Solution** : l'utilisateur a lancé lui-même les commandes avec le préfixe `!` et collé les sorties ; l'assistant a vérifié l'état (`status`, comptes de fichiers, `schtasks`) et fait les commits, la PR et le tag. Aucune requête n'a été perdue ; la session a seulement attendu les sorties de l'utilisateur.
+- **Fichiers concernés** : aucun (réglages de l'assistant).
+- **Prévention** : avant une session autonome qui lance des commandes à quota, ajouter la règle `Bash(uv run python -m foot_predictor.collect.api_football:*)` dans les permissions, ou prévoir les commandes à lancer avec `!`.
+
+## E-054 — Liste de matchs de la Liga : erreur 5xx côté API-FOOTBALL (2026-10-12)
+
+- **Contexte** : `refresh` planifié du 12 octobre ; tâche n° 83, `fixtures_list`, championnat 140, saison 2026.
+- **Message d'erreur** : `{'bug': 'This is on our side, please report us this bug on https://dashboard.api-football.com', 'error': '5xEr'}`, tâche en `failed` après 1 tentative.
+- **Cause** : incident côté API-FOOTBALL. `refresh` ignore les tâches `failed`, donc la liste est restée celle d'avant jusqu'au 19.
+- **Solution** : le 19 octobre, `requeue --status failed --type fixtures_list`, puis `refresh --season 2026 --yes` et `run --max-requests 300` : liste reçue au premier essai (380 résultats), 0 tâche `failed` à la fin. Les trois essais espacés prévus n'ont pas servi.
+- **Fichiers concernés** : `data/raw/api_football/fixtures_list/` (nouvelle version horodatée).
+- **Prévention** : lire le résumé `Derniers échecs et suspects` des journaux de `refresh` le jour même ; un `failed` se remet en file avec `requeue` avant le `refresh` suivant. Le gel a exigé « plus aucun `failed` » avant la sauvegarde.
+
 ## E-053 — Fins de ligne `\` au lieu de `\\` dans la correction de Dixon-Coles (2026-10-05)
 
 - **Contexte** : relecture du document LaTeX des mathématiques, chapitre « Modèles et évaluation » (section M5).

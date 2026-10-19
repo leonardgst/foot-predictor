@@ -121,6 +121,8 @@ uv run python -c "from foot_predictor.rawstore.backup import verify; r = verify(
 
 # 2.11 PR après gel : ruff et pre-commit sur les chemins gelés ; raw_check appelle ingestion/collisions.py
 #      (résumé identique octet pour octet, hors date, sur le brut définitif : comparer avant et après)
+#      fait le 2026-10-19 : voir « Résultats de 2.11 » ; raw_check écrit alors ailleurs que reports/ :
+uv run python -m foot_predictor.quality.raw_check --raw-dir C:/foot-predictor/data/raw --output-dir <dossier temporaire>/avant
 # 2.12 Clôture : tag v0.3.0, ETAT_PROJET.md, docs/retours/partie-2_<date>.md
 ```
 
@@ -156,6 +158,22 @@ uv run python -c "from foot_predictor.rawstore.backup import verify; r = verify(
   - script ponctuel sous le verrou de collecte du brut principal, qui refuse d'écraser (`copytree` vers un dossier absent, journal ouvert en création exclusive) ;
   - `verify` : **17 607** fichiers vérifiés (17 336 + 271), 0 différent, 0 absent ; journal API inchangé (sha256 `38c111a0…`) ; journal football-data identique à la source (`3b2fc1fe…`) ;
   - pas de `backup` intermédiaire : il n'aurait laissé qu'un dossier à supprimer, la vérification de la source donne la même garantie, et une copie existe déjà sur `D:` (`copies-2026-10-19/`).
+
+### Résultats de 2.11 (2026-10-19)
+
+Chemins gelés jusqu'au gel : `collect/api_football/`, `rawstore/`, `quality/raw_check.py`, `scripts/taches_planifiees/` et leurs tests. Règle 3 tenue jusqu'au bout : aucun diff sur ces chemins entre `v0.2.0` et `3f1e834`.
+
+- **ruff et pre-commit** sur ces chemins :
+  - 34 corrections automatiques (`dt.timezone.utc` → `dt.UTC`, imports triés) et 4 à la main (B007, E741) ;
+  - formatage de 37 fichiers : arbre syntaxique identique avant et après, fichier par fichier ; commit ajouté à `.git-blame-ignore-revs` ;
+  - exclusions retirées de `pyproject.toml` (restent les migrations 0001 à 0003) : `ruff check .` et `ruff format --check .` verts sur les 407 fichiers.
+- **`raw_check` appelle `ingestion/collisions.py`** (ADR-0020) : `classify_match`, `same_day_collisions`, `classify_births`. Sur le brut définitif (`--output-dir` hors de `reports/`, pour ne pas écraser le résumé du gel), avant et après :
+  - résumé (1 562 lignes) et détails (54 230 lignes) **identiques octet pour octet**, hors la ligne « Généré le » ;
+  - les détails, qui contiennent des valeurs de matchs, n'ont été comparés que par un script qui ne donne que les numéros des lignes différentes ;
+  - ancienne et nouvelle `same_day_groups` identiques sur 2 000 tirages aléatoires ;
+  - effet de la recopie de 2.10, seul écart avec le résumé du gel : intégrité sur 17 607 fichiers au lieu de 17 336.
+- **E-036** corrigé (`test_freeze`) : 12 exécutions de suite réussies, test de non-régression.
+- **E-052** corrigé : `download.py` vise le domaine sans `www`.
 
 ## Tests
 

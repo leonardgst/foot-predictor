@@ -26,13 +26,13 @@
   - `lock-status` avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure environ 13 minutes (778 s, chargement n° 5) ;
   - **chemins figés par `pre-scelle-h1`** (`modeling/`, `features/`, `seal.py`, `experiments/`, `tests/modeling`, `tests/features`) jusqu'à la fin du test scellé : on les importe, on ne les modifie pas ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ;
-  - **disque externe `D:` invisible depuis le terminal après le gel** (E-056) : la sauvegarde du gel y est ; à rebrancher et recompter avant de ranger. Copies facultatives non faites (E-031) : `C:/fp_dumps/` et les CSV football-data ;
+  - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`) ;
   - `C:/fp_restauration/` (copie de test) à supprimer par l'utilisateur ;
   - Docker Desktop doit tourner (bases arrêtées sinon, E-050) : `docker ps` en début de session.
 
 ## Décisions ouvertes
 
-- **Renouvellement automatique de l'abonnement : à couper par l'utilisateur avant le 22 octobre 07:56 UTC**, action manuelle non vérifiable (ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
+- **Renouvellement automatique de l'abonnement : coupé par l'utilisateur le 2026-10-19** (déclaré, non vérifiable par l'assistant ; fin de l'abonnement le 22 octobre à 07:56 UTC, ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
 
 ## Prochaines actions
 

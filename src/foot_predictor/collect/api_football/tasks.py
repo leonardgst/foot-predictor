@@ -13,6 +13,7 @@ Arborescence (rapport G.7, versions horodatées ajoutées par `rawstore`) :
     api_football/coachs/team=33__<ts>.json.gz
     api_football/player_profiles/player=276__<ts>.json.gz
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -119,8 +120,11 @@ def leagues_task(tier: str) -> Task:
 
 def fixtures_list_task(tier: str, league: int, season: int) -> Task:
     return Task(
-        tier, "fixtures_list", {"league": league, "season": season},
-        _dir("fixtures_list", f"league={league}"), f"season={season}",
+        tier,
+        "fixtures_list",
+        {"league": league, "season": season},
+        _dir("fixtures_list", f"league={league}"),
+        f"season={season}",
     )
 
 
@@ -130,23 +134,32 @@ def fixtures_detail_task(tier: str, league: int, season: int, fixture_ids: list[
     ids = "-".join(str(i) for i in sorted(fixture_ids))
     stem = hashlib.sha256(ids.encode("ascii")).hexdigest()[:12]
     return Task(
-        tier, "fixtures_detail", {"ids": ids},
-        _dir("fixtures_detail", f"league={league}", f"season={season}"), stem,
+        tier,
+        "fixtures_detail",
+        {"ids": ids},
+        _dir("fixtures_detail", f"league={league}", f"season={season}"),
+        stem,
     )
 
 
 def league_season_task(tier: str, task_type: str, league: int, season: int) -> Task:
     """teams, injuries, standings : un appel par (compétition, saison)."""
     return Task(
-        tier, task_type, {"league": league, "season": season},
-        _dir(task_type, f"league={league}"), f"season={season}",
+        tier,
+        task_type,
+        {"league": league, "season": season},
+        _dir(task_type, f"league={league}"),
+        f"season={season}",
     )
 
 
 def players_task(tier: str, league: int, season: int, page: int = 1) -> Task:
     return Task(
-        tier, "players", {"league": league, "season": season, "page": page},
-        _dir("players", f"league={league}", f"season={season}"), f"page={page:02d}",
+        tier,
+        "players",
+        {"league": league, "season": season, "page": page},
+        _dir("players", f"league={league}", f"season={season}"),
+        f"page={page:02d}",
     )
 
 

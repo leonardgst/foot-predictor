@@ -19,6 +19,7 @@
 La commande n'envoie aucune requête et n'écrit rien dans le dossier brut (à
 part le verrou, retiré à la fin). Elle ne pose pas de tag Git.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -62,8 +63,16 @@ def _timed(report: FreezeReport, step: str, func, *args):
         report.durations[step] = time.perf_counter() - start
 
 
-def run_freeze(config: CollectConfig, raw_dir: Path, dest: Path, restore_to: Path, report_dir: Path,
-               *, allow_blocking: bool = False, now: dt.datetime | None = None) -> FreezeReport:
+def run_freeze(
+    config: CollectConfig,
+    raw_dir: Path,
+    dest: Path,
+    restore_to: Path,
+    report_dir: Path,
+    *,
+    allow_blocking: bool = False,
+    now: dt.datetime | None = None,
+) -> FreezeReport:
     """Étapes 2 à 4 (le verrou est pris par la CLI). Lève `FreezeError` à la première étape en échec."""
     raw_dir, dest, restore_to = Path(raw_dir), Path(dest), Path(restore_to)
     report = FreezeReport(now or dt.datetime.now(dt.UTC), raw_dir, dest, restore_to)
@@ -74,22 +83,29 @@ def run_freeze(config: CollectConfig, raw_dir: Path, dest: Path, restore_to: Pat
     report.check = check
     summary, details = raw_check.report_paths(report_dir, tiers, True, check.generated_at)
     details.parent.mkdir(parents=True, exist_ok=True)
-    summary.write_text(raw_check.render_summary(check, "freeze (raw_check, tous les paliers)", details.name),
-                       encoding="utf-8")
+    summary.write_text(
+        raw_check.render_summary(check, "freeze (raw_check, tous les paliers)", details.name), encoding="utf-8"
+    )
     details.write_text(raw_check.render_details(check, "freeze (raw_check, tous les paliers)"), encoding="utf-8")
     report.summary_path = summary
     if check.verdict == raw_check.BLOCK and not allow_blocking:
-        raise FreezeError(f"raw_check : verdict BLOQUANT (voir {summary}). Recollecter avant le gel, "
-                          "ou relancer avec --allow-blocking après décision écrite.")
+        raise FreezeError(
+            f"raw_check : verdict BLOQUANT (voir {summary}). Recollecter avant le gel, "
+            "ou relancer avec --allow-blocking après décision écrite."
+        )
 
     report.saved = _timed(report, "sauvegarde", backup, raw_dir, dest)
     if not report.saved.ok:
-        raise FreezeError(f"Sauvegarde vers {dest} : {len(report.saved.mismatched)} sha256 différent(s), "
-                          f"{len(report.saved.missing)} fichier(s) absent(s). Copie non valide.")
+        raise FreezeError(
+            f"Sauvegarde vers {dest} : {len(report.saved.mismatched)} sha256 différent(s), "
+            f"{len(report.saved.missing)} fichier(s) absent(s). Copie non valide."
+        )
     report.restored = _timed(report, "restauration", backup, dest, restore_to)
     if not report.restored.ok or report.restored.verified != report.saved.verified:
-        raise FreezeError(f"Test de restauration vers {restore_to} en échec : {report.restored.verified} fichiers "
-                          f"vérifiés contre {report.saved.verified} sauvegardés.")
+        raise FreezeError(
+            f"Test de restauration vers {restore_to} en échec : {report.restored.verified} fichiers "
+            f"vérifiés contre {report.saved.verified} sauvegardés."
+        )
     return report
 
 
@@ -158,8 +174,10 @@ def render_data_freeze(report: FreezeReport, config: CollectConfig) -> str:
             seasons = f"{block.seasons.first or '…'} → {block.seasons.last}"
             if block.seasons.requires_coverage:
                 seasons += f" (si {block.seasons.requires_coverage})"
-            lines.append(f"| {tier} | {block.name} | {', '.join(map(str, block.leagues))} | {seasons} | "
-                         f"{', '.join(block.endpoints)} |")
+            lines.append(
+                f"| {tier} | {block.name} | {', '.join(map(str, block.leagues))} | {seasons} | "
+                f"{', '.join(block.endpoints)} |"
+            )
     to_detail = sum(s.to_detail for s in check.seasons)
     detailed = sum(s.detailed for s in check.seasons)
     lines += [
@@ -180,8 +198,10 @@ def render_data_freeze(report: FreezeReport, config: CollectConfig) -> str:
         "",
         "| Palier | Tâches done | failed | suspect | pending |",
         "|---|---|---|---|---|",
-        *(f"| {tier} | {c['done']} | {c['failed']} | {c['suspect']} | {c['pending']} |"
-          for tier, c in sorted(per_tier.items())),
+        *(
+            f"| {tier} | {c['done']} | {c['failed']} | {c['suspect']} | {c['pending']} |"
+            for tier, c in sorted(per_tier.items())
+        ),
         "",
         "## Contrôle du brut",
         "",
@@ -196,8 +216,10 @@ def render_data_freeze(report: FreezeReport, config: CollectConfig) -> str:
         "",
         "Rien n'est recollecté après le gel. Les points ci-dessous sont des données telles que l'API les fournit.",
         "",
-        *(f"- Tâche {row.status} : {row.tier} {row.task_type} {public_params(row.params)} ({row.last_error})"
-          for row in problems),
+        *(
+            f"- Tâche {row.status} : {row.tier} {row.task_type} {public_params(row.params)} ({row.last_error})"
+            for row in problems
+        ),
         f"- Matchs non terminaux au gel : {sum(n for _, n in deferred)} ({deferred_text}).",
         "- Constats détaillés : `docs/realisation/05_controle_qualite/constats_P1_P2.md`, `constats_P3.md`, "
         "`constats_collisions.md`.",

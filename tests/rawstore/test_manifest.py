@@ -1,4 +1,5 @@
 """Journal des requêtes : ajout, lecture et reconstruction (rapport G.8)."""
+
 from __future__ import annotations
 
 import datetime as dt

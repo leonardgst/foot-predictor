@@ -9,6 +9,7 @@ seul pour le test de restauration du jour du gel.
 À lancer quand aucune collecte ne tourne : la file SQLite est copiée telle
 quelle.
 """
+
 from __future__ import annotations
 
 import shutil

@@ -1,4 +1,5 @@
 """Profils ciblés (`plan-profiles` et tâches `player_profile`), sans aucun appel réseau."""
+
 from __future__ import annotations
 
 import copy
@@ -16,24 +17,59 @@ from foot_predictor.rawstore import manifest, store
 
 from .fakes import FakeClock, FakeSession, make_client, ok, status_body
 
-CONFIG = {"reserve": 500, "tiers": {
-    "P1": {"blocks": [
-        {"name": "top5", "kind": "league", "leagues": [39], "seasons": {"first": 2015, "last": 2016},
-         "endpoints": ["fixtures_list", "fixtures_detail", "players"]},
-        {"name": "d2", "kind": "league", "leagues": [40], "seasons": {"first": 2015, "last": 2016},
-         "endpoints": ["fixtures_list", "fixtures_detail", "players"]},
-        {"name": "coupes", "kind": "cup", "leagues": [45], "seasons": {"first": 2015, "last": 2016},
-         "endpoints": ["fixtures_list", "fixtures_detail"], "detail_teams_from": "P1"},
-    ]},
-    "P2": {"blocks": [
-        {"name": "ancien", "kind": "league", "leagues": [39], "seasons": {"first": 2013, "last": 2014},
-         "endpoints": ["fixtures_list", "fixtures_detail"]},
-    ]},
-    "P3": {"blocks": [
-        {"name": "autres", "kind": "league", "leagues": [88], "seasons": {"first": 2015, "last": 2016},
-         "endpoints": ["fixtures_list", "fixtures_detail", "players"]},
-    ]},
-}}
+CONFIG = {
+    "reserve": 500,
+    "tiers": {
+        "P1": {
+            "blocks": [
+                {
+                    "name": "top5",
+                    "kind": "league",
+                    "leagues": [39],
+                    "seasons": {"first": 2015, "last": 2016},
+                    "endpoints": ["fixtures_list", "fixtures_detail", "players"],
+                },
+                {
+                    "name": "d2",
+                    "kind": "league",
+                    "leagues": [40],
+                    "seasons": {"first": 2015, "last": 2016},
+                    "endpoints": ["fixtures_list", "fixtures_detail", "players"],
+                },
+                {
+                    "name": "coupes",
+                    "kind": "cup",
+                    "leagues": [45],
+                    "seasons": {"first": 2015, "last": 2016},
+                    "endpoints": ["fixtures_list", "fixtures_detail"],
+                    "detail_teams_from": "P1",
+                },
+            ]
+        },
+        "P2": {
+            "blocks": [
+                {
+                    "name": "ancien",
+                    "kind": "league",
+                    "leagues": [39],
+                    "seasons": {"first": 2013, "last": 2014},
+                    "endpoints": ["fixtures_list", "fixtures_detail"],
+                },
+            ]
+        },
+        "P3": {
+            "blocks": [
+                {
+                    "name": "autres",
+                    "kind": "league",
+                    "leagues": [88],
+                    "seasons": {"first": 2015, "last": 2016},
+                    "endpoints": ["fixtures_list", "fixtures_detail", "players"],
+                },
+            ]
+        },
+    },
+}
 T0 = dt.datetime(2026, 9, 29, 8, 0, tzinfo=dt.UTC)
 
 
@@ -46,21 +82,33 @@ class Raw:
 
     def write(self, task: tasks.Task, response: list) -> None:
         self.clock += dt.timedelta(seconds=1)
-        envelope = store.build_envelope(endpoint=task.endpoint, params=task.params, fetched_at=self.clock,
-                                        http_status=200, headers_quota={},
-                                        body={"errors": [], "results": len(response), "response": response})
+        envelope = store.build_envelope(
+            endpoint=task.endpoint,
+            params=task.params,
+            fetched_at=self.clock,
+            http_status=200,
+            headers_quota={},
+            body={"errors": [], "results": len(response), "response": response},
+        )
         store.write_envelope(self.raw_dir, task.rel_dir, task.stem, envelope, self.clock)
 
     def match(self, league: int, season: int, fid: int, home: list[int], away: list[int]) -> None:
         def lineup(ids):
-            return {"startXI": [{"player": {"id": pid, "name": f"J{pid}"}} for pid in ids],
-                    "substitutes": [{"player": {"id": 7777, "name": "Remplaçant"}}]}
-        self.write(tasks.fixtures_detail_task("P1", league, season, [fid]),
-                   [{"fixture": {"id": fid}, "lineups": [lineup(home), lineup(away)]}])
+            return {
+                "startXI": [{"player": {"id": pid, "name": f"J{pid}"}} for pid in ids],
+                "substitutes": [{"player": {"id": 7777, "name": "Remplaçant"}}],
+            }
+
+        self.write(
+            tasks.fixtures_detail_task("P1", league, season, [fid]),
+            [{"fixture": {"id": fid}, "lineups": [lineup(home), lineup(away)]}],
+        )
 
     def page(self, league: int, season: int, births: dict[int, str | None]) -> None:
-        self.write(tasks.players_task("P1", league, season),
-                   [{"player": {"id": pid, "name": f"J{pid}", "birth": {"date": birth}}} for pid, birth in births.items()])
+        self.write(
+            tasks.players_task("P1", league, season),
+            [{"player": {"id": pid, "name": f"J{pid}", "birth": {"date": birth}}} for pid, birth in births.items()],
+        )
 
 
 @pytest.fixture
@@ -79,8 +127,8 @@ def raw(tmp_path):
     r.match(39, 2015, 1001, [1, 2], [3])
     r.match(39, 2016, 1002, [100], [1])
     r.match(40, 2015, 2001, [2, 4], [5])
-    r.match(45, 2015, 4501, [6], [1])     # coupe : pas de profils
-    r.match(39, 2014, 901, [9], [1])      # P2 (avant 2015) : hors des blocs à profils
+    r.match(45, 2015, 4501, [6], [1])  # coupe : pas de profils
+    r.match(39, 2014, 901, [9], [1])  # P2 (avant 2015) : hors des blocs à profils
     r.match(88, 2016, 8801, [10, 0], [11])
     r.page(39, 2015, {1: "1990-01-01"})
     r.page(40, 2015, {5: None})
@@ -92,7 +140,11 @@ def raw(tmp_path):
 def test_player_profile_task_is_one_request_per_player():
     task = tasks.player_profile_task("P1", 276)
     assert (task.endpoint, task.params, task.rel_dir, task.stem) == (
-        "/players/profiles", {"player": 276}, "api_football/player_profiles", "player=276")
+        "/players/profiles",
+        {"player": 276},
+        "api_football/player_profiles",
+        "player=276",
+    )
     assert task.expects_results
     assert task.key != tasks.player_profile_task("P3", 277).key
     assert task.key == tasks.player_profile_task("P3", 276).key  # même requête, quel que soit le palier
@@ -141,8 +193,11 @@ def test_cli_dry_run_changes_nothing_and_real_run_fills_the_queue(raw, tmp_path,
     with WorkQueue.in_raw_dir(raw) as queue:
         pending = queue.list_pending()
     assert [(t.tier, t.task_type, t.params["player"]) for t in pending] == [
-        ("P1", "player_profile", 2), ("P1", "player_profile", 3), ("P1", "player_profile", 100),
-        ("P1", "player_profile", 5)]
+        ("P1", "player_profile", 2),
+        ("P1", "player_profile", 3),
+        ("P1", "player_profile", 100),
+        ("P1", "player_profile", 5),
+    ]
     # Relancer n'ajoute que ce qui manque.
     assert cli.main(["--raw-dir", str(raw), "--config", str(config_path), "plan-profiles"]) == 0
     assert "Tâches ajoutées à la file : 1" in capsys.readouterr().out
@@ -158,10 +213,16 @@ def test_runner_stores_profiles_and_flags_unknown_players(tmp_path, config):
 
     session = FakeSession(handler=handler)
     with WorkQueue.in_raw_dir(tmp_path) as queue:
-        queue.add([tasks.player_profile_task("P1", 2), tasks.player_profile_task("P1", 3),
-                   tasks.player_profile_task("P3", 10)])
-        report = Runner(make_client(session, FakeClock(), reserve=500, max_requests=3), queue, tmp_path, config,
-                        replan=False).run()
+        queue.add(
+            [
+                tasks.player_profile_task("P1", 2),
+                tasks.player_profile_task("P1", 3),
+                tasks.player_profile_task("P3", 10),
+            ]
+        )
+        report = Runner(
+            make_client(session, FakeClock(), reserve=500, max_requests=3), queue, tmp_path, config, replan=False
+        ).run()
         statuses = {t.params["player"]: t.status for t in (queue.get(i) for i in (1, 2, 3))}
 
     assert [e for e, _ in session.calls] == ["/status", "/players/profiles", "/players/profiles"]

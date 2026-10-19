@@ -1,4 +1,5 @@
 """Sauvegarde et vérification des sha256 (ADR-0006)."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -16,11 +17,17 @@ def raw_dir(tmp_path):
     for i in range(3):
         fetched_at = T0 + dt.timedelta(seconds=i)
         envelope = store.build_envelope(
-            endpoint="/teams", params={"league": 39, "season": 2015 + i}, fetched_at=fetched_at,
-            http_status=200, headers_quota={}, body={"errors": [], "results": 1, "response": [i]},
+            endpoint="/teams",
+            params={"league": 39, "season": 2015 + i},
+            fetched_at=fetched_at,
+            http_status=200,
+            headers_quota={},
+            body={"errors": [], "results": 1, "response": [i]},
         )
         stored = store.write_envelope(raw, "api_football/teams/league=39", f"season={2015 + i}", envelope, fetched_at)
-        manifest.append_entry(raw, "api_football", manifest.entry_for_stored(envelope, stored, source="api_football", duration_ms=1))
+        manifest.append_entry(
+            raw, "api_football", manifest.entry_for_stored(envelope, stored, source="api_football", duration_ms=1)
+        )
     (raw / "_queue").mkdir()
     (raw / "_queue" / "api_football.sqlite").write_bytes(b"sqlite")
     return raw

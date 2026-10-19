@@ -22,6 +22,7 @@ backup, t60-report, lock-status et les --dry-run) prennent le verrou
 `<raw_dir>/_lock/collecte.lock` ; une seconde commande échoue aussitôt, ou
 attend `--wait-lock` minutes (tâches planifiées). Voir `rawstore/lock.py`.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -106,8 +107,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--raw-dir", type=Path, default=DEFAULT_RAW_DIR, help="dossier brut (défaut : data/raw)")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="fichier des paliers")
-    parser.add_argument("--wait-lock", type=float, default=0, metavar="MINUTES",
-                        help="si le dossier brut est occupé, attendre au plus ce nombre de minutes (défaut : 0)")
+    parser.add_argument(
+        "--wait-lock",
+        type=float,
+        default=0,
+        metavar="MINUTES",
+        help="si le dossier brut est occupé, attendre au plus ce nombre de minutes (défaut : 0)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     coverage = sub.add_parser("coverage", help="inventaire /status et /leagues (2 requêtes)")
@@ -121,36 +127,60 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true", help="affiche ce qui serait fait, sans requête")
 
     refresh = sub.add_parser(
-        "refresh", help="remet en file listes, équipes et blessures d'une saison en cours (aucune requête)")
+        "refresh", help="remet en file listes, équipes et blessures d'une saison en cours (aucune requête)"
+    )
     refresh.add_argument("--season", type=int, required=True, help="année de début de saison (2026 = 2026-27)")
-    refresh.add_argument("--palier", action="append", dest="tiers",
-                         help="palier concerné, répétable ; défaut : tous les paliers déjà planifiés")
-    refresh.add_argument("--league", type=int, action="append", dest="leagues",
-                         help="compétition concernée, répétable ; défaut : toutes celles des paliers")
+    refresh.add_argument(
+        "--palier",
+        action="append",
+        dest="tiers",
+        help="palier concerné, répétable ; défaut : tous les paliers déjà planifiés",
+    )
+    refresh.add_argument(
+        "--league",
+        type=int,
+        action="append",
+        dest="leagues",
+        help="compétition concernée, répétable ; défaut : toutes celles des paliers",
+    )
     refresh.add_argument("--dry-run", action="store_true", help="affiche les tâches et le coût, sans rien modifier")
     refresh.add_argument("--yes", action="store_true", help="ne pas demander de confirmation")
 
     profiles = sub.add_parser(
-        "plan-profiles", help="met en file les profils des titulaires sans date de naissance (aucune requête)")
-    profiles.add_argument("--palier", action="append", dest="tiers",
-                          help="palier concerné, répétable ; défaut : tous ceux qui collectent des profils")
+        "plan-profiles", help="met en file les profils des titulaires sans date de naissance (aucune requête)"
+    )
+    profiles.add_argument(
+        "--palier",
+        action="append",
+        dest="tiers",
+        help="palier concerné, répétable ; défaut : tous ceux qui collectent des profils",
+    )
     profiles.add_argument("--limit", type=int, default=None, help="nombre maximal de tâches ajoutées")
     profiles.add_argument("--dry-run", action="store_true", help="affiche le décompte, sans modifier la file")
 
     sidelined = sub.add_parser(
-        "plan-sidelined", help="met en file /sidelined pour les titulaires du top 5, par lots de 20 (aucune requête)")
+        "plan-sidelined", help="met en file /sidelined pour les titulaires du top 5, par lots de 20 (aucune requête)"
+    )
     sidelined.add_argument("--limit", type=int, default=None, help="nombre maximal de lots ajoutés")
     sidelined.add_argument("--dry-run", action="store_true", help="affiche le décompte, sans modifier la file")
 
     t60 = sub.add_parser("t60", help="journal T-60 : compositions annoncées avant le coup d'envoi")
     t60.add_argument("--date", type=dt.date.fromisoformat, required=True, help="jour des matchs (AAAA-MM-JJ, UTC)")
     t60.add_argument("--max-requests", type=int, required=True, help="plafond d'appels HTTP de l'exécution")
-    t60.add_argument("--league", type=int, action="append", dest="leagues",
-                     help="compétition suivie, répétable ; défaut : bloc top5 du palier P1")
+    t60.add_argument(
+        "--league",
+        type=int,
+        action="append",
+        dest="leagues",
+        help="compétition suivie, répétable ; défaut : bloc top5 du palier P1",
+    )
     t60.add_argument("--lead-minutes", type=float, default=DEFAULT_LEAD.total_seconds() / 60)
     t60.add_argument("--interval-minutes", type=float, default=DEFAULT_INTERVAL.total_seconds() / 60)
-    t60.add_argument("--dry-run", action="store_true",
-                     help="matchs prévus ce jour d'après les listes du brut (heures peut-être périmées), sans requête")
+    t60.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="matchs prévus ce jour d'après les listes du brut (heures peut-être périmées), sans requête",
+    )
 
     sub.add_parser("t60-report", help="bilan du journal T-60 (lecture seule, aucune requête)")
     sub.add_parser("lock-status", help="état du verrou du dossier brut (0 : libre, 1 : occupé)")
@@ -158,12 +188,21 @@ def build_parser() -> argparse.ArgumentParser:
     freeze = sub.add_parser("freeze", help="gel : raw_check, sauvegarde, test de restauration, brouillon DATA_FREEZE")
     freeze.add_argument("--dest", type=Path, required=True, help="sauvegarde : dossier absent ou vide (disque externe)")
     freeze.add_argument("--restore-to", type=Path, required=True, help="test de restauration : dossier absent ou vide")
-    freeze.add_argument("--report-dir", type=Path, default=Path("reports") / "data_quality",
-                        help="résumé raw_check (défaut : reports/data_quality)")
-    freeze.add_argument("--doc", type=Path, default=Path("docs") / "DATA_FREEZE.md",
-                        help="brouillon de DATA_FREEZE.md (défaut : docs/DATA_FREEZE.md)")
-    freeze.add_argument("--allow-blocking", action="store_true",
-                        help="geler malgré un verdict BLOQUANT (après décision écrite)")
+    freeze.add_argument(
+        "--report-dir",
+        type=Path,
+        default=Path("reports") / "data_quality",
+        help="résumé raw_check (défaut : reports/data_quality)",
+    )
+    freeze.add_argument(
+        "--doc",
+        type=Path,
+        default=Path("docs") / "DATA_FREEZE.md",
+        help="brouillon de DATA_FREEZE.md (défaut : docs/DATA_FREEZE.md)",
+    )
+    freeze.add_argument(
+        "--allow-blocking", action="store_true", help="geler malgré un verdict BLOQUANT (après décision écrite)"
+    )
     sub.add_parser("status", help="quota, files, échecs, progression (aucune requête)")
 
     requeue = sub.add_parser("requeue", help="remet des tâches failed ou suspect en pending")
@@ -227,8 +266,10 @@ def cmd_coverage(args, config: CollectConfig, client_factory: ClientFactory) -> 
 
     configured = {league for blocks in config.tiers.values() for block in blocks for league in block.leagues}
     missing = sorted(configured - set(coverage))
-    print(f"{len(coverage)} compétitions dans /leagues ; {len(configured) - len(missing)}/{len(configured)} "
-          f"identifiants configurés trouvés. Tableau écrit dans {args.output}")
+    print(
+        f"{len(coverage)} compétitions dans /leagues ; {len(configured) - len(missing)}/{len(configured)} "
+        f"identifiants configurés trouvés. Tableau écrit dans {args.output}"
+    )
     if missing:
         print(f"Identifiants absents de /leagues : {missing}")
     print(f"Requêtes envoyées : {client.requests_made}")
@@ -269,7 +310,11 @@ def cmd_run(args, config: CollectConfig, client_factory: ClientFactory) -> int:
         print(f"  {outcome} : {count}")
     if report.replanned:
         print(f"Tâches dérivées ajoutées pendant le run : {report.replanned}")
-    print(f"Arrêt : {report.stop_reason}" if report.stop_reason else "File vide : rien d'autre à collecter pour l'instant.")
+    print(
+        f"Arrêt : {report.stop_reason}"
+        if report.stop_reason
+        else "File vide : rien d'autre à collecter pour l'instant."
+    )
     return 0
 
 
@@ -367,10 +412,14 @@ def cmd_t60(args, config: CollectConfig, client_factory: ClientFactory) -> int:
             if path is not None:
                 body = read_envelope(path)["body"]
                 matches += [m for m in day_matches(body, leagues) if m.kickoff.date() == args.date]
-        print(f"Simulation d'après les listes du brut (heures peut-être périmées) : {len(matches)} match(s) le {args.date}.")
+        print(
+            f"Simulation d'après les listes du brut (heures peut-être périmées) : {len(matches)} match(s) le {args.date}."
+        )
         for kickoff, count in sorted(Counter(m.kickoff for m in matches).items()):
             print(f"  {kickoff:%H:%M} UTC : {count} match(s)")
-        print(f"Requêtes au plus : {expected_requests(matches, lead, interval)} (plafond demandé : {args.max_requests}).")
+        print(
+            f"Requêtes au plus : {expected_requests(matches, lead, interval)} (plafond demandé : {args.max_requests})."
+        )
         return 0
     client = client_factory(config, args.max_requests)
     with KeepAwake():
@@ -414,8 +463,9 @@ def cmd_freeze(args, config: CollectConfig, client_factory: ClientFactory) -> in
     started = time.perf_counter()
     print(f"Gel de {args.raw_dir} : raw_check, sauvegarde vers {args.dest}, restauration vers {args.restore_to}.")
     try:
-        report = run_freeze(config, args.raw_dir, args.dest, args.restore_to, args.report_dir,
-                            allow_blocking=args.allow_blocking)
+        report = run_freeze(
+            config, args.raw_dir, args.dest, args.restore_to, args.report_dir, allow_blocking=args.allow_blocking
+        )
     except FreezeError as exc:
         print(f"ÉCHEC du gel : {exc}", file=sys.stderr)
         return 1
@@ -436,13 +486,18 @@ def cmd_backup(args, config: CollectConfig, client_factory: ClientFactory) -> in
     report = backup_mod.backup(args.raw_dir, args.dest)
     print(f"Copie de {args.raw_dir} vers {args.dest}")
     print(f"Fichiers vérifiés (sha256 conforme) : {report.verified}")
-    for label, items in (("sha256 différent", report.mismatched), ("absents", report.missing),
-                         ("hors journal (avertissement)", report.unlisted)):
+    for label, items in (
+        ("sha256 différent", report.mismatched),
+        ("absents", report.missing),
+        ("hors journal (avertissement)", report.unlisted),
+    ):
         if items:
             print(f"{label} : {len(items)}")
             for item in items[:20]:
                 print(f"  {item}")
-    print("Sauvegarde vérifiée." if report.ok else "ÉCHEC de la vérification : ne pas considérer la copie comme valide.")
+    print(
+        "Sauvegarde vérifiée." if report.ok else "ÉCHEC de la vérification : ne pas considérer la copie comme valide."
+    )
     return 0 if report.ok else 1
 
 
@@ -453,10 +508,20 @@ def cmd_rebuild_manifest(args, config: CollectConfig, client_factory: ClientFact
 
 
 # Commandes qui écrivent dans le dossier brut (fichiers, journal ou file) : verrou.
-LOCKED_COMMANDS = frozenset({
-    "coverage", "plan", "run", "refresh", "plan-profiles", "plan-sidelined", "requeue", "rebuild-manifest", "t60",
-    "freeze",  # n'écrit pas dans le brut, mais aucune collecte ne doit tourner pendant la copie
-})
+LOCKED_COMMANDS = frozenset(
+    {
+        "coverage",
+        "plan",
+        "run",
+        "refresh",
+        "plan-profiles",
+        "plan-sidelined",
+        "requeue",
+        "rebuild-manifest",
+        "t60",
+        "freeze",  # n'écrit pas dans le brut, mais aucune collecte ne doit tourner pendant la copie
+    }
+)
 
 COMMANDS = {
     "coverage": cmd_coverage,
@@ -507,15 +572,19 @@ def status_lines(raw_dir: Path, today: dt.date | None = None) -> list[str]:
     for tier, counter in sorted(per_tier.items()):
         total = sum(counter.values())
         treated = total - counter["pending"]
-        lines.append(f"  {tier} : {treated}/{total} ({100 * treated / total:.1f} %) ; "
-                     f"failed {counter['failed']}, suspect {counter['suspect']}")
+        lines.append(
+            f"  {tier} : {treated}/{total} ({100 * treated / total:.1f} %) ; "
+            f"failed {counter['failed']}, suspect {counter['suspect']}"
+        )
     lines.append("  (les tâches dérivées s'ajoutent au fil de la collecte : le total grandit)")
 
     if problems:
         lines += ["", "Derniers échecs et suspects :"]
         for task in problems:
-            lines.append(f"  #{task.id} [{task.tier}] {task.task_type} {task.params} : {task.status}, "
-                         f"{task.attempts} tentative(s) ; {task.last_error}")
+            lines.append(
+                f"  #{task.id} [{task.tier}] {task.task_type} {task.params} : {task.status}, "
+                f"{task.attempts} tentative(s) ; {task.last_error}"
+            )
     if deferred:
         detail = ", ".join(f"{status or '?'} {count}" for status, count in deferred)
         lines += ["", f"Matchs non terminaux mis de côté : {sum(c for _, c in deferred)} ({detail})"]
@@ -531,6 +600,8 @@ def quota_line(entries: list[dict], today: dt.date) -> str:
         stamp = dt.datetime.fromisoformat(entry["timestamp"])
         if stamp.date() == today:
             return f"Quota du jour restant : {remaining} (dernière réponse à {stamp:%H:%M} UTC)."
-        return (f"Aucune requête aujourd'hui (UTC) : quota plein. "
-                f"Dernière valeur connue : {remaining} le {stamp:%Y-%m-%d %H:%M} UTC.")
+        return (
+            f"Aucune requête aujourd'hui (UTC) : quota plein. "
+            f"Dernière valeur connue : {remaining} le {stamp:%Y-%m-%d %H:%M} UTC."
+        )
     return "Quota du jour : inconnu (aucune réponse journalisée)."

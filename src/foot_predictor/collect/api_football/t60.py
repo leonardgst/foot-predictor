@@ -32,6 +32,7 @@ annoncé dont le détail d'après-match est dans le brut, part des titulaires
 identiques. Elle ne lit que les compositions : ni score, ni buts (scellé,
 ADR-0012).
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -80,7 +81,9 @@ def starting_elevens(item: dict) -> dict[int, list[int | None]]:
     for lineup in item.get("lineups") or []:
         team = ((lineup or {}).get("team") or {}).get("id")
         if team is not None:
-            elevens[int(team)] = [((entry or {}).get("player") or {}).get("id") for entry in lineup.get("startXI") or []]
+            elevens[int(team)] = [
+                ((entry or {}).get("player") or {}).get("id") for entry in lineup.get("startXI") or []
+            ]
     return elevens
 
 
@@ -175,7 +178,7 @@ class T60Collector:
                 self._sleep(max((wake - now).total_seconds(), 1.0))
                 continue
             for start in range(0, len(open_ids), DETAIL_BATCH_MAX):
-                self._poll(open_ids[start:start + DETAIL_BATCH_MAX], pending)
+                self._poll(open_ids[start : start + DETAIL_BATCH_MAX], pending)
             if pending:
                 self._sleep(self.interval.total_seconds())
 
@@ -239,11 +242,13 @@ class KeepAwake:
 
 
 def report_lines(report: T60Report) -> list[str]:
-    lines = [f"Journal T-60 du {report.day} : {report.matches} match(s) du top 5 suivis.",
-             f"  compositions obtenues avant le coup d'envoi : {len(report.announced)}",
-             f"  coup d'envoi atteint sans compositions : {len(report.missed)}",
-             f"  sortis du suivi (reportés, annulés, commencés) : {len(report.dropped)}",
-             f"Requêtes envoyées : {report.requests}"]
+    lines = [
+        f"Journal T-60 du {report.day} : {report.matches} match(s) du top 5 suivis.",
+        f"  compositions obtenues avant le coup d'envoi : {len(report.announced)}",
+        f"  coup d'envoi atteint sans compositions : {len(report.missed)}",
+        f"  sortis du suivi (reportés, annulés, commencés) : {len(report.dropped)}",
+        f"Requêtes envoyées : {report.requests}",
+    ]
     if report.stop_reason:
         lines.append(f"Arrêt : {report.stop_reason}")
     return lines
@@ -305,11 +310,14 @@ def announced_lineups(raw_dir: Path) -> dict[int, tuple[int, int, dict[int, list
         for item in body.get("response") or []:
             fixture = (item or {}).get("fixture") or {}
             status = (fixture.get("status") or {}).get("short")
-            league = (item.get("league") or {})
+            league = item.get("league") or {}
             if fixture.get("id") is None or status not in NOT_STARTED or not has_lineups(item):
                 continue
-            found[int(fixture["id"])] = (int(league.get("id") or 0), int(league.get("season") or 0),
-                                         starting_elevens(item))
+            found[int(fixture["id"])] = (
+                int(league.get("id") or 0),
+                int(league.get("season") or 0),
+                starting_elevens(item),
+            )
     return found
 
 
@@ -348,8 +356,10 @@ def compare_lineups(raw_dir: Path) -> tuple[list[Comparison], int]:
                 comparison.compared += 1
                 if player in kept:
                     comparison.identical += 1
-            for missing, extra in zip(sorted(p for p in players if p is not None and p not in kept),
-                                      sorted(p for p in after.get(team, []) if p is not None and p not in set(players))):
+            for missing, extra in zip(
+                sorted(p for p in players if p is not None and p not in kept),
+                sorted(p for p in after.get(team, []) if p is not None and p not in set(players)),
+            ):
                 comparison.differences.append((team, missing, extra))
         comparisons.append(comparison)
     return comparisons, len(announced) - len(comparisons)

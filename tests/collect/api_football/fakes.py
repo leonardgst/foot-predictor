@@ -7,6 +7,7 @@
 - constructeurs de corps de réponse au format api-sports ;
 - `load_real_fixtures()` : les 5 matchs réels de `tests/fixtures/api_football/`.
 """
+
 from __future__ import annotations
 
 import copy
@@ -56,7 +57,9 @@ class FakeClock:
 
 
 class FakeResponse:
-    def __init__(self, status_code: int = 200, body: object = None, headers: dict | None = None, text: str | None = None):
+    def __init__(
+        self, status_code: int = 200, body: object = None, headers: dict | None = None, text: str | None = None
+    ):
         self.status_code = status_code
         self._body = body
         self._text = text
@@ -125,8 +128,9 @@ def status_body(current: int = 100, limit_day: int = 7500) -> dict:
     }
 
 
-def fixture_item(fixture_id: int, *, status: str = "FT", league: int = 39, season: int = 2015,
-                 home: int = 33, away: int = 47) -> dict:
+def fixture_item(
+    fixture_id: int, *, status: str = "FT", league: int = 39, season: int = 2015, home: int = 33, away: int = 47
+) -> dict:
     """Élément de `/fixtures?league=&season=` réduit aux champs utiles."""
     return {
         "fixture": {"id": fixture_id, "date": "2015-08-08T14:00:00+00:00", "status": {"short": status}},
@@ -190,7 +194,11 @@ def league_entry(league_id: int, name: str, seasons: dict[int, dict]) -> dict:
     """Élément de `/leagues` ; `seasons` : année -> surcharges de `coverage`."""
     base = {
         "fixtures": {"events": True, "lineups": True, "statistics_fixtures": True, "statistics_players": True},
-        "standings": True, "players": True, "injuries": True, "predictions": True, "odds": False,
+        "standings": True,
+        "players": True,
+        "injuries": True,
+        "predictions": True,
+        "odds": False,
     }
     items = []
     for year, overrides in seasons.items():
@@ -201,10 +209,14 @@ def league_entry(league_id: int, name: str, seasons: dict[int, dict]) -> dict:
             for part in parents:
                 target = target[part]
             target[leaf] = value
-        items.append({"year": year, "start": f"{year}-08-01", "end": f"{year + 1}-05-31", "current": False,
-                      "coverage": coverage})
-    return {"league": {"id": league_id, "name": name, "type": "League"}, "country": {"name": "England"},
-            "seasons": items}
+        items.append(
+            {"year": year, "start": f"{year}-08-01", "end": f"{year + 1}-05-31", "current": False, "coverage": coverage}
+        )
+    return {
+        "league": {"id": league_id, "name": name, "type": "League"},
+        "country": {"name": "England"},
+        "seasons": items,
+    }
 
 
 def leagues_response() -> list[dict]:

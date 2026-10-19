@@ -20,6 +20,7 @@ l'ordre de traitement par `run`.
 
 Lecture seule du brut ; seule la file de travail est modifiée.
 """
+
 from __future__ import annotations
 
 from collections import Counter
@@ -51,15 +52,22 @@ class ProfilePlan:
 
     def tasks(self, limit: int | None = None) -> list[tasks.Task]:
         """Tâches à ajouter, bloc par bloc ; `limit` garde les premières."""
-        planned = [tasks.player_profile_task(self.tiers[label], player)
-                   for label, ids in self.missing.items() for player in ids]
+        planned = [
+            tasks.player_profile_task(self.tiers[label], player)
+            for label, ids in self.missing.items()
+            for player in ids
+        ]
         return planned if limit is None else planned[:limit]
 
 
 def profile_blocks(config: CollectConfig, tiers: Iterable[str]) -> list[tuple[str, Block]]:
     """Blocs de championnat qui collectent les profils, dans l'ordre du YAML."""
-    return [(tier, block) for tier in tiers for block in config.tiers.get(tier, [])
-            if block.kind == "league" and "players" in block.endpoints]
+    return [
+        (tier, block)
+        for tier in tiers
+        for block in config.tiers.get(tier, [])
+        if block.kind == "league" and "players" in block.endpoints
+    ]
 
 
 def _bodies(directory: Path) -> Iterator[tuple[Path, dict | None]]:
@@ -95,8 +103,7 @@ def known_birth_ids(raw_dir: Path, unreadable: list[str] | None = None) -> set[i
     return known
 
 
-def starter_ids(raw_dir: Path, league: int, seasons: Iterable[int],
-                unreadable: list[str] | None = None) -> set[int]:
+def starter_ids(raw_dir: Path, league: int, seasons: Iterable[int], unreadable: list[str] | None = None) -> set[int]:
     """Titulaires des matchs détaillés d'une compétition, pour ces saisons
     (toutes versions des lots confondues).
 
@@ -142,8 +149,11 @@ def build_profile_plan(config: CollectConfig, raw_dir: Path, tiers: Iterable[str
 
 def plan_lines(plan: ProfilePlan, queued: int | None = None, limit: int | None = None) -> list[str]:
     """Résumé chiffré, sans identifiant de joueur."""
-    lines = [f"Identifiants ayant une date de naissance dans le brut : {plan.known_births}", "",
-             f"{'Bloc':<28}{'Titulaires':>11}{'Sans date':>11}"]
+    lines = [
+        f"Identifiants ayant une date de naissance dans le brut : {plan.known_births}",
+        "",
+        f"{'Bloc':<28}{'Titulaires':>11}{'Sans date':>11}",
+    ]
     for label, ids in plan.missing.items():
         lines.append(f"{label:<28}{plan.starters[label]:>11}{len(ids):>11}")
     lines.append(f"{'Total (1 requête par joueur)':<39}{plan.total_missing:>11}")

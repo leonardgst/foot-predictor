@@ -1,4 +1,5 @@
 """File de travail SQLite : ajout sans doublon, statuts, reprise, remise en file."""
+
 from __future__ import annotations
 
 import pytest
@@ -26,12 +27,14 @@ def test_add_ignores_duplicates(queue):
 
 
 def test_pending_order_follows_tier_then_priority(queue):
-    queue.add([
-        tasks.players_task("P1", 39, 2015),
-        tasks.fixtures_list_task("P2", 39, 2010),
-        tasks.fixtures_detail_task("P1", 39, 2015, [1, 2]),
-        tasks.fixtures_list_task("P1", 39, 2015),
-    ])
+    queue.add(
+        [
+            tasks.players_task("P1", 39, 2015),
+            tasks.fixtures_list_task("P2", 39, 2010),
+            tasks.fixtures_detail_task("P1", 39, 2015, [1, 2]),
+            tasks.fixtures_list_task("P1", 39, 2015),
+        ]
+    )
     order = [(t.tier, t.task_type) for t in queue.list_pending()]
     assert order == [("P1", "fixtures_list"), ("P1", "fixtures_detail"), ("P1", "players"), ("P2", "fixtures_list")]
 

@@ -1,4 +1,5 @@
 """Commande `freeze` (gel des données) et sauvegarde sous verrou, sans aucun appel réseau."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -31,17 +32,40 @@ def setup(tmp_path, real):
 
 
 def freeze(tmp_path, raw, config, *extra):
-    return cli.main(["--raw-dir", str(raw), "--config", str(config), "freeze",
-                     "--dest", str(tmp_path / "externe" / "raw"), "--restore-to", str(tmp_path / "restauration" / "raw"),
-                     "--report-dir", str(tmp_path / "rapports"), "--doc", str(tmp_path / "docs" / "DATA_FREEZE.md"),
-                     *extra])
+    return cli.main(
+        [
+            "--raw-dir",
+            str(raw),
+            "--config",
+            str(config),
+            "freeze",
+            "--dest",
+            str(tmp_path / "externe" / "raw"),
+            "--restore-to",
+            str(tmp_path / "restauration" / "raw"),
+            "--report-dir",
+            str(tmp_path / "rapports"),
+            "--doc",
+            str(tmp_path / "docs" / "DATA_FREEZE.md"),
+            *extra,
+        ]
+    )
 
 
 def hold_lock(raw):
     path = lock_path(raw)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"pid": os.getpid(), "command": "run", "host": socket.gethostname(),
-                                "started_at": dt.datetime.now(dt.UTC).isoformat()}), encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            {
+                "pid": os.getpid(),
+                "command": "run",
+                "host": socket.gethostname(),
+                "started_at": dt.datetime.now(dt.UTC).isoformat(),
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_freeze_checks_saves_restores_and_drafts_data_freeze(tmp_path, setup, real, capsys):
@@ -62,8 +86,15 @@ def test_freeze_checks_saves_restores_and_drafts_data_freeze(tmp_path, setup, re
     assert "Sauvegarde : " in out and "restauration" in out and "Durée totale" in out
 
     doc = (tmp_path / "docs" / "DATA_FREEZE.md").read_text(encoding="utf-8")
-    for section in ("## Périmètre", "## Volumes", "## Contrôle du brut", "## Trous connus", "## Quota consommé",
-                    "## Journal et sauvegarde", "## À compléter à la main"):
+    for section in (
+        "## Périmètre",
+        "## Volumes",
+        "## Contrôle du brut",
+        "## Trous connus",
+        "## Quota consommé",
+        "## Journal et sauvegarde",
+        "## À compléter à la main",
+    ):
         assert section in doc
     assert "Brouillon généré le" in doc and "sha256 `" in doc
     assert "Matchs terminés avec détail : **5 / 5**" in doc

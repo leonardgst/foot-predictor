@@ -21,6 +21,7 @@ Règles des lots de détails :
 - pour une coupe (`detail_teams_from`), seuls les matchs impliquant une équipe
   d'un championnat du palier de référence, la même saison, sont gardés.
 """
+
 from __future__ import annotations
 
 from collections import Counter
@@ -40,8 +41,15 @@ from foot_predictor.rawstore.store import latest_version, read_envelope
 DEFAULT_CONFIG_PATH = Path("config") / "collecte_api_football.yaml"
 
 PLANNABLE_ENDPOINTS = {
-    "fixtures_list", "fixtures_detail", "teams", "injuries", "players",
-    "coachs", "transfers", "standings", "sidelined",
+    "fixtures_list",
+    "fixtures_detail",
+    "teams",
+    "injuries",
+    "players",
+    "coachs",
+    "transfers",
+    "standings",
+    "sidelined",
 }
 LEAGUE_SEASON_ENDPOINTS = ("fixtures_list", "teams", "injuries", "standings")
 TEAM_ENDPOINTS = ("coachs", "transfers")
@@ -225,7 +233,9 @@ class Planner:
                     self._plan_league_season(tier, block, league, season, report)
             self._plan_team_tasks(tier, block, block_seasons, report)
             if "sidelined" in block.endpoints:
-                report.warnings.append(f"{block.name} : sidelined n'est pas encore planifiable (liste de joueurs à définir).")
+                report.warnings.append(
+                    f"{block.name} : sidelined n'est pas encore planifiable (liste de joueurs à définir)."
+                )
 
         fresh = [task for task in self._new.values() if not self.queue.contains(task)]
         self.queue.add(fresh)
@@ -251,8 +261,11 @@ class Planner:
                 for endpoint in block.endpoints:
                     if endpoint not in wanted or not self._covered(league, season, endpoint):
                         continue
-                    found.append(tasks.fixtures_list_task(tier, league, season) if endpoint == "fixtures_list"
-                                 else tasks.league_season_task(tier, endpoint, league, season))
+                    found.append(
+                        tasks.fixtures_list_task(tier, league, season)
+                        if endpoint == "fixtures_list"
+                        else tasks.league_season_task(tier, endpoint, league, season)
+                    )
         return found
 
     # --- saisons ---------------------------------------------------------------
@@ -300,8 +313,11 @@ class Planner:
                 report.skipped[f"{endpoint} non couvert"] += 1
                 continue
             if endpoint in LEAGUE_SEASON_ENDPOINTS:
-                task = (tasks.fixtures_list_task(tier, league, season) if endpoint == "fixtures_list"
-                        else tasks.league_season_task(tier, endpoint, league, season))
+                task = (
+                    tasks.fixtures_list_task(tier, league, season)
+                    if endpoint == "fixtures_list"
+                    else tasks.league_season_task(tier, endpoint, league, season)
+                )
                 self._propose(task)
             elif endpoint == "players":
                 self._propose(tasks.players_task(tier, league, season, 1))
@@ -367,7 +383,9 @@ class Planner:
 
     # --- tâches par équipe ---------------------------------------------------------
 
-    def _plan_team_tasks(self, tier: str, block: Block, block_seasons: list[tuple[int, int]], report: PlanReport) -> None:
+    def _plan_team_tasks(
+        self, tier: str, block: Block, block_seasons: list[tuple[int, int]], report: PlanReport
+    ) -> None:
         endpoints = [e for e in block.endpoints if e in TEAM_ENDPOINTS]
         if not endpoints:
             return
@@ -416,4 +434,4 @@ def _team_ids(item: dict) -> set[int]:
 
 def chunks(values: list[int], size: int) -> Iterable[list[int]]:
     for start in range(0, len(values), size):
-        yield values[start:start + size]
+        yield values[start : start + size]

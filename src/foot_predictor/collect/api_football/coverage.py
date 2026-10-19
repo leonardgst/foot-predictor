@@ -10,6 +10,7 @@ Cet index sert à deux choses :
 - le planificateur, qui ne crée pas de tâche pour une saison inexistante ou
   non couverte (ADR-0002 : on ne collecte pas une saison sans compositions).
 """
+
 from __future__ import annotations
 
 import datetime as dt

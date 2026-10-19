@@ -1,4 +1,5 @@
 """Verrou de collecte (`rawstore/lock.py`), sans processus réel à part celui des tests."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -37,8 +38,12 @@ def make_lock(raw, command="run", *, pid=111, alive_fn=alive, now=NOW, **kwargs)
 def write_lock(raw, *, pid=222, started=NOW, host=None, command="refresh"):
     path = lock_path(raw)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"pid": pid, "command": command, "host": host or socket.gethostname(),
-                                "started_at": started.isoformat()}), encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            {"pid": pid, "command": command, "host": host or socket.gethostname(), "started_at": started.isoformat()}
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_lock_is_created_then_removed(tmp_path):
@@ -103,8 +108,16 @@ def test_waiting_command_gets_the_lock_when_it_is_released(tmp_path):
         if len(sleeps) == 3:
             lock_path(tmp_path).unlink()  # le refresh se termine
 
-    lock = CollectLock(tmp_path, "t60", pid=333, alive=alive, now=lambda: clock["now"], sleep=sleep,
-                       wait=dt.timedelta(minutes=10), poll_seconds=30)
+    lock = CollectLock(
+        tmp_path,
+        "t60",
+        pid=333,
+        alive=alive,
+        now=lambda: clock["now"],
+        sleep=sleep,
+        wait=dt.timedelta(minutes=10),
+        poll_seconds=30,
+    )
     with lock:
         assert read_lock(tmp_path).pid == 333
     assert sleeps == [30, 30, 30]
@@ -117,8 +130,16 @@ def test_waiting_gives_up_after_the_deadline(tmp_path):
     def sleep(seconds):
         clock["now"] += dt.timedelta(seconds=seconds)
 
-    lock = CollectLock(tmp_path, "t60", pid=333, alive=alive, now=lambda: clock["now"], sleep=sleep,
-                       wait=dt.timedelta(minutes=2), poll_seconds=30)
+    lock = CollectLock(
+        tmp_path,
+        "t60",
+        pid=333,
+        alive=alive,
+        now=lambda: clock["now"],
+        sleep=sleep,
+        wait=dt.timedelta(minutes=2),
+        poll_seconds=30,
+    )
     with pytest.raises(LockHeldError):
         lock.acquire()
     assert clock["now"] - NOW == dt.timedelta(minutes=2)

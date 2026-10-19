@@ -1,4 +1,5 @@
 """Rafraîchissement d'une saison en cours (commande `refresh`), sans aucun appel réseau."""
+
 from __future__ import annotations
 
 import copy
@@ -18,10 +19,22 @@ from .fakes import FakeApi, FakeClock, FakeSession, fixture_item, leagues_respon
 
 REAL_IDS = sorted(f["fixture"]["id"] for f in load_real_fixtures())
 NOW = dt.datetime(2026, 10, 10, 8, 0, tzinfo=dt.UTC)
-CONFIG = {"reserve": 500, "tiers": {"P1": {"blocks": [
-    {"name": "top5", "kind": "league", "leagues": [39], "seasons": {"first": 2015, "last": 2015},
-     "endpoints": ["fixtures_list", "fixtures_detail", "teams", "injuries"]},
-]}}}
+CONFIG = {
+    "reserve": 500,
+    "tiers": {
+        "P1": {
+            "blocks": [
+                {
+                    "name": "top5",
+                    "kind": "league",
+                    "leagues": [39],
+                    "seasons": {"first": 2015, "last": 2015},
+                    "endpoints": ["fixtures_list", "fixtures_detail", "teams", "injuries"],
+                },
+            ]
+        }
+    },
+}
 
 
 def future(item: dict) -> dict:
@@ -39,8 +52,10 @@ def api():
     """Liste de mi-saison : 5 matchs terminés, 999 joué mais pas encore
     terminé dans la liste, 998 à venir."""
     fake = FakeApi()
-    fake.listings[(39, 2015)] = ([fixture_item(i) for i in REAL_IDS]
-                                 + [fixture_item(999, status="NS"), future(fixture_item(998, status="NS"))])
+    fake.listings[(39, 2015)] = [fixture_item(i) for i in REAL_IDS] + [
+        fixture_item(999, status="NS"),
+        future(fixture_item(998, status="NS")),
+    ]
     fake.teams[(39, 2015)] = [33, 47]
     played = copy.deepcopy(load_real_fixtures()[0])
     played["fixture"]["id"] = 999
@@ -130,20 +145,27 @@ def test_queue_reopen_only_touches_done_and_suspect(tmp_path):
 
         assert queue.reopen(t.key for t in (done, suspect, failed, pending)) == 2
 
-        assert [queue.status_of(t) for t in (done, suspect, failed, pending)] == ["pending", "pending", "failed", "pending"]
+        assert [queue.status_of(t) for t in (done, suspect, failed, pending)] == [
+            "pending",
+            "pending",
+            "failed",
+            "pending",
+        ]
         assert queue.get(ids[1]).file == "a"  # la réponse précédente reste référencée jusqu'au run
 
 
 def test_overdue_deferred_counts_past_matches_of_the_given_leagues(tmp_path):
     with WorkQueue.in_raw_dir(tmp_path) as queue:
-        queue.add_deferred([
-            (1, 39, 2026, "NS", "2026-10-04T14:00:00+00:00"),
-            (2, 39, 2026, "NS", "2026-10-18T14:00:00+00:00"),  # à venir
-            (3, 39, 2026, "PST", "2026-09-20T14:00:00"),  # sans fuseau : UTC
-            (4, 61, 2026, "NS", "2026-10-04T14:00:00+00:00"),  # autre compétition
-            (5, 39, 2025, "NS", "2025-10-04T14:00:00+00:00"),  # autre saison
-            (6, 39, 2026, "TBD", None),
-        ])
+        queue.add_deferred(
+            [
+                (1, 39, 2026, "NS", "2026-10-04T14:00:00+00:00"),
+                (2, 39, 2026, "NS", "2026-10-18T14:00:00+00:00"),  # à venir
+                (3, 39, 2026, "PST", "2026-09-20T14:00:00"),  # sans fuseau : UTC
+                (4, 61, 2026, "NS", "2026-10-04T14:00:00+00:00"),  # autre compétition
+                (5, 39, 2025, "NS", "2025-10-04T14:00:00+00:00"),  # autre saison
+                (6, 39, 2026, "TBD", None),
+            ]
+        )
         assert queue.overdue_deferred(2026, [39], NOW) == {39: 2}
 
 

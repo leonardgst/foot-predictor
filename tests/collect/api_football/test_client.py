@@ -1,4 +1,5 @@
 """Client HTTP : cadence, 429, 5xx, errors, réserve de quota (ADR-0004)."""
+
 from __future__ import annotations
 
 import pytest

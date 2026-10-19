@@ -1,4 +1,5 @@
 """Commandes du collecteur, avec une fausse API (aucun appel réseau)."""
+
 from __future__ import annotations
 
 import datetime as dt

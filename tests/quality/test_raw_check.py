@@ -3,6 +3,7 @@
 
 Aucun appel réseau, aucune base de données.
 """
+
 from __future__ import annotations
 
 import copy
@@ -28,20 +29,44 @@ NOW = dt.datetime(2026, 10, 8, 20, 0, 0, tzinfo=dt.UTC)
 
 CONFIG = {
     "tiers": {
-        "P1": {"blocks": [
-            {"name": "top5", "kind": "league", "leagues": [39], "seasons": {"first": 2015, "last": 2015},
-             "endpoints": ["fixtures_list", "fixtures_detail", "players"]},
-            {"name": "coupes", "kind": "cup", "leagues": [45], "seasons": {"first": 2015, "last": 2015},
-             "endpoints": ["fixtures_list", "fixtures_detail"], "detail_teams_from": "P1"},
-        ]},
-        "P2": {"blocks": [
-            {"name": "ancien", "kind": "league", "leagues": [39], "seasons": {"last": 2014, "requires_coverage": "fixtures.lineups"},
-             "endpoints": ["fixtures_list", "fixtures_detail"]},
-        ]},
+        "P1": {
+            "blocks": [
+                {
+                    "name": "top5",
+                    "kind": "league",
+                    "leagues": [39],
+                    "seasons": {"first": 2015, "last": 2015},
+                    "endpoints": ["fixtures_list", "fixtures_detail", "players"],
+                },
+                {
+                    "name": "coupes",
+                    "kind": "cup",
+                    "leagues": [45],
+                    "seasons": {"first": 2015, "last": 2015},
+                    "endpoints": ["fixtures_list", "fixtures_detail"],
+                    "detail_teams_from": "P1",
+                },
+            ]
+        },
+        "P2": {
+            "blocks": [
+                {
+                    "name": "ancien",
+                    "kind": "league",
+                    "leagues": [39],
+                    "seasons": {"last": 2014, "requires_coverage": "fixtures.lineups"},
+                    "endpoints": ["fixtures_list", "fixtures_detail"],
+                },
+            ]
+        },
     }
 }
-FLAGS = {"fixtures": {"events": True, "lineups": True, "statistics_fixtures": True, "statistics_players": True},
-         "players": True, "injuries": True, "standings": True}
+FLAGS = {
+    "fixtures": {"events": True, "lineups": True, "statistics_fixtures": True, "statistics_players": True},
+    "players": True,
+    "injuries": True,
+    "standings": True,
+}
 
 
 def load_real_fixtures() -> list[dict]:
@@ -71,10 +96,15 @@ def profiles_of(details: list[dict]) -> list[dict]:
             for entry in team["players"]:
                 player = entry["player"]
                 first, _, last = player["name"].partition(" ")
-                profiles[player["id"]] = {"player": {
-                    "id": player["id"], "name": player["name"], "firstname": first, "lastname": last,
-                    "birth": {"date": f"1990-01-{player['id'] % 28 + 1:02d}"},
-                }}
+                profiles[player["id"]] = {
+                    "player": {
+                        "id": player["id"],
+                        "name": player["name"],
+                        "firstname": first,
+                        "lastname": last,
+                        "birth": {"date": f"1990-01-{player['id'] % 28 + 1:02d}"},
+                    }
+                }
     return list(profiles.values())
 
 
@@ -86,20 +116,30 @@ class RawBuilder:
         self.clock = T0
         self.queue = WorkQueue.in_raw_dir(raw_dir)
 
-    def write(self, rel_dir: str, stem: str, body: dict, endpoint: str = "/fixtures", params: dict | None = None) -> store.StoredFile:
+    def write(
+        self, rel_dir: str, stem: str, body: dict, endpoint: str = "/fixtures", params: dict | None = None
+    ) -> store.StoredFile:
         self.clock += dt.timedelta(seconds=1)
-        envelope = store.build_envelope(endpoint=endpoint, params=params or {}, fetched_at=self.clock,
-                                        http_status=200, headers_quota={}, body=body)
+        envelope = store.build_envelope(
+            endpoint=endpoint, params=params or {}, fetched_at=self.clock, http_status=200, headers_quota={}, body=body
+        )
         stored = store.write_envelope(self.raw_dir, rel_dir, stem, envelope, self.clock)
-        manifest.append_entry(self.raw_dir, "api_football",
-                              manifest.entry_for_stored(envelope, stored, source="api_football", duration_ms=1))
+        manifest.append_entry(
+            self.raw_dir,
+            "api_football",
+            manifest.entry_for_stored(envelope, stored, source="api_football", duration_ms=1),
+        )
         return stored
 
     def leagues(self, flags_by_league: dict[int, dict], years: tuple[int, ...] = (2015,)) -> None:
-        response = [{"league": {"id": league, "name": f"Compétition {league}", "type": "League"},
-                     "country": {"name": "England"},
-                     "seasons": [{"year": year, "coverage": flags} for year in years]}
-                    for league, flags in flags_by_league.items()]
+        response = [
+            {
+                "league": {"id": league, "name": f"Compétition {league}", "type": "League"},
+                "country": {"name": "England"},
+                "seasons": [{"year": year, "coverage": flags} for year in years],
+            }
+            for league, flags in flags_by_league.items()
+        ]
         task = tasks.leagues_task("P0")
         self.write(task.rel_dir, task.stem, body(response), endpoint="/leagues")
 
@@ -114,21 +154,34 @@ class RawBuilder:
         self.done(task)
         return stored
 
-    def profiles(self, league: int, response: list[dict], page: int = 1, total: int = 1,
-                 tier: str = "P1", season: int = 2015) -> None:
+    def profiles(
+        self, league: int, response: list[dict], page: int = 1, total: int = 1, tier: str = "P1", season: int = 2015
+    ) -> None:
         task = tasks.players_task(tier, league, season, page)
-        self.write(task.rel_dir, task.stem, body(response, paging={"current": page, "total": total}),
-                   endpoint="/players", params=task.params)
+        self.write(
+            task.rel_dir,
+            task.stem,
+            body(response, paging={"current": page, "total": total}),
+            endpoint="/players",
+            params=task.params,
+        )
         self.done(task)
 
     def done(self, task: tasks.Task) -> None:
         if self.queue.add([task]):  # une recollecte réutilise la tâche existante
-            queued = next(t for t in self.queue.list_pending() if t.params == task.params and t.task_type == task.task_type)
+            queued = next(
+                t for t in self.queue.list_pending() if t.params == task.params and t.task_type == task.task_type
+            )
             self.queue.mark_done(queued.id, "x")
 
 
 def body(response: list, paging: dict | None = None) -> dict:
-    return {"errors": [], "results": len(response), "paging": paging or {"current": 1, "total": 1}, "response": response}
+    return {
+        "errors": [],
+        "results": len(response),
+        "paging": paging or {"current": 1, "total": 1},
+        "response": response,
+    }
 
 
 @pytest.fixture
@@ -176,9 +229,23 @@ def test_clean_raw_dir_passes_every_check_but_the_expected_count(tmp_path, confi
     assert season.profiles == "1/1"
     # 6 matchs pour 10 équipes : le nombre attendu (90) n'est pas atteint, rien d'autre.
     assert status_of(result, "Matchs listés") == WATCH
-    for label in ("Matchs terminés", "Compositions", "players et events", "Buts", "player.id", "Titulaires",
-                  "Un identifiant", "Doublons", "Collisions : deux équipes", "Collisions : deux fois",
-                  "Collisions : deux dates", "Minutes", "Note", "Intégrité", "Tâches"):
+    for label in (
+        "Matchs terminés",
+        "Compositions",
+        "players et events",
+        "Buts",
+        "player.id",
+        "Titulaires",
+        "Un identifiant",
+        "Doublons",
+        "Collisions : deux équipes",
+        "Collisions : deux fois",
+        "Collisions : deux dates",
+        "Minutes",
+        "Note",
+        "Intégrité",
+        "Tâches",
+    ):
         assert status_of(result, label) == OK, label
     assert result.verdict == WATCH
     # Les 5 vrais matchs : aucune collision (joueur présent en composition et en statistiques, même équipe).
@@ -193,8 +260,9 @@ def test_cup_details_are_expected_only_for_tracked_teams(tmp_path, config, real)
     raw = tmp_path / "raw"
     builder = build_clean(raw, real)
     # Seconde liste de coupe, plus récente : c'est elle qui compte.
-    builder.fixtures_list(45, [list_item(700001, 33, 5000, round_="3rd Round"),
-                               list_item(700002, 5001, 5002, round_="3rd Round")])
+    builder.fixtures_list(
+        45, [list_item(700001, 33, 5000, round_="3rd Round"), list_item(700002, 5001, 5002, round_="3rd Round")]
+    )
     builder.queue.close()
 
     result = run_check(raw, config)
@@ -243,8 +311,15 @@ def test_anomalies_are_detected_and_listed(tmp_path, config, real):
     c["players"][0]["players"][0]["statistics"][0]["games"]["rating"] = "2.5"
     c["players"][0]["players"][1]["statistics"][0]["games"]["minutes"] = 140
     c["lineups"][0]["substitutes"][0]["player"]["id"] = None
-    d["events"].append({"type": "Goal", "detail": "Normal Goal", "team": {"id": d["teams"]["home"]["id"]},
-                        "player": {"id": 1, "name": "X. Test"}, "assist": {"id": None, "name": None}})
+    d["events"].append(
+        {
+            "type": "Goal",
+            "detail": "Normal Goal",
+            "team": {"id": d["teams"]["home"]["id"]},
+            "player": {"id": 1, "name": "X. Test"},
+            "assist": {"id": None, "name": None},
+        }
+    )
     e["lineups"][0]["startXI"][0]["player"]["name"] = "D. Blind"  # nom incompatible avec l'identifiant
     e["players"] = []
 
@@ -294,8 +369,17 @@ def test_anomalies_are_detected_and_listed(tmp_path, config, real):
     assert status_of(result, "Matchs terminés") == BLOCK
     assert status_of(result, "Intégrité") == BLOCK
     assert status_of(result, "Tâches") == BLOCK
-    for label in ("Compositions", "players et events", "Buts", "player.id", "Titulaires", "Un identifiant",
-                  "Doublons", "Minutes", "Note"):
+    for label in (
+        "Compositions",
+        "players et events",
+        "Buts",
+        "player.id",
+        "Titulaires",
+        "Un identifiant",
+        "Doublons",
+        "Minutes",
+        "Note",
+    ):
         assert status_of(result, label) == WATCH, label
     assert result.verdict == BLOCK
     assert stored.path.exists()
@@ -304,8 +388,12 @@ def test_anomalies_are_detected_and_listed(tmp_path, config, real):
     summary = raw_check.render_summary(result)
     details = raw_check.render_details(result)
     player_names = {entry["player"]["name"] for item in broken for team in item["players"] for entry in team["players"]}
-    player_names |= {entry["player"]["name"] for item in broken for lineup in item["lineups"]
-                     for entry in lineup["startXI"] + lineup["substitutes"]}
+    player_names |= {
+        entry["player"]["name"]
+        for item in broken
+        for lineup in item["lineups"]
+        for entry in lineup["startXI"] + lineup["substitutes"]
+    }
     assert [name for name in player_names if name in summary] == []
     anomalous_ids = {424242, missing_starter, *conflict_ids}
     assert [pid for pid in anomalous_ids if re.search(rf"\b{pid}\b", summary)] == []
@@ -384,20 +472,24 @@ def test_goals_from_events_handles_own_goals_missed_penalties_and_shootouts():
 
 
 def test_expected_regular_season_ignores_playoffs():
-    items = [list_item(i, home, away) for i, (home, away) in enumerate(
-        [(1, 2), (2, 1), (1, 3), (3, 1), (2, 3), (3, 2)])]
+    items = [
+        list_item(i, home, away) for i, (home, away) in enumerate([(1, 2), (2, 1), (1, 3), (3, 1), (2, 3), (3, 2)])
+    ]
     items.append(list_item(99, 1, 2, round_="Promotion Play-offs - Final"))
     assert raw_check.expected_regular_season(items) == (6, 3, 6)
 
 
-@pytest.mark.parametrize(("a", "b", "expected"), [
-    ("S. Romero", "Sergio Romero", True),
-    ("M. Ødegaard", "Martin Odegaard", True),
-    ("K. De Bruyne", "Kevin De Bruyne", True),
-    ("Neymar", "Neymar Jr", True),
-    ("S. Romero", "D. Blind", False),
-    ("M. de Ligt", "J. de Jong", False),  # la particule seule ne suffit pas
-])
+@pytest.mark.parametrize(
+    ("a", "b", "expected"),
+    [
+        ("S. Romero", "Sergio Romero", True),
+        ("M. Ødegaard", "Martin Odegaard", True),
+        ("K. De Bruyne", "Kevin De Bruyne", True),
+        ("Neymar", "Neymar Jr", True),
+        ("S. Romero", "D. Blind", False),
+        ("M. de Ligt", "J. de Jong", False),  # la particule seule ne suffit pas
+    ],
+)
 def test_compatible_names(a, b, expected):
     assert raw_check.compatible_names(a, b) is expected
 
@@ -420,11 +512,20 @@ def test_probable_duplicates_need_same_name_and_same_birth_date():
 def test_block_seasons_follow_the_planner_rules():
     config = parse_config(copy.deepcopy(CONFIG))
     p2 = config.tiers["P2"][0]
-    coverage = coverage_from_body({"response": [{"league": {"id": 39}, "seasons": [
-        {"year": 2012, "coverage": {"fixtures": {"lineups": False}}},
-        {"year": 2013, "coverage": {"fixtures": {"lineups": True}}},
-        {"year": 2015, "coverage": {"fixtures": {"lineups": True}}},
-    ]}]})
+    coverage = coverage_from_body(
+        {
+            "response": [
+                {
+                    "league": {"id": 39},
+                    "seasons": [
+                        {"year": 2012, "coverage": {"fixtures": {"lineups": False}}},
+                        {"year": 2013, "coverage": {"fixtures": {"lineups": True}}},
+                        {"year": 2015, "coverage": {"fixtures": {"lineups": True}}},
+                    ],
+                }
+            ]
+        }
+    )
     assert raw_check.block_seasons(p2, 39, coverage) == [2013]
     assert raw_check.block_seasons(p2, 39, None) == []  # saisons inconnues sans /leagues
     top5 = config.tiers["P1"][0]
@@ -433,10 +534,16 @@ def test_block_seasons_follow_the_planner_rules():
 
 
 def test_latest_versions_keeps_the_most_recent_file_of_each_stem(tmp_path):
-    for name in ("page=01__20261001T000000000000Z", "page=01__20261002T000000000000Z", "page=02__20261001T000000000000Z"):
+    for name in (
+        "page=01__20261001T000000000000Z",
+        "page=01__20261002T000000000000Z",
+        "page=02__20261001T000000000000Z",
+    ):
         (tmp_path / f"{name}.json.gz").write_bytes(b"")
     assert [p.name for p in raw_check.latest_versions(tmp_path)] == [
-        "page=01__20261002T000000000000Z.json.gz", "page=02__20261001T000000000000Z.json.gz"]
+        "page=01__20261002T000000000000Z.json.gz",
+        "page=02__20261001T000000000000Z.json.gz",
+    ]
 
 
 def test_manifest_with_a_truncated_last_line_is_read(tmp_path):
@@ -461,8 +568,13 @@ def test_targeted_profiles_fill_missing_birth_dates(tmp_path, config, real):
     # Profil ciblé du titulaire manquant, et d'un joueur hors périmètre (ignoré).
     for pid in (starter, 5555555):
         task = tasks.player_profile_task("P1", pid)
-        builder.write(task.rel_dir, task.stem, body([{"player": {"id": pid, "name": "X", "birth": {"date": "1991-01-01"}}}]),
-                      endpoint="/players/profiles", params=task.params)
+        builder.write(
+            task.rel_dir,
+            task.stem,
+            body([{"player": {"id": pid, "name": "X", "birth": {"date": "1991-01-01"}}}]),
+            endpoint="/players/profiles",
+            params=task.params,
+        )
     builder.queue.close()
     after = run_check(raw, config)
 
@@ -479,24 +591,48 @@ def test_targeted_profiles_fill_missing_birth_dates(tmp_path, config, real):
 # P1 (championnat 39) et P3 (championnat 88), contrôlables ensemble.
 MULTI_CONFIG = {
     "tiers": {
-        "P1": {"blocks": [
-            {"name": "top5", "kind": "league", "leagues": [39], "seasons": {"first": 2015, "last": 2016},
-             "endpoints": ["fixtures_list", "fixtures_detail", "players"]},
-        ]},
-        "P3": {"blocks": [
-            {"name": "autres", "kind": "league", "leagues": [88], "seasons": {"first": 2015, "last": 2016},
-             "endpoints": ["fixtures_list", "fixtures_detail", "players"]},
-        ]},
+        "P1": {
+            "blocks": [
+                {
+                    "name": "top5",
+                    "kind": "league",
+                    "leagues": [39],
+                    "seasons": {"first": 2015, "last": 2016},
+                    "endpoints": ["fixtures_list", "fixtures_detail", "players"],
+                },
+            ]
+        },
+        "P3": {
+            "blocks": [
+                {
+                    "name": "autres",
+                    "kind": "league",
+                    "leagues": [88],
+                    "seasons": {"first": 2015, "last": 2016},
+                    "endpoints": ["fixtures_list", "fixtures_detail", "players"],
+                },
+            ]
+        },
     }
 }
 
 
-def synthetic(fid: int, date: str, home: int, away: int, home_ids: list, away_ids: list,
-              home_stats: list | None = None, away_stats: list | None = None, league: int = 39) -> dict:
+def synthetic(
+    fid: int,
+    date: str,
+    home: int,
+    away: int,
+    home_ids: list,
+    away_ids: list,
+    home_stats: list | None = None,
+    away_stats: list | None = None,
+    league: int = 39,
+) -> dict:
     """Détail de match minimal : compositions (titulaires) et statistiques joueurs.
 
     Un joueur s'écrit `id` (numéro de maillot = id % 100) ou `(id, numéro)`. Par
     défaut, les statistiques reprennent les titulaires de chaque équipe."""
+
     def team(team_id: int) -> dict:
         return {"id": team_id, "name": f"Équipe {team_id}"}
 
@@ -504,23 +640,38 @@ def synthetic(fid: int, date: str, home: int, away: int, home_ids: list, away_id
         return player if isinstance(player, tuple) else (player, player % 100)
 
     def lineup(team_id: int, players: list) -> dict:
-        return {"team": team(team_id), "substitutes": [], "startXI": [
-            {"player": {"id": pid, "name": f"Joueur {pid}", "pos": "M", "number": number}}
-            for pid, number in map(split, players)]}
+        return {
+            "team": team(team_id),
+            "substitutes": [],
+            "startXI": [
+                {"player": {"id": pid, "name": f"Joueur {pid}", "pos": "M", "number": number}}
+                for pid, number in map(split, players)
+            ],
+        }
 
     def stats(team_id: int, players: list) -> dict:
-        return {"team": team(team_id), "players": [
-            {"player": {"id": pid, "name": f"Joueur {pid}"}, "statistics": [{"games": {"minutes": 90, "number": number}}]}
-            for pid, number in map(split, players)]}
+        return {
+            "team": team(team_id),
+            "players": [
+                {
+                    "player": {"id": pid, "name": f"Joueur {pid}"},
+                    "statistics": [{"games": {"minutes": 90, "number": number}}],
+                }
+                for pid, number in map(split, players)
+            ],
+        }
 
     return {
         "fixture": {"id": fid, "date": f"{date}T15:00:00+00:00", "status": {"short": "FT"}},
         "league": {"id": league, "round": "Regular Season - 1"},
         "teams": {"home": team(home), "away": team(away)},
-        "goals": {"home": 0, "away": 0}, "score": {},
+        "goals": {"home": 0, "away": 0},
+        "score": {},
         "lineups": [lineup(home, home_ids), lineup(away, away_ids)],
-        "players": [stats(home, home_stats if home_stats is not None else home_ids),
-                    stats(away, away_stats if away_stats is not None else away_ids)],
+        "players": [
+            stats(home, home_stats if home_stats is not None else home_ids),
+            stats(away, away_stats if away_stats is not None else away_ids),
+        ],
         "events": [],
     }
 
@@ -531,8 +682,9 @@ def profile(pid: int, birth: str | None, name: str | None = None) -> dict:
     return {"player": {"id": pid, "name": name, "firstname": first, "lastname": last, "birth": {"date": birth}}}
 
 
-def build_multi(raw_dir: Path, p1: list[dict], p3: list[dict], profiles_p1=(), profiles_p3=(),
-                season: int = 2015) -> RawBuilder:
+def build_multi(
+    raw_dir: Path, p1: list[dict], p3: list[dict], profiles_p1=(), profiles_p3=(), season: int = 2015
+) -> RawBuilder:
     """P1 et P3 pour une saison ; l'autre saison du périmètre a une liste vide."""
     builder = RawBuilder(raw_dir)
     builder.leagues({39: FLAGS, 88: FLAGS}, years=(2015, 2016))
@@ -558,8 +710,10 @@ def collision_ids(result, kind: str) -> set[int]:
 def test_same_day_collision_is_found_only_when_tiers_are_checked_together(tmp_path, multi_config):
     raw = tmp_path / "raw"
     p1 = [synthetic(1001, "2015-08-15", 1, 2, [501, 11], [21])]
-    p3 = [synthetic(3001, "2015-08-15", 3, 4, [501, 31], [41]),   # 501 : deux équipes le même jour
-          synthetic(3002, "2015-08-16", 3, 4, [11], [42])]        # 11 : autre équipe, le lendemain
+    p3 = [
+        synthetic(3001, "2015-08-15", 3, 4, [501, 31], [41]),  # 501 : deux équipes le même jour
+        synthetic(3002, "2015-08-16", 3, 4, [11], [42]),
+    ]  # 11 : autre équipe, le lendemain
     build_multi(raw, p1, p3).queue.close()
 
     together = RawChecker(raw, multi_config, ["P1", "P3"]).run(now=NOW)
@@ -593,7 +747,9 @@ def test_same_match_collisions_and_their_false_positives(tmp_path, multi_config)
         synthetic(1003, "2015-08-29", 1, 2, [(603, 4), 13], [23], home_stats=[(603, 4), (603, 5), 13]),  # 2 numéros
         synthetic(1004, "2015-09-05", 1, 2, [604, 14], [24], home_stats=[14], away_stats=[24, 604]),  # cas isolé
         # Statistiques rattachées à l'équipe adverse dans tout le match : faux positif.
-        synthetic(1005, "2015-09-12", 1, 2, swapped_home, swapped_away, home_stats=swapped_away, away_stats=swapped_home),
+        synthetic(
+            1005, "2015-09-12", 1, 2, swapped_home, swapped_away, home_stats=swapped_away, away_stats=swapped_home
+        ),
         synthetic(1006, "2015-09-19", 1, 2, [0, 15], [0, 25]),  # identifiant 0 : joueur inconnu de l'API
         synthetic(1007, "2015-09-26", 1, 2, [16], [26]),  # composition + statistiques, même équipe : normal
     ]
@@ -604,8 +760,10 @@ def test_same_match_collisions_and_their_false_positives(tmp_path, multi_config)
     cases = {c.player: c.subtype for c in result.collisions_of(raw_check.SAME_MATCH)}
     assert cases == {601: raw_check.TWO_TEAMS, 603: raw_check.SAME_TEAM, 604: raw_check.TWO_TEAMS}
     false = {(c.player, c.subtype) for c in result.false_positives}
-    assert false == {(602, raw_check.REPEATED_ENTRY),
-                     *((pid, raw_check.SWAPPED_STATS) for pid in swapped_home + swapped_away)}
+    assert false == {
+        (602, raw_check.REPEATED_ENTRY),
+        *((pid, raw_check.SWAPPED_STATS) for pid in swapped_home + swapped_away),
+    }
     assert result.unknown_id_entries == 4  # 2 compositions + 2 statistiques
     # 601, déjà en collision dans son match, n'est pas compté une seconde fois au titre du « même jour ».
     assert collision_ids(result, raw_check.SAME_DAY) == set()
@@ -631,8 +789,13 @@ def test_swapped_statistics_do_not_create_same_day_collisions(tmp_path, multi_co
 
 def test_two_birth_dates_are_a_collision_but_a_later_correction_is_set_apart(tmp_path, multi_config):
     raw = tmp_path / "raw"
-    builder = build_multi(raw, [], [], profiles_p1=[profile(701, "1990-01-01"), profile(702, "1991-02-02")],
-                          profiles_p3=[profile(701, "1993-03-03")])  # 701 : deux dates la même saison
+    builder = build_multi(
+        raw,
+        [],
+        [],
+        profiles_p1=[profile(701, "1990-01-01"), profile(702, "1991-02-02")],
+        profiles_p3=[profile(701, "1993-03-03")],
+    )  # 701 : deux dates la même saison
     builder.profiles(39, [profile(702, "1991-02-20"), profile(703, "1992-01-01")], season=2016)  # 702 corrigé
     builder.queue.close()
 
@@ -643,26 +806,35 @@ def test_two_birth_dates_are_a_collision_but_a_later_correction_is_set_apart(tmp
     assert (birth.player, birth.tiers) == (701, ("P1", "P3"))
     assert [c.player for c in together.birth_corrections] == [702]
     assert "1 date(s) corrigée(s)" in next(
-        line.detail for line in together.checks if line.label.startswith("Collisions : deux dates"))
+        line.detail for line in together.checks if line.label.startswith("Collisions : deux dates")
+    )
     assert alone.collisions_of(raw_check.BIRTH) == []  # la seconde date de 701 est en P3
     assert [c.player for c in alone.birth_corrections] == [702]
 
 
-@pytest.mark.parametrize(("seasons", "expected"), [
-    ({"1990-01-01": {2015, 2016}}, None),
-    ({"1990-01-01": {2015, 2016}, "1990-01-10": {2017, 2018}}, "correction"),
-    ({"1990-01-01": {2015, 2017}, "1990-01-10": {2016}}, raw_check.BIRTH),  # alternance
-    ({"1990-01-01": {2015}, "1990-01-10": {2015}}, raw_check.BIRTH),  # même saison
-    ({"1990-01-01": {2015}, "1990-01-10": {2016}, "1990-01-20": {2017}}, raw_check.BIRTH),  # trois dates
-])
+@pytest.mark.parametrize(
+    ("seasons", "expected"),
+    [
+        ({"1990-01-01": {2015, 2016}}, None),
+        ({"1990-01-01": {2015, 2016}, "1990-01-10": {2017, 2018}}, "correction"),
+        ({"1990-01-01": {2015, 2017}, "1990-01-10": {2016}}, raw_check.BIRTH),  # alternance
+        ({"1990-01-01": {2015}, "1990-01-10": {2015}}, raw_check.BIRTH),  # même saison
+        ({"1990-01-01": {2015}, "1990-01-10": {2016}, "1990-01-20": {2017}}, raw_check.BIRTH),  # trois dates
+    ],
+)
 def test_classify_births(seasons, expected):
     assert raw_check.classify_births(seasons) == expected
 
 
 def test_inter_tier_duplicates_are_flagged(tmp_path, multi_config):
     raw = tmp_path / "raw"
-    build_multi(raw, [], [], profiles_p1=[profile(801, "1995-05-05", "Jean Dupont")],
-                profiles_p3=[profile(802, "1995-05-05", "Jean Dupont")]).queue.close()
+    build_multi(
+        raw,
+        [],
+        [],
+        profiles_p1=[profile(801, "1995-05-05", "Jean Dupont")],
+        profiles_p3=[profile(802, "1995-05-05", "Jean Dupont")],
+    ).queue.close()
 
     together = RawChecker(raw, multi_config, ["P1", "P3"]).run(now=NOW)
     alone = RawChecker(raw, multi_config, ["P1"]).run(now=NOW)
@@ -675,9 +847,14 @@ def test_inter_tier_duplicates_are_flagged(tmp_path, multi_config):
 
 def test_appearances_group_players_seen_with_two_teams_on_one_day():
     appearances = raw_check.Appearances()
-    for row in [(5, 100, 1, 10, 0), (5, 100, 1, 11, 0),   # même équipe, même jour : rien
-                (6, 100, 1, 12, 0), (6, 100, 2, 13, 1),   # deux équipes : collision
-                (6, 101, 3, 14, 1), (7, 100, 2, 13, 1)]:
+    for row in [
+        (5, 100, 1, 10, 0),
+        (5, 100, 1, 11, 0),  # même équipe, même jour : rien
+        (6, 100, 1, 12, 0),
+        (6, 100, 2, 13, 1),  # deux équipes : collision
+        (6, 101, 3, 14, 1),
+        (7, 100, 2, 13, 1),
+    ]:
         appearances.add(*row)
     assert appearances.same_day_groups() == [[(6, 100, 1, 12, 0), (6, 100, 2, 13, 1)]]
     assert raw_check.Appearances().same_day_groups() == []
@@ -687,16 +864,34 @@ def test_collision_reports_keep_names_and_ids_in_the_details_only(tmp_path, mult
     raw = tmp_path / "raw"
     p1 = [synthetic(1001, "2015-08-15", 1, 2, [501, 601], [601])]
     p3 = [synthetic(3001, "2015-08-15", 3, 4, [501], [41])]
-    build_multi(raw, p1, p3, profiles_p1=[profile(801, "1995-05-05", "Jean Dupont")],
-                profiles_p3=[profile(802, "1995-05-05", "Jean Dupont"), profile(501, "1990-01-01")]).queue.close()
+    build_multi(
+        raw,
+        p1,
+        p3,
+        profiles_p1=[profile(801, "1995-05-05", "Jean Dupont")],
+        profiles_p3=[profile(802, "1995-05-05", "Jean Dupont"), profile(501, "1990-01-01")],
+    ).queue.close()
     config_path = tmp_path / "collecte.yaml"
     import yaml
+
     config_path.write_text(yaml.safe_dump(MULTI_CONFIG), encoding="utf-8")
     before = snapshot(raw)
     out = tmp_path / "reports"
 
-    code = raw_check.main(["--raw-dir", str(raw), "--config", str(config_path),
-                           "--palier", "P1", "--palier", "P3", "--output-dir", str(out)])
+    code = raw_check.main(
+        [
+            "--raw-dir",
+            str(raw),
+            "--config",
+            str(config_path),
+            "--palier",
+            "P1",
+            "--palier",
+            "P3",
+            "--output-dir",
+            str(out),
+        ]
+    )
 
     assert code == 0
     assert snapshot(raw) == before  # dossier brut inchangé, octet pour octet et date de modification
@@ -716,8 +911,11 @@ def test_collision_reports_keep_names_and_ids_in_the_details_only(tmp_path, mult
 
 
 def snapshot(directory: Path) -> dict[str, tuple[str, int]]:
-    return {path.relative_to(directory).as_posix(): (hashlib.sha256(path.read_bytes()).hexdigest(), path.stat().st_mtime_ns)
-            for path in sorted(directory.rglob("*")) if path.is_file()}
+    return {
+        path.relative_to(directory).as_posix(): (hashlib.sha256(path.read_bytes()).hexdigest(), path.stat().st_mtime_ns)
+        for path in sorted(directory.rglob("*"))
+        if path.is_file()
+    }
 
 
 def write_config(tmp_path: Path) -> Path:
@@ -734,8 +932,9 @@ def test_main_writes_a_dated_report_and_leaves_the_raw_dir_untouched(tmp_path, r
     before = snapshot(raw)
     out = tmp_path / "reports"
 
-    code = raw_check.main(["--raw-dir", str(raw), "--config", str(write_config(tmp_path)),
-                           "--palier", "P1", "--output-dir", str(out)])
+    code = raw_check.main(
+        ["--raw-dir", str(raw), "--config", str(write_config(tmp_path)), "--palier", "P1", "--output-dir", str(out)]
+    )
 
     assert code == 0  # à regarder, rien de bloquant
     assert snapshot(raw) == before
@@ -748,7 +947,9 @@ def test_main_writes_a_dated_report_and_leaves_the_raw_dir_untouched(tmp_path, r
     assert "**Verdict : À REGARDER**" in text
     assert "--palier P1" in text
     assert f"details/{details.name}" in text
-    assert details.read_text(encoding="utf-8").startswith("# Contrôle qualité du brut API-FOOTBALL : P1, listes détaillées")
+    assert details.read_text(encoding="utf-8").startswith(
+        "# Contrôle qualité du brut API-FOOTBALL : P1, listes détaillées"
+    )
     output = capsys.readouterr().out
     assert "Verdict : À REGARDER" in output and str(details) in output
 
@@ -759,8 +960,9 @@ def test_main_returns_1_when_blocking(tmp_path, real):
     builder.fixtures_list(39, listing_of(real) + [list_item(999003, 33, 47)])  # match terminé sans détail
     builder.queue.close()
 
-    code = raw_check.main(["--raw-dir", str(raw), "--config", str(write_config(tmp_path)),
-                           "--output-dir", str(tmp_path / "reports")])
+    code = raw_check.main(
+        ["--raw-dir", str(raw), "--config", str(write_config(tmp_path)), "--output-dir", str(tmp_path / "reports")]
+    )
 
     assert code == 1
     assert list((tmp_path / "reports").glob("raw_check_tous_*.md"))
@@ -771,8 +973,9 @@ def test_main_refuses_to_write_inside_the_raw_dir(tmp_path, real, capsys):
     build_clean(raw, real).queue.close()
     before = snapshot(raw)
 
-    code = raw_check.main(["--raw-dir", str(raw), "--config", str(write_config(tmp_path)),
-                           "--output-dir", str(raw / "rapports")])
+    code = raw_check.main(
+        ["--raw-dir", str(raw), "--config", str(write_config(tmp_path)), "--output-dir", str(raw / "rapports")]
+    )
 
     assert code == 2
     assert "dossier brut" in capsys.readouterr().err
@@ -781,7 +984,8 @@ def test_main_refuses_to_write_inside_the_raw_dir(tmp_path, real, capsys):
 
 def test_main_rejects_unknown_tier(tmp_path, capsys):
     (tmp_path / "raw").mkdir()
-    code = raw_check.main(["--raw-dir", str(tmp_path / "raw"), "--config", str(write_config(tmp_path)),
-                           "--palier", "P9"])
+    code = raw_check.main(
+        ["--raw-dir", str(tmp_path / "raw"), "--config", str(write_config(tmp_path)), "--palier", "P9"]
+    )
     assert code == 2
     assert "P9" in capsys.readouterr().err

@@ -29,9 +29,9 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 - **Contexte** : session de gel, après `freeze` (sauvegarde de 17 336 fichiers sur `D:`, puis restauration depuis `D:`, tous les sha256 conformes) ; recomptage indépendant des fichiers de `D:`.
 - **Message d'erreur** : `ls: cannot access 'D:/': No such file or directory` ; `df -h` ne liste plus que `C:`. Avant le gel, `D:` répondait (885 Go libres).
 - **Cause** : non établie. Disque débranché ou éjecté, ou défaillance du disque : à confirmer par l'utilisateur.
-- **Solution** : **ouverte**. Aucune mesure n'a été prise sur le disque. Le gel reste valide : le contrôle de `freeze` a lu les 17 336 fichiers sur `D:` avant la restauration. À faire par l'utilisateur : rebrancher le disque, recompter les fichiers de `D:/foot-predictor/data-freeze-2026-10/raw` (17 336 attendus) et recalculer le sha256 du journal (`38c111a0…`).
+- **Solution** : aucune mesure n'a été prise sur le disque. Il est redevenu visible plus tard le même jour, sans intervention de l'assistant. Recomptage en lecture seule de `D:/foot-predictor/data-freeze-2026-10/raw` : **17 336** fichiers `.json.gz` (17 338 avec le journal et la file), journal de 17 336 lignes, sha256 `38c111a0…` identique à celui du gel. Les trois copies du brut (portable, `D:`, restauration) concordent. Cause de la disparition toujours non établie.
 - **Fichiers concernés** : `D:/foot-predictor/data-freeze-2026-10/raw`.
-- **Prévention** : ne pas débrancher le disque tant que le recomptage n'a pas été fait ; garder `C:/fp_restauration/` (copie vérifiée) jusqu'à ce recomptage.
+- **Prévention** : ne pas débrancher le disque tant que le recomptage n'a pas été fait ; garder `C:/fp_restauration/` (copie vérifiée) jusqu'à ce recomptage. Un recomptage indépendant se lance à la fin d'un `freeze`, sans attendre.
 
 ## E-055 — Les commandes du collecteur sont refusées par les permissions de l'assistant (2026-10-19)
 

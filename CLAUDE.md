@@ -77,7 +77,7 @@ docker compose up -d                      # bases Postgres dev (5440) et test (5
 APP_ENV=dev uv run alembic upgrade head   # migrations
 uv run pytest -m "not db" -q              # tests sans base (CI)
 uv run pytest -q                          # tous les tests (base de test démarrée)
-uv run ruff check . && uv run ruff format .   # contrôle et formatage (chemins gelés exclus)
+uv run ruff check . && uv run ruff format .   # contrôle et formatage (migrations appliquées exclues)
 uv run python -m foot_predictor.ingestion load --raw-dir <brut API> --external-raw-dir <bruts externes> --confirm-db <base>
 uv run python -m foot_predictor.ingestion check-referentiel   # rapport chiffré du référentiel (J3)
 uv run python -m foot_predictor.features build                 # jeu de données versionné (J4)

@@ -26,12 +26,9 @@ uv run ruff check .          # contrôle (E, W, F, I, UP, B ; E501 et B905 ignor
 uv run ruff format .         # formatage, longueur 120
 ```
 
-Configuration dans `pyproject.toml`. **Exclus** :
+Configuration dans `pyproject.toml`. **Exclues** : les migrations déjà appliquées (0001 à 0003), qui ne se réécrivent jamais, même pour le formatage (E-030). Les chemins gelés jusqu'au gel du 19 octobre (`collect/api_football/`, `rawstore/`, `quality/raw_check.py`, `scripts/taches_planifiees/` et leurs tests) sont contrôlés depuis la partie 2, phase B (2.11).
 
-- les chemins gelés jusqu'au gel (`collect/api_football/`, `rawstore/`, `quality/raw_check.py`, `scripts/taches_planifiees/` et leurs tests) ; les fichiers **ajoutés** dans ces dossiers sont contrôlés ;
-- les migrations déjà appliquées (0001 à 0003), qui ne se réécrivent jamais, même pour le formatage (E-030).
-
-Le commit de formatage de masse est listé dans `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`).
+Les commits de formatage de masse (2.1, puis 2.11 pour les anciens chemins gelés) sont listés dans `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`).
 
 ## Hooks Git : pre-commit
 
@@ -75,7 +72,8 @@ Les tests marqués `raw` lisent le vrai brut : ils ne tournent qu'en local (`FP_
 - Avant de fusionner :
   - `gh pr view <n> --json baseRefName` doit donner `main` (E-021) ;
   - CI verte (`gh pr checks <n> --watch`) ;
-  - jusqu'au gel, contrôle de la règle 3 : `git diff --diff-filter=MDR --stat b1aee22..HEAD -- <chemins gelés>` doit être vide.
+  - jusqu'au gel (fait le 2026-10-19), contrôle de la règle 3 : `git diff --diff-filter=MDR --stat b1aee22..HEAD -- <chemins gelés>` devait être vide ; elle n'a plus cours depuis la partie 2, phase B ;
+  - jusqu'à la fin du test scellé, `git diff --stat pre-scelle-h1..HEAD -- <chemins figés>` doit être vide (`CLAUDE.md`).
 - Fusion par merge commit (`gh pr merge <n> --merge --delete-branch`), puis suppression de la branche locale. Dans le worktree, repasser d'abord sur `origin/main` détaché.
 - Tags annotés aux jalons : `v0.1.0`, `v0.2.0` (code du gel), `data-freeze-2026-10`, `v0.3.0` (référentiel)…
 - Interdits : `git push --force`, `git reset --hard` sur une branche partagée, modifier la configuration Git globale.

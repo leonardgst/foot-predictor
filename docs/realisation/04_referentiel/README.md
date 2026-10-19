@@ -6,7 +6,7 @@ Mode d'emploi de `load` et de `check-referentiel`, des YAML de rapprochement et 
 
 - `staging` n'est **jamais corrigé à la main** : il se reconstruit entièrement depuis le brut par `load`, et toute correction est un YAML de `src/foot_predictor/ingestion/mappings/` (ADR-0008, règle 4).
 - Les entités (joueurs, entraîneurs, équipes, matchs) viennent des **identifiants API-FOOTBALL**. football-data ne crée jamais de joueur ; il s'apparie aux matchs API, et ne crée des matchs qu'hors de la couverture API.
-- Deux chargements du même brut donnent les mêmes tables (empreintes md5 identiques, vérifié le 2026-09-29).
+- Deux chargements du même brut donnent les mêmes tables (empreintes md5 identiques, vérifié le 2026-09-29, puis le 2026-10-19 sur le brut définitif : chargements n° 6 et 7).
 - Un brut **plus grand** décale des identifiants internes, attribués dans l'ordre des identifiants API : le 2026-10-19, les matchs API gardent le leur, mais les matchs « hors_api » sont décalés de 104 et 924 équipes sur 3 267 changent d'identifiant (E-058). Hors de `staging`, on rapproche par les identifiants API.
 - Le brut n'est lu qu'en **lecture seule**.
 
@@ -124,6 +124,7 @@ uv run python -c "from foot_predictor.rawstore.backup import verify; r = verify(
 #      fait le 2026-10-19 : voir « Résultats de 2.11 » ; raw_check écrit alors ailleurs que reports/ :
 uv run python -m foot_predictor.quality.raw_check --raw-dir C:/foot-predictor/data/raw --output-dir <dossier temporaire>/avant
 # 2.12 Clôture : tag v0.3.0, ETAT_PROJET.md, docs/retours/partie-2_<date>.md
+#      fait le 2026-10-19 : load n° 7, 15 empreintes identiques au n° 6 ; docs/retours/partie-2_2026-10-19.md
 ```
 
 ### Résultats de 2.10 (2026-10-19)

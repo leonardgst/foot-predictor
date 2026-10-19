@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-19 (partie 2, phase B : 2.11 faite, chemins du gel sous ruff, `raw_check` sur la détection partagée)
-**Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). Les phases B des parties 2 à 5 se font sur demande, dans cet ordre ; **partie 2, phase B : 2.10 et 2.11 faites** (PR #76 et #77).
+**Dernière mise à jour** : 2026-10-19 (partie 2 terminée : `load` n° 7 identique au n° 6 sur le brut définitif, tag `v0.3.0`)
+**Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Partie 2 terminée** (phase B : PR #76 à #78, tag `v0.3.0` ; `docs/retours/partie-2_2026-10-19.md`). Les phases B des parties 3 à 5 se font sur demande, dans cet ordre.
 
-**Reprise de la partie 2 à la phase B, sous-étape 2.12** (clôture : retour de la partie 2, tag `v0.3.0`), puis 3.11, 4.16, 4.17, puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente (tags `v0.3.0`, `v0.4.0`, `v0.5.0`) ; commandes plus bas.
+**Reprise de la partie 3 à la phase B, sous-étape 3.11** (jeu de données sur le brut définitif, tag `v0.4.0`), puis 4.16, 4.17, puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente (tags `v0.4.0`, `v0.5.0`) ; commandes plus bas.
 **Échéance** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC**. Marge de recollecte jusqu'au 21 au soir ; plus rien à collecter, sauf décision contraire (ADR-0005).
 
 ## Terminé
@@ -24,6 +24,7 @@
   - chemins gelés jusqu'au gel (`collect/api_football/`, `rawstore/`, `raw_check`, tâches planifiées et leurs tests) **sous ruff et pre-commit** : 38 corrections, formatage de 37 fichiers à AST identique ; seules les migrations 0001 à 0003 restent exclues ;
   - **`raw_check` appelle `ingestion/collisions.py`** (ADR-0020) : sur le brut définitif, résumé et détails identiques octet pour octet hors en-tête ;
   - **E-036** (`test_freeze` intermittent) et **E-052** (`download.py` sans `www`) corrigés.
+- **Partie 2, phase B, 2.12** (2026-10-19, PR #78, `docs/retours/partie-2_2026-10-19.md`) : **`load` n° 7** sur le même brut, avec le code de la PR #77 : 15 empreintes sur 15 identiques au n° 6 ; jalon J3 tenu sur le brut définitif ; **tag `v0.3.0`** sur la fusion de la PR #78.
 
 ## En cours
 
@@ -32,7 +33,7 @@
 ## Bloqué
 
 - Rien. Points de vigilance :
-  - `lock-status` avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure de 8 à 13 minutes (493 s pour le chargement n° 6, 778 s pour le n° 5) ;
+  - `lock-status` avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure de 6 à 13 minutes (377 s pour le chargement n° 7, 493 s pour le n° 6, 778 s pour le n° 5) ;
   - **identifiants internes non stables d'un brut à l'autre** (E-058) : en 3.11, comparer le nouveau jeu à `ds-2026-09-30-ba2b91f7` par identifiants API (match, équipe), pas par `match_id` ni `team_id` ; en partie 5, passer `api_fixture_id` à `save_prediction` avant le live réel ;
   - **chemins figés par `pre-scelle-h1`** (`modeling/`, `features/`, `seal.py`, `experiments/`, `tests/modeling`, `tests/features`) jusqu'à la fin du test scellé : on les importe, on ne les modifie pas ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ;
@@ -43,22 +44,14 @@
 ## Décisions ouvertes
 
 - **Renouvellement automatique de l'abonnement : coupé par l'utilisateur le 2026-10-19** (déclaré, non vérifiable par l'assistant ; fin de l'abonnement le 22 octobre à 07:56 UTC, ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
+- **E-058** (retour de la partie 2, section 11) : passer `api_fixture_id` à `save_prediction` dans une petite PR maintenant, ou au lot 4 de la partie 5 avant le live réel (5.14, recommandé) ; garder ou écarter les 78 lignes de rejeu d'`ops.prediction` (1 désigne une autre équipe depuis le `load` n° 6).
 
 ## Prochaines actions
 
-**Reprise de la partie 2 à la phase B, sous-étape 2.12** (2.10 et 2.11 faites) : retour final `docs/retours/partie-2_<date>.md` (phases A et B : chiffres de 2.10 et 2.11 dans `docs/realisation/04_referentiel/README.md`, E-058 à relire), `ETAT_PROJET.md`, PR ; puis tag annoté `v0.3.0` sur le commit de fusion, poussé. Commandes :
+**Reprise de la partie 3 à la phase B, sous-étape 3.11** (sur demande ; partie 2 terminée, tag `v0.3.0`, `staging` = chargement n° 7) :
 ```bash
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
-gh run list --branch main --limit 1                                # dernière CI de main : terminée en succès
-git tag -l v0.3.0                                                  # absent
-git switch --no-track -c docs/04-cloture-partie-2 origin/main      # retour et état, PR, CI verte, fusion
-git fetch origin && git tag -a v0.3.0 -m "Référentiel sur le brut définitif (partie 2)" origin/main && git push origin v0.3.0
-```
-
-**Reprise de la partie 3 à la phase B après la session de gel et la phase B de la partie 2** (3.11, sur demande) :
-```bash
-cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
-git tag -l v0.3.0                                          # phase B de la partie 2 faite
+docker ps ; git tag -l v0.3.0                              # deux conteneurs « Up » (E-050) ; tag présent
 uv run python -m foot_predictor.features build             # nouveau staging (brut définitif)
 uv run python -m foot_predictor.features check --invariance
 # comparer (matchs d'avant le 2025-07-01) les lignes de la nouvelle version à ds-2026-09-30-ba2b91f7 (ADR-0035),

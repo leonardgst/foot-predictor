@@ -1,10 +1,10 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-04 (fin de la phase A de la partie 5)
-**Partie courante** : 5/6, inférence, API et interface (J7, J8). **Phase A terminée** (lots 1 à 3 : inférence, traçabilité, API, interface, football-data en live, bout en bout ; `docs/retours/partie-5a_2026-10-04.md`). La partie 4 attend sa phase B (test scellé, entraînement final) après la session de gel du **lundi 19 octobre** ; les phases B des parties 2 à 5 se font sur demande, dans cet ordre.
+**Dernière mise à jour** : 2026-10-19 (gel des données fait, tag `data-freeze-2026-10`)
+**Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). Les phases B des parties 2 à 5 se font sur demande, dans cet ordre.
 
-**Reprise de la partie 5 à la phase B, lot 4, sous-étape 5.13** (ouverture du scellé), **seulement après** les phases B des parties 2, 3 et 4 (tags `v0.3.0`, `v0.4.0`, `v0.5.0`) ; commandes plus bas. Partie 4 : reprise à la phase B (4.16, 4.17).
-**Échéance dure** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC** ; gel le 19, marge les 20 et 21 (ADR-0005).
+**Reprise de la partie 2 à la phase B, sous-étape 2.10** (`load` sur le brut définitif), puis 3.11, 4.16, 4.17, puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente (tags `v0.3.0`, `v0.4.0`, `v0.5.0`) ; commandes plus bas.
+**Échéance** : fin de l'abonnement API-FOOTBALL le **2026-10-22 à 07:56 UTC**. Marge de recollecte jusqu'au 21 au soir ; plus rien à collecter, sauf décision contraire (ADR-0005).
 
 ## Terminé
 
@@ -14,28 +14,34 @@
 - **Partie 5, lot 2** (2026-10-01, PR #65 à #67, `docs/retours/partie-5-lot2_2026-10-01.md`) : **API FastAPI locale** (`api/`, 7 routes) ; **tirs de football-data en live** : écart de log-loss −0,00002 [−0,00021 ; +0,00018], non significatif, pas de recalibration (ADR-0041).
 - **Partie 5, lot 3** (2026-10-04, PR #68 à #71, `docs/retours/partie-5a_2026-10-04.md`) : **interface Streamlit** (`ui/`, 3 écrans, par l'API seulement) ; **football-data en live**, superposé en mémoire (ADR-0042 ; répétition 2023-24 : 335 résultats sur 335, buts et Elo identiques) ; **bout en bout** en CI (brut → `load` → API → interface → `ops.prediction`) ; chapitre LaTeX « Inférence et disponibilité ».
 
+- **Gel des données** (2026-10-19, PR #73, tag `data-freeze-2026-10` sur `8144bbc`, `docs/DATA_FREEZE.md`) : **17 336 fichiers** (306 Mo) vérifiés dans le brut, la sauvegarde sur `D:` et la restauration ; 102 554 matchs terminés, tous avec détail ; `raw_check` À REGARDER sans point bloquant ; dernier `refresh` : 70 requêtes ; bilan T-60 : 91 matchs, 99,95 % de titulaires identiques (sous le critère de 2 %). 9 tâches planifiées supprimées ; `C:/foot-predictor` à jour sur `main`.
+
 ## En cours
 
-- Collecte automatique par tâches planifiées jusqu'au 18 octobre. Aucune commande à lancer à la main avant le 19.
+- Rien. Aucune tâche planifiée ni collecte automatique.
 
 ## Bloqué
 
 - Rien. Points de vigilance :
-  - **aucun `git pull` dans `C:/foot-predictor` avant l'étape 7 du gel** (ADR-0021) ; ensuite, `lock-status` avant chaque `git pull` ;
-  - portable **allumé, branché, capot ouvert, session ouverte** aux dates des tâches ;
-  - **jamais de `load` pendant une tâche** (lundis 5 et 12 octobre de 07:45 à 11:00, ou verrou occupé) ; `load` dure désormais environ 13 minutes (778 s, chargement n° 5) ;
+  - `lock-status` avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure environ 13 minutes (778 s, chargement n° 5) ;
+  - **chemins figés par `pre-scelle-h1`** (`modeling/`, `features/`, `seal.py`, `experiments/`, `tests/modeling`, `tests/features`) jusqu'à la fin du test scellé : on les importe, on ne les modifie pas ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ;
-  - copies sur le disque externe non faites (E-031) : `C:/fp_dumps/` et les CSV football-data ;
+  - **disque externe `D:` invisible depuis le terminal après le gel** (E-056) : la sauvegarde du gel y est ; à rebrancher et recompter avant de ranger. Copies facultatives non faites (E-031) : `C:/fp_dumps/` et les CSV football-data ;
+  - `C:/fp_restauration/` (copie de test) à supprimer par l'utilisateur ;
   - Docker Desktop doit tourner (bases arrêtées sinon, E-050) : `docker ps` en début de session.
 
 ## Décisions ouvertes
 
-- Renouvellement automatique de l'abonnement : à couper au gel. Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
+- **Renouvellement automatique de l'abonnement : à couper par l'utilisateur avant le 22 octobre 07:56 UTC**, action manuelle non vérifiable (ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
 
 ## Prochaines actions
-**Automatiques** (tâches planifiées, journaux dans `C:/foot-predictor/data/logs/`) : `refresh` puis `run` les lundis 5 et 12 octobre à 08:00 ; journal T-60 les 9, 10, 11, 12, 16, 17 et 18 octobre. **Session de gel, lundi 19 octobre** : suivre `docs/realisation/03_collecte/gel.md` (code du tag `v0.2.0`).
 
-**Reprise de la partie 2 à la phase B après la session de gel** : 2.10 (`load` sur le brut définitif, recopie des CSV), 2.11 (chemins gelés, dont E-036), 2.12 (tag `v0.3.0`). Commandes : `docs/realisation/04_referentiel/README.md`, section « Phase B ».
+**Reprise de la partie 2 à la phase B, sous-étape 2.10** : `load` sur le brut définitif et recopie des CSV, puis 2.11 (chemins gelés, dont E-036), 2.12 (tag `v0.3.0`). Commandes : `docs/realisation/04_referentiel/README.md`, section « Phase B ».
+```bash
+cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
+git tag -l data-freeze-2026-10 ; docker ps                       # tag présent ; deux conteneurs « Up » (E-050)
+uv run python -m foot_predictor.collect.api_football lock-status   # libre, avant tout load
+```
 
 **Reprise de la partie 3 à la phase B après la session de gel et la phase B de la partie 2** (3.11, sur demande) :
 ```bash
@@ -76,25 +82,3 @@ uv run python -m foot_predictor.collect.football_data.live season --season 2026 
 ```
 
 **Long terme** : fin de la partie 5, `v1.0.0` (J7, J8) ; 6. version intermédiaire (J9).
-
-## Commandes de la session de gel (19 octobre)
-
-Code exécuté : celui du tag `v0.2.0`, jamais `origin/main` (ADR-0021). Aucun `git pull` dans `C:/foot-predictor` avant l'étape 7 de `gel.md`.
-
-```bash
-cd /c/foot-predictor
-schtasks //Query //FO TABLE | grep FootPredictor ; grep -l ERREUR data/logs/*.log
-uv run python -m foot_predictor.collect.api_football lock-status   # libre ; PAS de git pull ici
-uv run python -m foot_predictor.collect.api_football refresh --season 2026 --yes
-uv run python -m foot_predictor.collect.api_football run --max-requests 300
-uv run python -m foot_predictor.collect.api_football status ; uv run python -m foot_predictor.collect.api_football t60-report
-cd /c/fp-travail && git fetch origin --tags && git switch --no-track -c data/03-gel-2026-10 v0.2.0
-export PRE_COMMIT_ALLOW_NO_CONFIG=1   # dès l'étape 4 : sans elle, tout commit, push et push de tag échoue sur ce tag (E-034)
-uv sync --all-groups && uv run pytest -m "not db" -q   # 288 réussis ; si seul test_freeze échoue (E-036), relancer
-uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw freeze \
-    --dest D:/foot-predictor/data-freeze-2026-10/raw --restore-to C:/fp_restauration/raw
-# même terminal (variable exportée) : commit, git push -u origin data/03-gel-2026-10, PR, fusion,
-#   git tag -a data-freeze-2026-10 origin/main ..., git push origin data-freeze-2026-10
-# puis seulement : suppression des tâches, lock-status, git pull --ff-only et uv sync dans C:/foot-predictor
-# retour du worktree sur main : git switch --detach origin/main && unset PRE_COMMIT_ALLOW_NO_CONFIG
-```

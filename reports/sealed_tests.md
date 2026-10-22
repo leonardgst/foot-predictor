@@ -10,3 +10,6 @@ Un usage absent de ce journal est une levée du scellé à constater dans une no
 | 2026-10-22 08:02 | 97248299f605 | experiments/scelle_h1.yaml | accès autorisé, résultat à compléter (17381 match(s) scellé(s) lus) |
 | 2026-10-22 08:03 | 70f976631fbf | experiments/scelle_h1.yaml | accès autorisé, résultat à compléter (9118 match(s) scellé(s) lus) |
 | 2026-10-22 08:03 | 70f976631fbf | experiments/scelle_h1.yaml | accès autorisé, résultat à compléter (8694 match(s) scellé(s) lus) |
+| 2026-10-22 12:05 | 7d4f453cd6f2 | experiments/scelle_h1.yaml | accès autorisé, résultat à compléter (9118 match(s) scellé(s) lus) |
+| 2026-10-22 12:05 | 7d4f453cd6f2 | experiments/scelle_h1.yaml | accès autorisé, résultat à compléter (8694 match(s) scellé(s) lus) |
+| 2026-10-22 12:05 | 7d4f453cd6f2 | experiments/scelle_h1.yaml | évaluation terminée, rapport scelle-h1-20261022T120542 ; B1 − M3_G0G2 : +0.0189 [+0.0102 ; +0.0282], 2092 matchs |

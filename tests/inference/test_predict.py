@@ -25,17 +25,18 @@ from foot_predictor.inference.models import LoadedModel
 from foot_predictor.inference.rows import rows_for_day
 from foot_predictor.modeling.models.base import MatchPredictions, match_frame
 from foot_predictor.modeling.models.team import M3
+from foot_predictor.seal import H1_SEALED_EXPERIMENT, SEALED_DONE, SealViolation
 from tests.features.test_dataset import COEF, PARAMS, synthetic_matches
 
 KW = {"elo_params": PARAMS, "coefficients": COEF, "periods": None}
 YEARS = 3  # 2019-2020 décalés en 2022-2023 : saisons de rejeu ouvertes
 
 
-def shifted_matches() -> pd.DataFrame:
+def shifted_matches(years: int = YEARS) -> pd.DataFrame:
     matches = synthetic_matches()
-    matches["match_date"] = matches["match_date"] + pd.DateOffset(years=YEARS)
+    matches["match_date"] = matches["match_date"] + pd.DateOffset(years=years)
     matches["match_day"] = matches["match_date"].dt.date
-    matches["season_year"] = matches["season_year"] + YEARS
+    matches["season_year"] = matches["season_year"] + years
     matches["origin"] = "api"
     return matches
 
@@ -162,6 +163,25 @@ def test_sealed_dates_and_closed_replay_seasons_are_refused(setup, tmp_path):
     with pytest.raises(P.ReferenceDateRefused, match="2021-22"):
         P.check_reference_date(dt.date(2020, 10, 3), "replay", ctx)
     P.check_reference_date(dt.date(2025, 6, 30), "replay", ctx)  # dernier jour ouvert
+
+
+def test_after_the_h1_test_live_reads_the_sealed_history_and_replay_stays_closed(tmp_path):
+    """ADR-0045 : historique scellé ouvert au live (table ouverte), rejeu des saisons scellées fermé jusqu'à H2."""
+    matches = shifted_matches(years=6)  # 2025-26 et 2026-27 : tout est sous scellés
+    loaded = LoadedModel("essai", FakeModel(), {"version": "essai"}, None)
+    log = tmp_path / "journal.md"
+    log.write_text(f"| x | y | {H1_SEALED_EXPERIMENT} | {SEALED_DONE}, rapport z |\n", encoding="utf-8")
+    upcoming = day_of(matches, lambda m: m["status"] != "played")
+    opened = context(matches, loaded, sealed_log=log, today=upcoming["match_day"], history_opened=True)
+    (answer,) = P.predict_day(upcoming["match_day"], "live", opened, match_ids=[upcoming["match_id"]])
+    assert answer["status"] == AVAILABLE and answer["prediction"] is not None
+    assert answer["actual_score"] is None and answer["market_reference"] is None
+    played = day_of(matches, lambda m: m["status"] == "played")
+    with pytest.raises(P.ReferenceDateRefused, match="test scellé de H2"):
+        P.predict_day(played["match_day"], "replay", opened)
+    closed = context(matches, loaded, sealed_log=log, today=upcoming["match_day"])  # table non ouverte
+    with pytest.raises(SealViolation):
+        P.predict_day(upcoming["match_day"], "live", closed, match_ids=[upcoming["match_id"]])
 
 
 def test_live_refuses_past_days_with_a_simulated_today(setup):

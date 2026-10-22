@@ -11,8 +11,10 @@ modèle du **pli S**, appris sur 2015-16 à S − 1 selon la procédure du fichi
 exactement comme l'évaluation l'a fait. Jamais le modèle appris jusqu'en 2024-25. Entraîné à la
 demande (quelques secondes), mis en cache dans `models/rejeu/<S>/` avec sa carte.
 
-**Saisons ouvertes au rejeu** : 2021-22 à 2024-25 ; à partir de 2025-26, seulement quand le test
-scellé est terminé (journal `reports/sealed_tests.md`, `modeling.sealed.already_evaluated`).
+**Saisons ouvertes au rejeu** : 2021-22 à 2024-25. Les saisons scellées (2025-26 et suivantes)
+restent fermées au rejeu **jusqu'au test scellé de H2**, même après celui de H1 : ce second test
+réutilisera les mêmes matchs (ADR-0012, règle 5 ; ADR-0045, qui précise la règle 2 de
+l'ADR-0011). Le live, lui, les lit comme historique une fois le test H1 terminé.
 """
 
 from __future__ import annotations
@@ -36,8 +38,9 @@ MODELS_ROOT = REPO_ROOT / "models"
 REPLAY_ROOT = MODELS_ROOT / "rejeu"
 EXPERIMENT_FILE = REPO_ROOT / "experiments" / "scelle_h1.yaml"
 MODEL_ID = "M3_G0G2"
-DEFAULT_ACTIVE_VERSION = "scelle-h1-m3_g0g2-20260930-3c92fc80"
-"""Modèle actif tant que `ops.model_registry` (sous-étape 5.4) n'en désigne pas un autre."""
+DEFAULT_ACTIVE_VERSION = "scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle"
+"""Modèle actif tant que `ops.model_registry` n'en désigne pas un autre : le modèle final H1, appris
+avec les matchs scellés (ADR-0044 ; rendu actif en 5.13, ADR-0045)."""
 FIRST_REPLAY_SEASON = 2021
 SEALED_FIRST_SEASON = SEAL_DATE.year  # 2025-26
 
@@ -85,13 +88,14 @@ def sealed_test_done(experiment: str = "experiments/scelle_h1.yaml", log_path: P
     return already_evaluated(experiment, log_path)
 
 
-def check_replay_season(season: int, log_path: Path | None = None) -> None:
-    """Refuse une saison de rejeu non ouverte (avant 2021-22, ou scellée tant que le test n'est pas fait)."""
+def check_replay_season(season: int) -> None:
+    """Refuse une saison de rejeu non ouverte : avant 2021-22, ou scellée (jusqu'au test scellé de H2)."""
     if season < FIRST_REPLAY_SEASON:
         raise ModelUnavailable(f"Saison {season}-{(season + 1) % 100:02d} : rejeu ouvert à partir de 2021-22.")
-    if season >= SEALED_FIRST_SEASON and not sealed_test_done(log_path=log_path):
+    if season >= SEALED_FIRST_SEASON:
         raise ModelUnavailable(
-            f"Saison {season}-{(season + 1) % 100:02d} : sous scellés tant que le test scellé n'est pas fait (ADR-0012)."
+            f"Saison {season}-{(season + 1) % 100:02d} : sous scellés pour le rejeu jusqu'au test scellé de H2, "
+            "qui réutilisera ses matchs (ADR-0045)."
         )
 
 
@@ -130,10 +134,9 @@ def replay_model(
     data: pd.DataFrame | None = None,
     manifest: dict | None = None,
     replay_root: Path = REPLAY_ROOT,
-    log_path: Path | None = None,
 ) -> LoadedModel:
     """Modèle de rejeu de la saison : lu dans le cache, sinon entraîné puis mis en cache."""
-    check_replay_season(season, log_path)
+    check_replay_season(season)
     folder = replay_root / str(season)
     if (folder / "model.joblib").exists():
         return load_model(folder)

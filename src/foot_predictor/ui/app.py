@@ -28,7 +28,7 @@ from foot_predictor.ui.client import ApiClient, ApiProblem
 
 SCREENS = ("Matchs", "Détail", "Modèle")
 MODES = {"Rejeu": "replay", "Live": "live"}
-DEFAULT_REPLAY_DATE = dt.date(2025, 5, 18)  # journée de 2024-25, saison de rejeu ouverte en phase A
+DEFAULT_REPLAY_DATE = dt.date(2025, 5, 18)  # journée de 2024-25, dernière saison ouverte au rejeu (ADR-0045)
 FIGURE = Path(__file__).resolve().parents[3] / "docs" / "resultats" / "figures" / "courbe_apport.png"
 MEMO_SIZE = 20
 
@@ -74,8 +74,8 @@ def matches_screen(client: ApiClient) -> None:
         list(MODES),
         horizontal=True,
         key="mode_label",
-        help="Rejeu : matchs passés, prédits avec le modèle du pli de leur saison (2021-22 à 2024-25 en phase A). "
-        "Live : matchs à venir, modèle actif ; ouvert après le test scellé (phase B).",
+        help="Rejeu : matchs passés, prédits avec le modèle du pli de leur saison (2021-22 à 2024-25 ; les saisons "
+        "scellées restent fermées jusqu'au test scellé de H2). Live : matchs à venir, modèle actif.",
     )
     mode = MODES[mode_label]
     default = DEFAULT_REPLAY_DATE if mode == "replay" else dt.date.today()

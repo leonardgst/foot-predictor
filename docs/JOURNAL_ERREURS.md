@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-061 — Lecture du scellé : la carte du modèle final et le manifeste du jeu scellé se disent « non committés » à tort (2026-10-22)
+
+- **Contexte** : partie 4, phase B, 4.17. `train --final experiments/scelle_h1.yaml --model M3_G0G2 --include-sealed --dataset ds-2026-10-22-94969da0` est lancé le 2026-10-22 à 12:51 UTC, depuis `c6d9454`, arbre propre. Il est vérifié avant (contrôles de début de session) et après : `git status` ne montre que `reports/sealed_tests.md` modifié et la nouvelle carte, non suivie.
+- **Message d'erreur** : aucun. La carte écrit `"code": {"commit": "c6d9454…", "dirty": true}`. Le manifeste du jeu scellé `94969da0` (4.16, `build` de 08:02) porte de même `"git_dirty": true`, valeur que le rapport de `features check` traduit par « NON (à reconstruire) ».
+- **Cause** : la lecture des matchs scellés ajoute une ligne au journal `reports/sealed_tests.md`, fichier suivi par Git. L'état Git est lu **après** : par `git_state()` dans `modeling/final.py` (après `load_dataset`), par `git_dirty()` dans `features/build.py` (après `load_matches`). Les deux commandes `--untracked-files=no` voient donc leur propre ligne de journal comme une modification. `evaluate --sealed-test` et `sealed_rerun` ne sont pas touchés : `run_experiment` lit l'état Git avant le jeu (le rapport de la relance nomme `7d4f453`, arbre propre).
+- **Solution** : rien n'est corrigé, car le code est figé jusqu'à la fin de 4.17. Le constat est consigné dans l'ADR-0044 et le README de l'étape 10 : la carte et le manifeste désignent bien leur commit, et la seule modification était la ligne du journal. Correction après `v0.5.0` : lire l'état Git avant toute lecture journalisée (ou ignorer le journal du scellé dans ce contrôle).
+- **Fichiers concernés** : `src/foot_predictor/modeling/final.py` (`train_final`), `src/foot_predictor/features/build.py` (`run_build`), `src/foot_predictor/seal.py` (journal).
+- **Prévention** : une empreinte de l'état du code se prend avant toute étape qui écrit dans le dépôt. Lors de la répétition d'une commande à usage unique, relire aussi les champs de traçabilité qu'elle écrit.
+- **Test de non-régression** : à écrire avec la correction : `train_final(include_sealed=True)` et `run_build(sealed_test=True)` sur un arbre propre écrivent `dirty: false`.
+
 ## E-060 — Test scellé H1 : la ligne « règle de décision » ne s'applique pas à un pli unique (2026-10-22)
 
 - **Contexte** : partie 4, phase B, 4.16, lecture des tableaux de la relance du test scellé (`modeling summary reports/experiments/scelle-h1-20261022T120542.json`).

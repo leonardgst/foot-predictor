@@ -21,7 +21,7 @@ Liaison **locale seulement** : `--host` n'accepte que `127.0.0.1` ou `localhost`
 | `GET /matches/{id}/availability?horizon=H1&mode=replay` | détail par variable et par équipe | 200 ; 403 ; 404 ; 501 (H2) |
 | `POST /matches/{id}/predictions?horizon=H1&mode=replay&force=false` | calcule et trace dans `ops.prediction` | **201** créée ; **200** déjà tracée (renvoyée) ; 403 ; 404 ; **409** indisponible (raisons) ou live après le coup d'envoi ; 501 |
 | `GET /models/active` | carte d'identité du modèle actif (sans chemin de fichier) | 200 ; 503 modèle absent |
-| `GET /data/freshness` | dernière mise à jour de chaque source | 200 |
+| `GET /data/freshness` | dernière mise à jour de chaque source ; en live, une ligne par championnat du top 5 (complet jusqu'au…) | 200 |
 
 Toutes les erreurs ont le même corps : `{"detail": "…", "reasons": ["…"]}`.
 
@@ -43,7 +43,7 @@ curl -s http://127.0.0.1:8000/data/freshness
 
 ## Cache et version des données
 
-Le contexte d'inférence (table des matchs, noms, cotes, jeu versionné) est construit une fois par processus et gardé en mémoire ; il est reconstruit quand la version des données change (dernier `ops.load_run` réussi ; en live, dates des fichiers de football-data, sous-étape 5.10). Les lignes d'un jour sont en cache (étape 11) ; les modèles de rejeu aussi (`models/rejeu/`).
+Le contexte d'inférence (table des matchs, noms, cotes, jeu versionné) est construit une fois par processus et gardé en mémoire ; il est reconstruit quand sa **clé** change : dernier `ops.load_run` réussi, empreinte des fichiers de football-data du live (noms seulement, sans les relire : un nouveau téléchargement suffit) et jour UTC (« aujourd'hui » du live). Depuis 5.14, il contient la table superposée par football-data (ADR-0042). Les lignes d'un jour sont en cache (étape 11) ; les modèles de rejeu aussi (`models/rejeu/`).
 
 ## Temps mesurés (2026-10-01, base de travail, vrai serveur uvicorn)
 
@@ -63,5 +63,5 @@ Le contexte d'inférence (table des matchs, noms, cotes, jeu versionné) est con
 ## Limites connues
 
 - Pas d'authentification : à ne jamais exposer au réseau (la partie 6 étudiera Compose et le réseau Docker).
-- Le live réel attend la phase B (après le test scellé).
+- Live réel depuis 5.14 : vérifié sur les vraies données le 2026-10-22 (5 matchs disponibles le 23 octobre, 20 « périmés » le 24, 403 pour un jour passé). La part d'indisponibles dépend de la règle de fraîcheur (README de l'étape 11).
 - `starlette` signale qu'il préférera bientôt `httpx2` pour `TestClient` : avertissement sans effet aujourd'hui, à suivre lors d'une mise à jour.

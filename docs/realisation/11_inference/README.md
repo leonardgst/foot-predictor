@@ -17,6 +17,7 @@ Mode d'emploi de l'inférence : variables d'un match quelconque, modèles actif 
 uv run python -m foot_predictor.inference predict --date 2024-05-19 --mode replay            # une journée
 uv run python -m foot_predictor.inference predict --date 2024-05-19 --mode replay --json     # réponse complète
 uv run python -m foot_predictor.inference predict --date 2024-05-19 --mode replay --save     # + ops.prediction
+uv run python -m foot_predictor.inference live --days 7 [--save]   # live (5.14) : rapport ; --save trace les disponibles
 uv run python -m foot_predictor.inference models                 # modèle actif et modèles de rejeu en cache
 uv run python -m foot_predictor.inference models --register      # inscription dans ops.model_registry
 uv run python -m foot_predictor.inference models --activate <version>   # inscrit models/<version>/ et le rend actif
@@ -113,7 +114,36 @@ uv run python -m foot_predictor.inference check --only live
 
 **Répétition du 2026-10-04** (`reports/inference/live_repetition_2026-10-04.md`) : gel simulé au 15/02/2024, « aujourd'hui » le 09/03/2024 : 335 résultats rétablis sur 335, 0 score différent de l'API, 0 ligne inutilisable ; lignes du jour identiques pour les buts et l'Elo, seules les variables de tirs diffèrent (attendu, ADR-0041) ; 20 matchs du top 5 sur 20 disponibles ; superposition en 0,3 s.
 
-Le branchement sur l'API et l'interface en mode live (commande `live --days`) est la sous-étape 5.14, en phase B.
+## Live réel (5.14)
+
+Une fois la table ouverte (ADR-0045), `build_context` superpose football-data à la saison du jour (dossier des bruts externes du worktree, `data/raw/football_data/`). L'API, la commande `predict --mode live` et la commande `live` voient donc la même table.
+
+```bash
+# 1. collecte (plafonds écrits dans la PR ; un fichier de moins de 6 h n'est pas redemandé)
+uv run python -m foot_predictor.collect.football_data.live fixtures --max-requests 1                # prochains matchs
+uv run python -m foot_predictor.collect.football_data.live season --season 2026 --max-requests 10   # résultats
+# 2. disponibilité des prochains jours, rapport reports/inference/live_<date>.md
+uv run python -m foot_predictor.inference live --days 7
+# 3. traçage prospectif : les prédictions disponibles du top 5, avant le coup d'envoi
+uv run python -m foot_predictor.inference live --days 7 --save
+```
+
+| Règle | Détail |
+|---|---|
+| Quand collecter | football-data met à jour le fichier des prochains matchs le **vendredi après-midi** (week-end) et le **mardi** (milieu de semaine) ; les résultats environ deux fois par semaine |
+| Ce qui est tracé | les prédictions **disponibles** des matchs du top 5 (`ops.prediction`, mode `live`) ; jamais une réponse indisponible (E-062), qui bloquerait par idempotence la prédiction écrite plus tard |
+| Référence de marché | cote avant clôture du fichier des prochains matchs, pour un match à venir (ADR-0042) ; jamais une variable |
+| Part d'indisponibles | comparée au critère de l'ADR-0011 : plus d'un match du top 5 sur cinq |
+| API | contexte reconstruit quand change le chargement, un fichier de football-data ou le jour ; `/data/freshness` donne la fraîcheur de chaque championnat du top 5 |
+
+**Premier live, 2026-10-22** (rapport `reports/inference/live_2026-10-22.md`) :
+
+- collecte : 11 requêtes (1 + 10), 11 fichiers stockés ; **0 ligne inutilisable** : les noms d'équipes de 2026-27, promus compris, sont dans le YAML ;
+- superposition : 8 résultats depuis le gel ; tous les championnats complets jusqu'au 2026-10-22 ;
+- le fichier des prochains matchs du jeudi ne contenait encore que les matchs des 20 et 21 octobre (déjà joués) : 0 date réelle à venir, 0 cote ; les matchs du week-end gardent leur date figée de l'API ;
+- **56 matchs du top 5 sur 7 jours, 5 disponibles, 91 % indisponibles** (« variables d'historique périmées ») : seuls les matchs du lendemain ont tout leur historique. **Le critère de révision de l'ADR-0011 est atteint dès le premier jour** (décision ouverte) ;
+- API et interface en live sur les vraies données : 5 matchs disponibles le 23 octobre, 20 « périmés » le 24 ; 403 pour un jour passé en live et pour un jour scellé en rejeu ;
+- **5 prédictions live tracées** (matchs du 23 octobre), écrites à 14:11 UTC pour des coups d'envoi de 18:30 à 19:00 UTC, avec leur identifiant API et le modèle final : début du journal prospectif.
 
 ## Temps mesurés (portable, 2026-09-30)
 
@@ -128,7 +158,7 @@ Le branchement sur l'API et l'interface en mode live (commande `live --days`) es
 
 ## Limites connues
 
-- Le live réel attend 5.14 (football-data superposé) ; jusque-là, un match à venir est « périmé ». La table ouverte et le modèle final sont en place depuis 5.13.
+- Règle de fraîcheur par championnat : un match du jour J n'est prédit que si **tous** les matchs d'avant J de son championnat ont un résultat. Avec football-data (résultats deux fois par semaine), seuls les matchs du lendemain d'une mise à jour sont prédits (91 % d'indisponibles le 2026-10-22) : critère de révision de l'ADR-0011 atteint, règle à revoir (décision ouverte).
 - Fraîcheur par championnat, règle prudente : un match reporté sans nouvelle date bloque son championnat jusqu'à son résultat (ADR-0042, critère de révision).
 - Un seul jour est calculé à la fois (règle d'exactitude) : une plage de dates coûte quelques secondes par jour à froid.
 - Les identifiants de championnat de `--competition` sont internes ; l'API (étape 12) les liste.

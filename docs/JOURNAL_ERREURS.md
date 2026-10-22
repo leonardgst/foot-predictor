@@ -23,7 +23,12 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 - **Solution** : aucune dans le code en 2.10. `features/` et `modeling/` sont gelés par `pre-scelle-h1`, et `inference/` ne fait pas partie de la sous-étape. Le constat est consigné dans le README de l'étape 04 et dans `ETAT_PROJET.md`, avec deux consignes :
   - 3.11 compare le nouveau jeu à `ds-2026-09-30-ba2b91f7` par identifiants API, et non par `match_id` ni `team_id` ;
   - la partie 5 passe `api_fixture_id` à `save_prediction` avant le live réel.
-- **Fichiers concernés** : `src/foot_predictor/ingestion/load_api.py`, `src/foot_predictor/inference/store.py`, `src/foot_predictor/api/app.py`, `src/foot_predictor/inference/__main__.py`, `migrations/versions/0008_ops_prediction.py` (docstring, migration appliquée : non modifiée).
+- **Complément (3.11, 2026-10-22)** :
+  - la comparaison par identifiants API donne un jeu identique (`docs/realisation/06_variables/README.md`, « Résultats de 3.11 ») ;
+  - dans le top 5, depuis 2015-16, aucun identifiant interne n'a changé : cotes, modèles de rejeu et `shots_check` ne sont pas touchés ;
+  - seul `inference check --only rows`, qui compare `ba2b91f7` au `staging` actuel par (`match_id`, `team_id`), verrait un écart de clés : 1 jour sur 17 (2020-12-15, 2 lignes de D2), sans aucune valeur en écart. Consigne pour la partie 5 : pointer ce contrôle sur un jeu du `staging` courant (`ds-2026-10-22-bf786ef1` ou plus récent) avant de le relancer ;
+  - décisions de l'utilisateur, le 2026-10-22 : correctif d'`api_fixture_id` au lot 4 de la partie 5, avant 5.14, avec un test ; les 78 lignes de rejeu d'`ops.prediction` sont gardées telles quelles, comme trace des essais. Aucune évaluation ne les lit : seul le mode `live` compte.
+- **Fichiers concernés** : `src/foot_predictor/ingestion/load_api.py`, `src/foot_predictor/inference/store.py`, `src/foot_predictor/api/app.py`, `src/foot_predictor/inference/__main__.py`, `migrations/versions/0008_ops_prediction.py` (docstring, migration appliquée : non modifiée), `src/foot_predictor/inference/check.py` (`DATASET_VERSION`).
 - **Prévention** : hors de `staging`, toute donnée qui survit à un `load` (jeu Parquet, `ops.prediction`, modèles) se rapproche par les identifiants API. La stabilité se mesure avant chaque nouveau `load` sur un brut plus grand, par la même photo.
 - **Test de non-régression** : à écrire avec le correctif de la partie 5 (`save_prediction` appelé avec un `api_fixture_id` non vide).
 

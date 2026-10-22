@@ -1,6 +1,8 @@
 """Construction du contexte d'inférence à partir de la base de travail (ADR-0040).
 
-- **Table des matchs** : par la porte `features/sources.load_matches` (scellé filtré en SQL).
+- **Table des matchs** : par la porte `features/sources.load_matches`. Avant le test scellé H1, le
+  scellé y est filtré en SQL ; une fois le test terminé, la porte l'ouvre à l'inférence, comme
+  historique des variables (`opened_for_inference`, ADR-0045). Les cotes restent fermées.
 - **Version des données** : dernier chargement réussi de `staging` (`ops.load_run`) ; elle change
   la clé du cache des lignes, jamais une ligne périmée n'est servie.
 - **Fraîcheur** de `staging` : dernier jour dont tous les matchs terminés sont connus.
@@ -69,7 +71,10 @@ def build_context(engine=None, with_odds: bool = True, today: dt.date | None = N
         from foot_predictor.db.session import get_engine
 
         engine = get_engine()
-    matches = load_matches(engine)
+    from foot_predictor.inference.models import sealed_test_done
+
+    opened = sealed_test_done()
+    matches = load_matches(engine, opened_for_inference=opened)
     run_id, finished = last_load_run(engine)
     teams, competitions = names(engine)
     odds = None
@@ -88,4 +93,5 @@ def build_context(engine=None, with_odds: bool = True, today: dt.date | None = N
         dataset=dataset,
         today=today or dt.datetime.now(dt.UTC).date(),
         active_version=registry_active_version(engine),
+        history_opened=opened,
     )

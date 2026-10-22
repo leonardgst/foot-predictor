@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-22 (4.17 terminée : modèle final H1 appris avec les matchs scellés ; partie 4 close, jalon J6, tag `v0.5.0`)
+**Dernière mise à jour** : 2026-10-22 (5.13 terminée : scellé ouvert à l'inférence seulement, rejeu fermé jusqu'au test de H2, modèle final actif)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2, 3 et 4 terminées** (tags `v0.3.0`, `v0.4.0` et `v0.5.0` ; `docs/retours/partie-2_2026-10-19.md`, `partie-3_2026-10-22.md`, `partie-4_2026-10-22.md`). La phase B de la partie 5 se fait sur demande.
 
-**Reprise de la partie 5 à la phase B, lot 4, sous-étape 5.13 : ouverture du scellé**, dont le modèle final H1 comme modèle actif (ADR-0044). Le test scellé H1 est terminé et le modèle final entraîné : aucun autre test ni entraînement final H1, et aucun modèle H1 ne se modifie.
+**Reprise de la partie 5 à la phase B, lot 4, suite de 5.13 : avant 5.14 (E-058)**, `api_fixture_id` passé à `save_prediction` avec un test, puis `inference check --only rows` sur un jeu du `staging` courant ; ensuite 5.14, live réel. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -38,6 +38,10 @@
   - `train --final --include-sealed` sur `94969da0` : **`scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle`**, 40 180 lignes jusqu'au 2026-10-18, demi-vie 240 jours ; carte dans `reports/model_cards/` ;
   - demi-vie validée par la procédure figée sur le début de 2026-27 (341 matchs), choix de l'utilisateur avant le lancement ; coefficients à 0,009 au plus de ceux du modèle sans scellé ;
   - **E-061** : `dirty: true` à tort dans la carte et dans le manifeste de `94969da0` (journal écrit avant la lecture de l'état Git) ; jalon J6 atteint, **tag `v0.5.0`** sur la fusion de la PR #83.
+- **Partie 5, phase B, 5.13 : ouverture du scellé** (2026-10-22, PR #84, **ADR-0045** ; « Ouverture du scellé » dans `docs/realisation/11_inference/README.md`) :
+  - porte : `load_matches(opened_for_inference=True)`, refusée avant le test H1, sans ligne de journal, réservée à `inference/` (test d'architecture) ; développement et cotes fermés jusqu'au test de H2 ;
+  - live : historique complet ; **rejeu des saisons scellées fermé jusqu'au test de H2** (choix de l'utilisateur) ; modèle final actif dans `ops.model_registry` (`models --activate`) ;
+  - réel : 434 lignes de la période scellée identiques au bit près au jeu `94969da0` (8 jours) ; rejeu de 2021-22 à 2024-25 inchangé ; live du 2026-10-24 : top 5 « périmé » jusqu'à 5.14.
 
 ## En cours
 
@@ -53,13 +57,13 @@
     - garder telles quelles les 78 lignes de rejeu d'`ops.prediction` ;
     - pointer `inference check --only rows` sur un jeu du `staging` courant (`ds-2026-10-22-bf786ef1` ou plus récent) avant de le relancer : avec `ba2b91f7`, 1 jour sur 17 aurait un écart de clés ;
   - **fin du gel de `pre-scelle-h1`** avec la fusion de la PR #83 (ADR-0044) : les chemins figés se modifient de nouveau par PR (E-060 et E-061 d'abord). Garde : une PR qui touche `modeling/models/` montre que les prédictions du modèle final H1 sont inchangées ;
-  - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ;
+  - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ; ouvert à `inference/` seulement (ADR-0045), jamais au développement de H2 ;
   - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`) ;
   - Docker Desktop doit tourner (bases arrêtées sinon, E-050) : `docker ps` en début de session.
 
 ## Décisions ouvertes
 
-- **Copies sur `D:`** du jeu scellé `94969da0` (64 Mo) et du modèle final (29 Mo), seuls sur `C:` et non reconstructibles pour H1 : proposées (retour de la partie 4, section 8).
+- **Copies sur `D:`** du jeu scellé `94969da0` (64 Mo) et du modèle final (29 Mo), seuls sur `C:` et non reconstructibles pour H1 : **acceptées par l'utilisateur le 2026-10-22**, pas faites : `D:` n'était pas monté. À faire dès qu'il est visible, avec contrôle par sha256, dans `D:/foot-predictor/copies-2026-10-22/`.
 - **Renouvellement automatique de l'abonnement : coupé par l'utilisateur le 2026-10-19** (déclaré, non vérifiable par l'assistant ; fin de l'abonnement le 22 octobre à 07:56 UTC, ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
 
 ## Prochaines actions
@@ -71,11 +75,11 @@
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
 docker ps ; uv run alembic current        # deux conteneurs « Up » (E-050) ; 0008
 git tag -l data-freeze-2026-10 v0.3.0 v0.4.0 v0.5.0     # les quatre tags, sinon s'arrêter
-ls models/ | grep avec-scelle      # scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle, à rendre actif en 5.13 (ADR-0044)
+uv run python -m foot_predictor.inference models     # actif : scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle (5.13)
 uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw lock-status   # libre
-git switch --no-track -c feat/11-ouverture-scelle origin/main      # 5.13
-# lot 4, avant 5.14 (E-058) : api_fixture_id passé à save_prediction, avec un test ;
-#   inference check --only rows sur un jeu du staging courant (ds-2026-10-22-bf786ef1 ou plus récent)
+git switch --no-track -c fix/11-api-fixture-id origin/main        # lot 4, avant 5.14 (E-058)
+# api_fixture_id passé à save_prediction, avec un test ;
+# inference check --only rows sur un jeu du staging courant (ds-2026-10-22-bf786ef1 ou plus récent)
 # 5.14 (live réel ; plafond écrit dans la PR) :
 uv run python -m foot_predictor.collect.football_data.live fixtures --max-requests 1
 uv run python -m foot_predictor.collect.football_data.live season --season 2026 --max-requests 10

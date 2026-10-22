@@ -1,13 +1,16 @@
 """Inférence en ligne de commande (partie 5, ADR-0040).
 
     python -m foot_predictor.inference predict --date 2024-05-19 --mode replay [--competition <id>] [--match <id>] [--json]
-    python -m foot_predictor.inference models
-    python -m foot_predictor.inference check [--only rows|replay|predictions|live]
+    python -m foot_predictor.inference models [--register] [--activate <version>]
+    python -m foot_predictor.inference check [--only rows|replay|predictions|live|rows-scelle]
 
 `predict` : réponses d'un jour (disponibilité, prédiction ou raisons), en rejeu (saisons 2021-22 à
-2024-25) ou en live ; les dates à partir du 1er juillet 2025 sont refusées tant que le test scellé
-n'est pas fait. `models` : modèle actif et modèles de rejeu en cache, avec leur carte. `check` :
-contrôles sur données réelles, rapports dans `reports/inference/`.
+2024-25, jusqu'au test scellé de H2) ou en live ; les dates à partir du 1er juillet 2025 sont
+refusées tant que le test scellé H1 n'est pas fait (ADR-0045). `models` : modèle actif et modèles
+de rejeu en cache, avec leur carte ; `--activate` inscrit un modèle de `models/` et en fait le
+modèle actif. `check` : contrôles sur données réelles, rapports dans `reports/inference/` ;
+`rows-scelle` (seulement sur demande, lecture du jeu scellé journalisée) compare les lignes de
+l'inférence au jeu scellé sur la période scellée.
 """
 
 from __future__ import annotations
@@ -34,8 +37,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--register", action="store_true",
         help="inscrit dans ops.model_registry le modèle actif (actif s'il n'y en a pas) et les modèles de rejeu en cache",
     )  # fmt: skip
-    check = sub.add_parser("check", help="contrôles sur données réelles (période de développement)")
-    check.add_argument("--only", choices=["rows", "replay", "predictions", "live"], help="un seul contrôle")
+    models.add_argument(
+        "--activate", metavar="VERSION",
+        help="inscrit le modèle models/<VERSION>/ dans ops.model_registry et en fait le seul modèle actif",
+    )  # fmt: skip
+    check = sub.add_parser("check", help="contrôles sur données réelles")
+    check.add_argument(
+        "--only", choices=["rows", "replay", "predictions", "live", "rows-scelle"],
+        help="un seul contrôle ; rows-scelle n'est lancé que sur demande (lecture du jeu scellé, journalisée)",
+    )  # fmt: skip
     return parser
 
 
@@ -94,9 +104,25 @@ def cmd_predict(args) -> int:
     return 0
 
 
-def cmd_models(register: bool = False) -> int:
+def cmd_models(register: bool = False, activate: str | None = None) -> int:
     from foot_predictor.inference import models
 
+    if activate:
+        from sqlalchemy.orm import Session
+
+        from foot_predictor.db.session import get_engine
+        from foot_predictor.inference.store import active_version, register_model
+
+        try:
+            chosen = models.load_active(activate)
+        except models.ModelUnavailable as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        with Session(get_engine()) as session:
+            register_model(session, chosen.version, chosen.card, str(chosen.path.relative_to(models.REPO_ROOT)),
+                           activate=True)  # fmt: skip
+            session.commit()
+            print(f"ops.model_registry : actif = {active_version(session)}")
     if register:
         from sqlalchemy.orm import Session
 
@@ -151,6 +177,13 @@ def cmd_check(args) -> int:
         _, md_path = check.write_report(report, f"predictions_{today}", check.render_predictions(report))
         print(f"Prédictions : {'reproduites' if report['all_reproduced'] else 'ÉCART'} ; {md_path}")
         ok &= report["all_reproduced"]
+    if args.only == "rows-scelle":  # jamais dans la série par défaut : lecture du jeu scellé, journalisée
+        report = check.run_sealed_rows_check()
+        report["date"] = today
+        _, md_path = check.write_report(report, f"lignes_scelle_{today}", check.render_sealed_rows(report))
+        print(f"Lignes (période scellée) : {'identiques' if report['all_identical'] else 'ÉCART'} "
+              f"({report['rows_compared']} lignes) ; {md_path}")  # fmt: skip
+        ok &= report["all_identical"]
     if args.only in (None, "live"):
         report = check.run_live_rehearsal()
         report["date"] = today
@@ -169,7 +202,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "predict":
         return cmd_predict(args)
     if args.command == "models":
-        return cmd_models(args.register)
+        return cmd_models(args.register, args.activate)
     return cmd_check(args)
 
 

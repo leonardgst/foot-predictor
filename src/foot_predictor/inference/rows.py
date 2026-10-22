@@ -18,6 +18,12 @@ variables du second : on calcule **un jour à la fois**.
 
 Aucun remplissage : une variable incalculable (glissant sans historique) reste vide, comme dans le
 jeu d'entraînement.
+
+**Jours scellés** (à partir du 1er juillet 2025) : `build_frame` refuse un historique qui contient
+des matchs scellés, sauf avec son option `sealed_test=True`, qui l'accepte et produit les lignes
+jusqu'à la dernière saison présente, sans rien changer au calcul. L'inférence ne s'en sert que
+pour un contexte ouvert après le test scellé H1 (`history_opened`, ADR-0045) et pour un jour
+scellé ; avant le scellé, l'appel reste celui de la période de développement.
 """
 
 from __future__ import annotations
@@ -33,6 +39,7 @@ import pandas as pd
 
 from foot_predictor.features import huis_clos, xg_proxy
 from foot_predictor.features.dataset import build_frame, load_elo_params
+from foot_predictor.seal import SEAL_DATE
 
 POST_MATCH_COLUMNS = ("goals_for", "goals_against", "shots_source")
 """Colonnes qui décrivent le match lui-même, connues après lui : jamais dans une ligne d'inférence."""
@@ -81,11 +88,14 @@ def rows_for_day(
     elo_params=None,
     coefficients=None,
     periods=None,
+    history_opened: bool = False,
 ) -> pd.DataFrame:
     """Lignes (match, équipe) des matchs du jour `day` (ou de `match_ids`), sans colonnes d'après-match.
 
     Seuls les matchs de saison régulière des 10 championnats donnent des lignes (règle de
     `build_frame`) ; un autre match (coupe, barrage) n'a pas de ligne : la disponibilité le dira.
+    `history_opened` : table lue avec l'ouverture du scellé à l'inférence (ADR-0045) ; sans elle,
+    un jour scellé est refusé par `build_frame` (`SealViolation`).
     """
     targets = day_targets(matches, day, match_ids)
     if len(targets) == 0:
@@ -96,6 +106,7 @@ def rows_for_day(
         elo_params or load_elo_params(),
         coefficients or xg_proxy.load(),
         periods if periods is not None else huis_clos.load_periods(),
+        sealed_test=history_opened and as_day(day) >= SEAL_DATE,  # voir la docstring du module
     )
     rows = frame[frame["match_id"].isin(targets)]
     return rows.drop(columns=[c for c in POST_MATCH_COLUMNS if c in rows.columns]).reset_index(drop=True)
@@ -111,6 +122,8 @@ class RowsCache:
 
     matches: pd.DataFrame
     data_version: str
+    history_opened: bool = False
+    """Table lue avec l'ouverture du scellé à l'inférence (ADR-0045)."""
     max_days: int = 64
     _cache: OrderedDict = field(default_factory=OrderedDict)
     timings: list = field(default_factory=list)
@@ -121,7 +134,7 @@ class RowsCache:
             self._cache.move_to_end(key)
             return self._cache[key]
         started = time.perf_counter()
-        rows = rows_for_day(self.matches, key[0])
+        rows = rows_for_day(self.matches, key[0], history_opened=self.history_opened)
         self.timings.append((key[0], time.perf_counter() - started))
         self._cache[key] = rows
         if len(self._cache) > self.max_days:

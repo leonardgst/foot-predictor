@@ -61,6 +61,28 @@ def test_sealed_or_closed_dates_are_refused_with_403(client):
     assert client.get("/matches", params={"date": "2023-01-01", "mode": "autre"}).status_code == 422
 
 
+def test_after_the_opening_a_played_sealed_match_is_never_served(tmp_path):
+    """ADR-0045 : table ouverte à l'inférence ; un match scellé joué répond 403 en rejeu comme en live, jamais 200."""
+    from foot_predictor.inference.models import LoadedModel
+    from foot_predictor.seal import H1_SEALED_EXPERIMENT, SEALED_DONE
+
+    matches = shifted_matches(years=6)  # 2025-26 et 2026-27
+    log = tmp_path / "journal.md"
+    log.write_text(f"| x | y | {H1_SEALED_EXPERIMENT} | {SEALED_DONE}, rapport z |\n", encoding="utf-8")
+    upcoming = matches[matches["status"] != "played"].iloc[0]
+    loaded = LoadedModel("essai-api", FakeModel(), {"version": "essai-api", "horizon": "H1"}, None)
+    opened = context(matches, loaded, today=upcoming["match_day"], sealed_log=log, history_opened=True)
+    api = TestClient(create_app(ContextProvider(lambda: opened, lambda: "v-test")))
+    played = matches[(matches["status"] == "played") & (matches["match_day"] < upcoming["match_day"])].iloc[-1]
+    for mode in ("replay", "live"):
+        response = api.get(f"/matches/{int(played['match_id'])}/availability", params={"mode": mode})
+        assert response.status_code == 403, mode
+    listed = api.get("/matches", params={"date": played["match_day"].isoformat(), "mode": "replay"})
+    assert listed.status_code == 403
+    live = api.get(f"/matches/{int(upcoming['match_id'])}/availability", params={"mode": "live"})
+    assert live.status_code == 200 and live.json()["status"] == "available"  # un match à venir est servi
+
+
 def test_availability_detail_unknown_match_and_h2(client, ctx):
     match = a_match(ctx)
     body = client.get(f"/matches/{int(match['match_id'])}/availability").json()

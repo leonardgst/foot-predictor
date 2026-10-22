@@ -1,0 +1,88 @@
+{
+  "dataset": "ds-2026-10-22-94969da0",
+  "days": [
+    {
+      "day": "2025-08-15",
+      "rows": 22,
+      "expected_rows": 22,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 5.81,
+      "reason": "première journée 2025-26 (promus sans historique de D1)"
+    },
+    {
+      "day": "2026-01-13",
+      "rows": 6,
+      "expected_rows": 6,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 5.83,
+      "reason": "milieu de la période 2025-26"
+    },
+    {
+      "day": "2026-05-24",
+      "rows": 58,
+      "expected_rows": 58,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 6.35,
+      "reason": "dernier jour présent 2025-26"
+    },
+    {
+      "day": "2026-05-17",
+      "rows": 90,
+      "expected_rows": 90,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 6.0,
+      "reason": "jour le plus chargé 2025-26"
+    },
+    {
+      "day": "2026-08-15",
+      "rows": 36,
+      "expected_rows": 36,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 6.21,
+      "reason": "première journée 2026-27 (promus sans historique de D1)"
+    },
+    {
+      "day": "2026-09-06",
+      "rows": 58,
+      "expected_rows": 58,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 6.3,
+      "reason": "milieu de la période 2026-27"
+    },
+    {
+      "day": "2026-10-18",
+      "rows": 60,
+      "expected_rows": 60,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 6.23,
+      "reason": "dernier jour présent 2026-27"
+    },
+    {
+      "day": "2026-09-12",
+      "rows": 104,
+      "expected_rows": 104,
+      "same_matches": true,
+      "differing_columns": [],
+      "identical": true,
+      "seconds": 6.07,
+      "reason": "jour le plus chargé 2026-27"
+    }
+  ],
+  "all_identical": true,
+  "rows_compared": 434,
+  "date": "2026-10-22"
+}

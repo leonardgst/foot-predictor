@@ -50,6 +50,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0042](ADR-0042-live-football-data.md) | Live : football-data superposé en mémoire au calendrier API figé ; appariement sans la date (saison régulière), fraîcheur par championnat, conditions citées | acceptée | 2026-10-04 | C.3, G.11 ; ADR-0011 r. 3 et 5 |
 | [0043](ADR-0043-relance-test-scelle-h1.md) | Test scellé H1 : relance unique après l'échec technique du premier lancement (E-059), code figé inchangé, contrôle par sha256 des prédictions | acceptée | 2026-10-22 | ADR-0012 r. 5, ADR-0039 |
 | [0044](ADR-0044-modele-final-h1.md) | Clôture de la partie 4 : modèle final H1 appris avec les matchs scellés par la procédure figée (demi-vie 240 jours), jalon J6, tag `v0.5.0` | acceptée | 2026-10-22 | F.4, J6 ; ADR-0012 r. 5, ADR-0039, ADR-0043 |
+| [0045](ADR-0045-ouverture-scelle-inference.md) | Ouverture du scellé à l'inférence seulement (historique du live), garde par le code sans journal ; rejeu des saisons scellées fermé jusqu'au test de H2 ; modèle final actif | acceptée | 2026-10-22 | ADR-0011 r. 2, ADR-0012 r. 4 et 5, ADR-0028 |
 
 **Décisions encore ouvertes** :
 

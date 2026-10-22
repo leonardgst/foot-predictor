@@ -50,21 +50,32 @@ def test_replay_model_of_a_season_never_saw_it_nor_later_seasons(data):
 
 
 def test_replay_model_is_cached_on_disk(data, tmp_path):
-    first = models.replay_model(2023, data, replay_root=tmp_path, log_path=tmp_path / "journal.md")
+    first = models.replay_model(2023, data, replay_root=tmp_path)
     assert (tmp_path / "2023" / "model.joblib").exists()
-    second = models.replay_model(2023, data=None, replay_root=tmp_path, log_path=tmp_path / "journal.md")
+    second = models.replay_model(2023, data=None, replay_root=tmp_path)
     assert second.card["version"] == first.card["version"] == "rejeu-2023-m3_g0g2"
 
 
-def test_replay_seasons_open_only_from_2021_and_sealed_seasons_wait_for_the_sealed_test(tmp_path):
-    log = tmp_path / "journal.md"
+def test_replay_seasons_open_from_2021_and_sealed_seasons_stay_closed_until_the_h2_test():
     with pytest.raises(models.ModelUnavailable, match="2021-22"):
-        models.check_replay_season(2020, log)
-    with pytest.raises(models.ModelUnavailable, match="scellés"):
-        models.check_replay_season(2025, log)
-    models.check_replay_season(2024, log)  # ouverte
-    log.write_text("| x | y | experiments/scelle_h1.yaml | évaluation terminée, rapport z |\n", encoding="utf-8")
-    models.check_replay_season(2025, log)  # ouverte une fois le test scellé terminé
+        models.check_replay_season(2020)
+    models.check_replay_season(2024)  # ouverte
+    for season in (2025, 2026):  # fermées même après le test H1 : le test de H2 réutilisera ces matchs (ADR-0045)
+        with pytest.raises(models.ModelUnavailable, match="test scellé de H2"):
+            models.check_replay_season(season)
+
+
+def test_the_final_h1_model_is_the_default_active_model():
+    assert models.DEFAULT_ACTIVE_VERSION == "scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle"
+
+
+def test_activating_a_missing_model_is_refused_before_any_database_access(monkeypatch, capsys):
+    from foot_predictor.db import session as db_session_module
+    from foot_predictor.inference.__main__ import main
+
+    monkeypatch.setattr(db_session_module, "get_engine", lambda: pytest.fail("aucune base ne doit être ouverte"))
+    assert main(["models", "--activate", "version-absente-de-models"]) == 2
+    assert "Modèle absent : version-absente-de-models" in capsys.readouterr().err
 
 
 def test_season_of_a_day():

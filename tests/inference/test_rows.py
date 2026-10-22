@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from foot_predictor.features.dataset import build_frame
 from foot_predictor.inference.rows import POST_MATCH_COLUMNS, RowsCache, history_for_day, rows_for_day
+from foot_predictor.seal import SEAL_DATE, SealViolation
 from tests.features.test_dataset import COEF, PARAMS, synthetic_matches
 
 KW = {"elo_params": PARAMS, "coefficients": COEF, "periods": None}
@@ -104,3 +106,51 @@ def test_check_compare_day_reports_identity_and_detects_a_difference():
     tampered.loc[tampered["match_day"] == day, "elo_pre"] += 1.0
     result = compare_day(matches, tampered, day, **KW)
     assert not result["identical"] and result["differing_columns"] == ["elo_pre"]
+
+
+def sealed_matches() -> pd.DataFrame:
+    """Les mêmes matchs, décalés de six ans : 2025-26 et 2026-27, tous sous scellés."""
+    matches = synthetic_matches()
+    matches["match_date"] = matches["match_date"] + pd.DateOffset(years=6)
+    matches["match_day"] = matches["match_date"].dt.date
+    matches["season_year"] = matches["season_year"] + 6
+    return matches
+
+
+def test_d_sealed_days_need_the_opened_history_then_equal_the_sealed_training_rows():
+    """Ouverture à l'inférence (ADR-0045) : même fonction que le jeu scellé du test et du modèle final, jour par jour."""
+    matches = sealed_matches()
+    assert (matches["match_day"] >= SEAL_DATE).all()
+    with pytest.raises(SealViolation):
+        rows_for_day(matches, played_days(matches)[5], **KW)  # table non ouverte : refus de build_frame
+    full = build_frame(matches, PARAMS, COEF, sealed_test=True).drop(columns=list(POST_MATCH_COLUMNS))
+    for day in played_days(matches):
+        rows = rows_for_day(matches, day, history_opened=True, **KW)
+        expected = full[full["match_day"] == day].reset_index(drop=True)
+        if expected.empty:
+            assert rows.empty or rows["match_day"].ne(day).all()
+            continue
+        pd.testing.assert_frame_equal(rows.reset_index(drop=True), expected, check_dtype=True)
+
+
+def test_d_opening_changes_nothing_before_the_seal():
+    matches = synthetic_matches()  # 2019-2021 : aucun jour scellé
+    for day in played_days(matches)[:6]:
+        pd.testing.assert_frame_equal(
+            rows_for_day(matches, day, history_opened=True, **KW), rows_for_day(matches, day, **KW)
+        )
+
+
+def test_sealed_sample_days_cover_each_sealed_season():
+    from foot_predictor.inference.check import sealed_sample_days
+
+    dataset = build_frame(sealed_matches(), PARAMS, COEF, sealed_test=True)
+    days = sealed_sample_days(dataset)
+    assert days == sealed_sample_days(dataset)  # déterministe
+    chosen = [day for day, _ in days]
+    assert len(chosen) == len(set(chosen)) and all(day >= SEAL_DATE for day in chosen)
+    top5 = dataset[dataset["eval_population"]]
+    for season in top5["season_year"].unique():
+        season_days = top5.loc[top5["season_year"] == season, "match_day"]
+        assert season_days.min() in chosen and season_days.max() in chosen
+    assert all(reason for _, reason in days)

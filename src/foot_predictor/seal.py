@@ -10,7 +10,10 @@ Ce module porte :
 - `check_seal`, qui refuse un jeu de matchs franchissant la frontière, sauf avec
   `sealed_test=True` ;
 - le journal versionné des usages de `sealed_test=True` (`reports/sealed_tests.md`) :
-  chaque usage y ajoute une ligne (date, commit, fichier d'expérience, résultat).
+  chaque usage y ajoute une ligne (date, commit, fichier d'expérience, résultat) ;
+- `check_opened_for_inference` : l'ouverture du scellé **à l'inférence seulement**, comme
+  historique, une fois le test scellé H1 terminé (ADR-0045). Elle n'ajoute aucune ligne au
+  journal : c'est le code qui la garde (porte, test d'architecture).
 
 La lecture des matchs passe par `foot_predictor.features.sources`, qui filtre à la
 source (SQL) ; `check_seal` y sert de seconde barrière, après la requête.
@@ -33,6 +36,14 @@ SEAL_TIMESTAMP = pd.Timestamp(SEAL_DATE, tz="UTC")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SEALED_TESTS_LOG = REPO_ROOT / "reports" / "sealed_tests.md"
+
+SEALED_DONE = "évaluation terminée"
+"""Texte de la ligne de résultat d'un test scellé mené à son terme. C'est le texte qu'écrit
+`modeling.experiment` (même constante, vérifié par un test) ; il est recopié ici pour que la
+porte des données n'importe pas `modeling/`."""
+
+H1_SEALED_EXPERIMENT = "experiments/scelle_h1.yaml"
+"""Liste figée du test scellé H1 (ADR-0039) : son test terminé ouvre le scellé à l'inférence (ADR-0045)."""
 
 LOG_HEADER = """# Journal des tests scellés (ADR-0012)
 
@@ -93,6 +104,27 @@ def check_seal(
         raise SealViolation("sealed_test=True exige le fichier d'expérience (experiment=...), pour le journal.")
     append_log_line(experiment=experiment, result=f"{result} ({n_sealed} match(s) scellé(s) lus)", log_path=log_path)
     return n_sealed
+
+
+def sealed_test_finished(experiment: str, log_path: Path | None = None) -> bool:
+    """Vrai si le journal contient une ligne de résultat « évaluation terminée » pour `experiment`."""
+    path = log_path or SEALED_TESTS_LOG
+    if not path.exists():
+        return False
+    return any(experiment in line and SEALED_DONE in line for line in path.read_text(encoding="utf-8").splitlines())
+
+
+def check_opened_for_inference(log_path: Path | None = None) -> None:
+    """Ouverture du scellé à l'inférence (ADR-0045) : refusée tant que le test scellé H1 n'est pas terminé.
+
+    L'inférence lit alors les matchs scellés **comme historique** (ADR-0012, règle 4). Le
+    développement (jeux de données, évaluation, notebooks) reste fermé jusqu'au test de H2.
+    """
+    if not sealed_test_finished(H1_SEALED_EXPERIMENT, log_path):
+        raise SealViolation(
+            f"Ouverture du scellé à l'inférence refusée : le test scellé H1 ({H1_SEALED_EXPERIMENT}) "
+            "n'est pas terminé au journal (ADR-0045)."
+        )
 
 
 def _current_commit() -> str:

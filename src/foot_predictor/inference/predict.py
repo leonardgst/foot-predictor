@@ -14,7 +14,9 @@
    probabilité implicite de plus de 2,5 buts du marché avant clôture (`market_reference`, ADR-0036).
 
 **Scellé** : toute date de référence à partir du 1er juillet 2025 est refusée tant que le test
-scellé n'est pas terminé ; le rejeu ne s'ouvre que sur 2021-22 à 2024-25 (ADR-0011, règle 2).
+scellé H1 n'est pas terminé. Ensuite (ADR-0045), le live lit les matchs scellés comme historique ;
+le rejeu reste limité à 2021-22 à 2024-25 jusqu'au test scellé de H2, et le score réel comme la
+cote d'un match scellé ne sont jamais servis.
 """
 
 from __future__ import annotations
@@ -55,6 +57,8 @@ class InferenceContext:
     sealed_log: object = None
     replay_root: object = None
     active_version: str | None = None
+    history_opened: bool = False
+    """Table des matchs lue avec l'ouverture du scellé à l'inférence (ADR-0045) : historique complet."""
     league_freshness: dict[int, Freshness] | None = None
     """Live : fraîcheur de football-data par championnat (`inference/live_sources.py`) ; sinon `freshness`."""
     live_blocked: dict[int, list[str]] = field(default_factory=dict)
@@ -65,7 +69,7 @@ class InferenceContext:
     @property
     def rows_cache(self) -> RowsCache:
         if self._rows is None:
-            self._rows = RowsCache(self.matches, self.data_version)
+            self._rows = RowsCache(self.matches, self.data_version, history_opened=self.history_opened)
         return self._rows
 
     def freshness_for(self, match: pd.Series) -> Freshness:
@@ -77,7 +81,7 @@ class InferenceContext:
         key = (mode, model_store.season_of(day) if mode == "replay" else "actif")
         if key not in self._models:
             if mode == "replay":
-                kwargs = {"log_path": self.sealed_log}
+                kwargs = {}
                 if self.replay_root is not None:
                     kwargs["replay_root"] = self.replay_root
                 self._models[key] = model_store.replay_model(model_store.season_of(day), self.dataset, **kwargs)
@@ -97,7 +101,7 @@ def check_reference_date(day: dt.date, mode: str, context: InferenceContext) -> 
         )
     if mode == "replay":
         try:
-            model_store.check_replay_season(model_store.season_of(day), context.sealed_log)
+            model_store.check_replay_season(model_store.season_of(day))
         except model_store.ModelUnavailable as error:
             raise ReferenceDateRefused(str(error)) from error
     elif context.today is not None and day < context.today:

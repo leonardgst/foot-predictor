@@ -2,12 +2,18 @@
 
 Les données locales (table des matchs de `staging`, jeu versionné) manquent en CI : ces contrôles
 sont donc une commande, et non des tests automatisés (ADR-0040). Ils ne lisent que la période de
-développement (porte `features/sources.py`).
+développement (porte `features/sources.py`), sauf `rows-scelle` (ci-dessous).
 
 Contrôle des lignes (décision 2, test (a)) : pour un échantillon de jours des quatre saisons de
 validation et des cas limites (première journée d'une saison et ses promus, Ligue 1 à 18 clubs,
 huis clos), les lignes d'inférence du jour doivent être **identiques au bit près** aux lignes du
 jeu d'entraînement pour les mêmes matchs, toutes colonnes sauf celles d'après-match.
+
+Contrôle des lignes sur la période scellée (`rows-scelle`, 5.13, ADR-0045), seulement sur demande :
+la même comparaison, sur des jours de 2025-26 et du début de 2026-27, entre l'inférence (table
+ouverte à l'inférence) et le jeu scellé `ds-2026-10-22-94969da0`, celui du test scellé et du
+modèle final. La lecture du jeu scellé est journalisée ; le rapport ne donne que des décomptes et
+des noms de colonnes, aucune valeur.
 """
 
 from __future__ import annotations
@@ -20,10 +26,13 @@ from pathlib import Path
 import pandas as pd
 
 from foot_predictor.inference.rows import POST_MATCH_COLUMNS, rows_for_day
+from foot_predictor.seal import SEAL_DATE
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REPORTS_DIR = REPO_ROOT / "reports" / "inference"
 DATASET_VERSION = "ds-2026-09-30-ba2b91f7"
+SEALED_DATASET_VERSION = "ds-2026-10-22-94969da0"
+"""Jeu construit avec `--sealed-test` (4.16) : celui du test scellé H1 et du modèle final (ADR-0044)."""
 
 
 def sample_days(dataset: pd.DataFrame) -> list[tuple[dt.date, str]]:
@@ -48,6 +57,26 @@ def sample_days(dataset: pd.DataFrame) -> list[tuple[dt.date, str]]:
     reasons: dict[dt.date, list[str]] = {}
     for day, reason in days:
         reasons.setdefault(day, []).append(reason)  # un même jour peut servir deux cas limites
+    return [(day, " ; ".join(r)) for day, r in reasons.items()]
+
+
+def sealed_sample_days(dataset: pd.DataFrame) -> list[tuple[dt.date, str]]:
+    """Jours contrôlés sur la période scellée, avec la raison de leur choix (déterministe : aucun tirage)."""
+    top5 = dataset[dataset["eval_population"] & (dataset["season_year"] >= SEAL_DATE.year)]  # saison = 1er juillet
+    days: list[tuple[dt.date, str]] = []
+    for season in sorted(int(s) for s in top5["season_year"].unique()):
+        label = f"{season}-{(season + 1) % 100:02d}"
+        season_rows = top5[top5["season_year"] == season]
+        season_days = sorted(season_rows["match_day"].unique())
+        days += [
+            (season_days[0], f"première journée {label} (promus sans historique de D1)"),
+            (season_days[len(season_days) // 2], f"milieu de la période {label}"),
+            (season_days[-1], f"dernier jour présent {label}"),
+            (season_rows.groupby("match_day").size().idxmax(), f"jour le plus chargé {label}"),
+        ]
+    reasons: dict[dt.date, list[str]] = {}
+    for day, reason in days:
+        reasons.setdefault(day, []).append(reason)
     return [(day, " ; ".join(r)) for day, r in reasons.items()]
 
 
@@ -97,6 +126,39 @@ def run_rows_check(matches: pd.DataFrame | None = None, dataset: pd.DataFrame | 
         "all_identical": all(r["identical"] for r in results),
         "rows_compared": sum(r["rows"] for r in results),
     }
+
+
+def run_sealed_rows_check(matches: pd.DataFrame | None = None, dataset: pd.DataFrame | None = None) -> dict:
+    """Lignes de l'inférence (historique ouvert) contre le jeu scellé, sur des jours de la période scellée."""
+    from foot_predictor.features.sources import load_dataset, load_matches
+    from foot_predictor.seal import H1_SEALED_EXPERIMENT
+
+    if matches is None:
+        matches = load_matches(opened_for_inference=True)
+    if dataset is None:
+        dataset, _ = load_dataset(SEALED_DATASET_VERSION, sealed_test=True, experiment=H1_SEALED_EXPERIMENT)
+    results = []
+    for day, reason in sealed_sample_days(dataset):
+        result = compare_day(matches, dataset, day, history_opened=True)
+        result["reason"] = reason
+        results.append(result)
+    return {
+        "dataset": SEALED_DATASET_VERSION,
+        "days": results,
+        "all_identical": all(r["identical"] for r in results),
+        "rows_compared": sum(r["rows"] for r in results),
+    }
+
+
+def render_sealed_rows(report: dict) -> str:
+    _, body = render_rows(report).split("\n", 1)  # même tableau que `render_rows`, autre titre
+    return (
+        f"# Contrôle des lignes d'inférence sur la période scellée, contre le jeu {report['dataset']} — "
+        f"{report['date']}\n\n"
+        "Sous-étape 5.13 (ADR-0045) : table des matchs ouverte à l'inférence, jeu scellé du test H1 et du modèle "
+        "final (lecture journalisée dans `reports/sealed_tests.md`). Ce rapport ne donne que des dates, des décomptes "
+        "et des noms de colonnes : aucune valeur d'un match scellé.\n" + body
+    )
 
 
 def render_rows(report: dict) -> str:

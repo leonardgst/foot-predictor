@@ -25,7 +25,7 @@ Liaison **locale seulement** : `--host` n'accepte que `127.0.0.1` ou `localhost`
 
 Toutes les erreurs ont le même corps : `{"detail": "…", "reasons": ["…"]}`.
 
-**Refus du scellé** : toute date à partir du 1er juillet 2025 répond **403** tant que le test scellé n'est pas terminé ; le rejeu ne s'ouvre que sur 2021-22 à 2024-25 (403 sinon). Un match scellé n'est jamais servi (404).
+**Refus du scellé** : toute date à partir du 1er juillet 2025 répond **403** tant que le test scellé H1 n'est pas terminé ; le rejeu ne s'ouvre que sur 2021-22 à 2024-25 (403 sinon), jusqu'au test scellé de H2 (ADR-0045). Un match scellé déjà joué n'est jamais servi : 404 tant que la table est fermée ; depuis l'ouverture à l'inférence (5.13), 403 (rejeu fermé, ou live sur un jour passé). Un match à venir est servi en live, avec l'historique complet.
 
 ## Exemple complet (`curl`, API démarrée)
 

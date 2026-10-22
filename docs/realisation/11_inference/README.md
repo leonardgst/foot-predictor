@@ -1,15 +1,15 @@
 # Étape 11 : inférence (jalon J7)
 
-Mode d'emploi de l'inférence : variables d'un match quelconque, modèles actif et de rejeu, matrice de disponibilité, prédiction, traçabilité. Décision : **ADR-0040**. Le code vit dans `src/foot_predictor/inference/` ; il **importe** `features/` et `modeling/` (figés par le tag `pre-scelle-h1`) sans jamais les modifier.
+Mode d'emploi de l'inférence : variables d'un match quelconque, modèles actif et de rejeu, matrice de disponibilité, prédiction, traçabilité. Décisions : **ADR-0040**, et **ADR-0045** pour l'ouverture du scellé (5.13). Le code vit dans `src/foot_predictor/inference/` ; il **importe** `features/` et `modeling/` sans jamais les modifier (règle de la phase A, gel `pre-scelle-h1` ; la porte `features/sources.py` a reçu l'option d'ouverture en 5.13).
 
 ## En bref
 
 - **Même fonction que l'entraînement** : les variables d'un jour J viennent de `features.dataset.build_frame`, appelée sur la table des matchs tronquée au jour J, les matchs cibles à 0-0 sans statistiques ; un jour à la fois ; colonnes d'après-match retirées (`goals_for`, `goals_against`, `shots_source`). Contrôle réel : 622 lignes identiques au bit près au jeu `ds-2026-09-30-ba2b91f7`.
 - **Modèle de rejeu** de la saison S : le pli S (appris sur 2015-16 à S − 1, procédure de `experiments/scelle_h1.yaml`), mis en cache dans `models/rejeu/<S>/`. Contrôle réel : écart nul avec les prédictions de l'évaluation (7 156 matchs).
-- **Modèle actif** (live) : celui du registre `ops.model_registry`, allégé au chargement (25 Mo → 576 Ko, prédictions identiques).
+- **Modèle actif** (live) : celui du registre `ops.model_registry`, allégé au chargement (25 Mo → 576 Ko, prédictions identiques). Depuis 5.13 : le modèle final H1, `scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle` (ADR-0044).
 - **Disponibilité** : chaque variable requise est présente, manquante (raison) ou périmée (source en retard) ; une seule non présente ⇒ `unavailable`, aucune prédiction.
 - **Traçabilité** : `ops.prediction` (migration 0008), idempotente ; live écrit avant le coup d'envoi seulement.
-- **Scellé** : rejeu ouvert sur 2021-22 à 2024-25 ; toute date à partir du 1er juillet 2025 refusée tant que le test scellé n'est pas terminé.
+- **Scellé** (ADR-0045) : le test scellé H1 étant terminé, la table des matchs est **ouverte à l'inférence**, comme historique des variables du live. Le rejeu reste limité à 2021-22 à 2024-25 **jusqu'au test scellé de H2** ; le score réel et la cote d'un match scellé ne sont jamais servis.
 
 ## Commandes
 
@@ -19,7 +19,9 @@ uv run python -m foot_predictor.inference predict --date 2024-05-19 --mode repla
 uv run python -m foot_predictor.inference predict --date 2024-05-19 --mode replay --save     # + ops.prediction
 uv run python -m foot_predictor.inference models                 # modèle actif et modèles de rejeu en cache
 uv run python -m foot_predictor.inference models --register      # inscription dans ops.model_registry
+uv run python -m foot_predictor.inference models --activate <version>   # inscrit models/<version>/ et le rend actif
 uv run python -m foot_predictor.inference check                  # contrôles réels (environ 2 min)
+uv run python -m foot_predictor.inference check --only rows-scelle   # sur demande : période scellée, lecture journalisée
 ```
 
 | Option | Rôle |
@@ -29,7 +31,7 @@ uv run python -m foot_predictor.inference check                  # contrôles r�
 | `--match <id>` | un match (identifiant interne) |
 | `--save [--force]` | écrit dans `ops.prediction` ; sans `--force`, une prédiction existante est gardée |
 
-Codes de sortie de `predict` : 0 (réponses rendues, disponibles ou non), 3 (date refusée : scellé, saison de rejeu fermée, live dans le passé).
+Codes de sortie de `predict` : 0 (réponses rendues, disponibles ou non), 3 (date refusée : scellé, saison de rejeu fermée, live dans le passé). `models --activate` : 2 si `models/<version>/` n'existe pas (aucune base ouverte).
 
 ## Réponse d'un match
 
@@ -50,6 +52,30 @@ Codes de sortie de `predict` : 0 (réponses rendues, disponibles ou non), 3 (dat
 | `rows` : lignes d'inférence contre le jeu d'entraînement | `reports/inference/lignes_2026-09-30.md` | 17 jours, 622 lignes identiques au bit près |
 | `replay` : modèles de rejeu contre l'évaluation | `reports/inference/rejeu_2026-09-30.md` | écart nul, 4 saisons, 7 156 matchs |
 | `predictions` : journées de rejeu contre l'évaluation | `reports/inference/predictions_2026-09-30.md` | 8 journées, λ à 9e-16 près, log-loss identique |
+
+## Ouverture du scellé à l'inférence (5.13, ADR-0045)
+
+| Élément | Règle |
+|---|---|
+| Porte | `load_matches(opened_for_inference=True)` : refusée **avant toute lecture** tant que le journal n'a pas « évaluation terminée » pour `experiments/scelle_h1.yaml` ; aucune ligne de journal ; incompatible avec `sealed_test` |
+| Qui | `inference/` seulement (test d'architecture) ; jeux de données, évaluation, modèles et notebooks restent fermés jusqu'au test de H2 ; `load_odds` n'a pas d'ouverture |
+| Contexte | `build_context` ouvre la table quand le test H1 est terminé (`history_opened`) |
+| Lignes d'un jour scellé | `build_frame` avec son option `sealed_test=True` (même calcul ; c'est l'appel du jeu scellé), seulement pour une table ouverte et un jour à partir du 1er juillet 2025 |
+| Rejeu | 2021-22 à 2024-25 ; saisons scellées refusées jusqu'au test de H2 (code 3, API 403) |
+| Live | matchs à venir, historique complet, modèle final ; variables affichées agrégées (ADR-0012, règle 4) |
+
+**Résultats du 2026-10-22** (base de travail, chargement n° 7) :
+
+| Contrôle | Rapport | Résultat |
+|---|---|---|
+| `rows-scelle` : lignes d'inférence (table ouverte) contre le jeu scellé `ds-2026-10-22-94969da0` | `reports/inference/lignes_scelle_2026-10-22.md` | 8 jours de 2025-26 et 2026-27, 434 lignes **identiques au bit près**, environ 6 s par jour |
+| `predictions` avec le contexte ouvert | `reports/inference/predictions_2026-10-22.md` | identique au rapport du 2026-09-30, hors titre et durées : l'ouverture ne change pas le rejeu |
+| `models --activate` | — | `ops.model_registry` : actif = modèle final (avant : `scelle-h1-m3_g0g2-20260930-3c92fc80`) |
+| `predict --date 2025-08-16 --mode replay` | — | refusé, code 3 (« sous scellés pour le rejeu jusqu'au test scellé de H2 ») |
+| `predict --date 2026-10-24 --mode live` | — | 89 matchs : 69 hors périmètre, 20 du top 5 `unavailable` (« variables d'historique périmées » : `staging` complet jusqu'au 2026-10-18) ; modèle final ; 0 score et 0 cote servis |
+
+- Le contrôle `rows-scelle` a été lancé avec le code de la branche `feat/11-ouverture-scelle` avant son premier commit : la ligne du journal (13:23 UTC) porte le commit de base, `8358549`.
+- Les matchs à venir restent indisponibles tant que football-data n'est pas superposé en live (5.14) : c'est la règle de fraîcheur, pas un défaut.
 
 ## Tirs de football-data en live (`shots_check`, 5.7)
 
@@ -98,7 +124,7 @@ Le branchement sur l'API et l'interface en mode live (commande `live --days`) es
 
 ## Limites connues
 
-- Le live réel attend la phase B (après le test scellé) ; en phase A il est testé sur des données synthétiques et par la répétition sur la période de développement, avec un « aujourd'hui » simulé.
+- Le live réel attend 5.14 (football-data superposé) ; jusque-là, un match à venir est « périmé ». La table ouverte et le modèle final sont en place depuis 5.13.
 - Fraîcheur par championnat, règle prudente : un match reporté sans nouvelle date bloque son championnat jusqu'à son résultat (ADR-0042, critère de révision).
 - Un seul jour est calculé à la fois (règle d'exactitude) : une plage de dates coûte quelques secondes par jour à froid.
 - Les identifiants de championnat de `--competition` sont internes ; l'API (étape 12) les liste.

@@ -9,6 +9,11 @@ Un test d'architecture (`tests/features/test_architecture.py`) vérifie qu'aucun
 de `features/` n'importe le modèle `Match` ni n'écrit de SQL sur `staging.match`, et que les
 notebooks n'importent que ce module.
 
+**Ouverture à l'inférence** (ADR-0045) : une fois le test scellé H1 terminé, `inference/` (et lui
+seul, test d'architecture) lit aussi les matchs scellés, comme historique des variables
+(`load_matches(opened_for_inference=True)`). Le développement reste fermé jusqu'au test de H2,
+et les cotes (`load_odds`) restent fermées pour tous.
+
 Règles de date (registre des variables) : la date d'un match est la date UTC de son coup
 d'envoi (`match_date`, égal à `kickoff_utc` pour un match API) ; pour un match « hors API »,
 c'est la date de football-data, stockée à minuit UTC.
@@ -24,7 +29,7 @@ import pandas as pd
 from sqlalchemy import Engine, bindparam, text
 from sqlalchemy.orm import Session
 
-from foot_predictor.seal import SEAL_TIMESTAMP, check_seal
+from foot_predictor.seal import SEAL_TIMESTAMP, check_opened_for_inference, check_seal
 
 # Une ligne par match ; les colonnes « home_* » et « away_* » viennent des deux lignes de
 # staging.team_match, de leurs statistiques API (staging.team_match_stats) et de leurs tirs
@@ -97,12 +102,12 @@ _INT_COLUMNS = [
 _FLOAT_COLUMNS = ["home_xg_api", "away_xg_api"]
 
 
-def _upper_bound(until: dt.date | None, sealed_test: bool) -> pd.Timestamp:
-    """Borne supérieure stricte des dates lues : le scellé, ou `until` s'il est plus tôt."""
+def _upper_bound(until: dt.date | None, lifted: bool) -> pd.Timestamp:
+    """Borne supérieure stricte des dates lues : le scellé (sauf s'il est levé), ou `until` s'il est plus tôt."""
     if until is not None:
         until_ts = pd.Timestamp(until, tz="UTC")
-        return until_ts if sealed_test else min(until_ts, SEAL_TIMESTAMP)
-    return pd.Timestamp("2200-01-01", tz="UTC") if sealed_test else SEAL_TIMESTAMP
+        return until_ts if lifted else min(until_ts, SEAL_TIMESTAMP)
+    return pd.Timestamp("2200-01-01", tz="UTC") if lifted else SEAL_TIMESTAMP
 
 
 def load_matches(
@@ -114,6 +119,7 @@ def load_matches(
     sealed_test: bool = False,
     experiment: str | None = None,
     sealed_log: Path | None = None,
+    opened_for_inference: bool = False,
 ) -> pd.DataFrame:
     """Matchs de `staging`, une ligne par match, antérieurs au scellé.
 
@@ -123,7 +129,11 @@ def load_matches(
     - `until` : borne stricte supplémentaire (matchs datés **avant** ce jour), pour rejouer
       l'historique connu à une date donnée (contrôle d'invariance à la date de coupe) ;
     - `sealed_test=True` : lève le filtre du scellé, exige `experiment` et journalise l'usage
-      (`reports/sealed_tests.md`). Réservé au test scellé, une fois par version (ADR-0012).
+      (`reports/sealed_tests.md`). Réservé au test scellé, une fois par version (ADR-0012) ;
+    - `opened_for_inference=True` : lève le filtre pour l'inférence seulement, comme historique
+      des variables (ADR-0045). Refusé, avant toute lecture, tant que le test scellé H1 n'est pas
+      terminé au journal (`sealed_log`) ; aucune ligne n'est ajoutée au journal. Réservé à
+      `inference/` (test d'architecture) ; incompatible avec `sealed_test`.
 
     Colonnes : identifiants (match, fixture API, compétition, saison, équipes), `match_date`
     (UTC), `match_day` (date UTC), `country`, `competition_kind`, `season_year`, `round`,
@@ -132,6 +142,10 @@ def load_matches(
     (`*_api`), tirs et tirs cadrés de football-data par équipe (`*_fd`, ADR-0029).
     Aucune valeur n'est remplie : une donnée absente reste vide (`<NA>`).
     """
+    if sealed_test and opened_for_inference:
+        raise ValueError("sealed_test et opened_for_inference s'excluent : le test scellé n'est pas l'inférence.")
+    if opened_for_inference:
+        check_opened_for_inference(sealed_log)  # refus avant toute lecture
     if connectable is None:
         from foot_predictor.db.session import get_engine
 
@@ -148,9 +162,10 @@ def load_matches(
                 sealed_test=sealed_test,
                 experiment=experiment,
                 sealed_log=sealed_log,
+                opened_for_inference=opened_for_inference,
             )
 
-    extra, params = [], {"upper": _upper_bound(until, sealed_test).to_pydatetime()}
+    extra, params = [], {"upper": _upper_bound(until, sealed_test or opened_for_inference).to_pydatetime()}
     binds = []
     if competition_ids is not None:
         extra.append("and m.competition_id in :competition_ids")
@@ -169,7 +184,8 @@ def load_matches(
     connectable.execute(text("set max_parallel_workers_per_gather = 0"))
     frame = pd.read_sql(query, connectable, params=params)
     frame["match_date"] = pd.to_datetime(frame["match_date"], utc=True)
-    check_seal(frame["match_date"], sealed_test=sealed_test, experiment=experiment, log_path=sealed_log)
+    if not opened_for_inference:  # ouvert : la garde a eu lieu avant la requête, rien à journaliser
+        check_seal(frame["match_date"], sealed_test=sealed_test, experiment=experiment, log_path=sealed_log)
 
     for column in _INT_COLUMNS:
         frame[column] = frame[column].astype("Int64")

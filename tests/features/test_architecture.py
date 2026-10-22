@@ -18,6 +18,9 @@ NOTEBOOKS = REPO / "notebooks"
 
 GATE = FEATURES / "sources.py"
 STAGING_MATCH = re.compile(r"staging\.match\b")
+SOURCE = REPO / "src" / "foot_predictor"
+INFERENCE = SOURCE / "inference"
+OPENING = re.compile(r"\bopened_for_inference\s*=")  # argument nommé (paramètre réservé aux mots-clés)
 
 
 def _feature_modules() -> list[Path]:
@@ -69,3 +72,20 @@ def test_notebooks_only_use_the_gate():
         if forbidden or re.search(r"\b(sqlalchemy|psycopg)\b", code) or "staging." in code:
             offenders.append(path.relative_to(REPO).as_posix())
     assert offenders == []
+
+
+def test_only_inference_opens_the_seal():
+    """Ouverture du scellé à l'inférence (ADR-0045) : seuls la porte et `inference/` emploient `opened_for_inference`.
+    Jeux de données, évaluation, modèles et notebooks restent fermés jusqu'au test scellé de H2."""
+    offenders = [
+        path.relative_to(REPO).as_posix()
+        for path in sorted(SOURCE.rglob("*.py"))
+        if path != GATE and INFERENCE not in path.parents and OPENING.search(path.read_text(encoding="utf-8"))
+    ]
+    offenders += [
+        path.relative_to(REPO).as_posix()
+        for path in (sorted(NOTEBOOKS.rglob("*.ipynb")) if NOTEBOOKS.exists() else [])
+        if OPENING.search(_notebook_code(path))
+    ]
+    assert offenders == []
+    assert OPENING.search((INFERENCE / "context.py").read_text(encoding="utf-8"))  # témoin : l'usage légitime est vu

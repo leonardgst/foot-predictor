@@ -8,6 +8,7 @@ import pytest
 
 from foot_predictor.db.models import Competition, Match, Season, Team, TeamMatch
 from foot_predictor.features.sources import load_matches
+from foot_predictor.seal import H1_SEALED_EXPERIMENT, SEALED_DONE, SealViolation
 
 pytestmark = pytest.mark.db
 
@@ -89,6 +90,31 @@ def test_sealed_test_reads_everything_and_logs(db_session, league, tmp_path):
     )
     assert len(frame) == 4
     assert "2 match(s) scellé(s) lus" in log.read_text(encoding="utf-8")
+
+
+def test_opening_for_inference_is_refused_before_the_h1_test_and_reads_nothing(db_session, league, tmp_path):
+    log = tmp_path / "journal.md"
+    log.write_text(
+        f"| 2026-10-22 08:03 | abc | {H1_SEALED_EXPERIMENT} | accès autorisé, résultat à compléter |\n", "utf-8"
+    )
+    with pytest.raises(SealViolation, match="pas terminé"):
+        load_matches(None, competition_ids=[league.id], opened_for_inference=True, sealed_log=log)  # None : jamais lu
+
+
+def test_opening_for_inference_reads_the_sealed_history_without_logging(db_session, league, tmp_path):
+    log = tmp_path / "journal.md"
+    log.write_text(f"| 2026-10-22 12:05 | def | {H1_SEALED_EXPERIMENT} | {SEALED_DONE}, rapport y |\n", "utf-8")
+    before = log.read_text(encoding="utf-8")
+    frame = load_matches(db_session, competition_ids=[league.id], opened_for_inference=True, sealed_log=log)
+    assert len(frame) == 4 and frame["match_date"].max().date() == dt.date(2025, 8, 16)
+    assert log.read_text(encoding="utf-8") == before  # garde par le code, aucune ligne au journal (ADR-0045)
+    closed = load_matches(db_session, competition_ids=[league.id], until=dt.date(2026, 1, 1))
+    assert len(closed) == 2  # sans l'option, rien ne change
+
+
+def test_opening_for_inference_is_not_a_sealed_test(db_session, league, tmp_path):
+    with pytest.raises(ValueError, match="s'excluent"):
+        load_matches(db_session, sealed_test=True, experiment="experiments/x.yaml", opened_for_inference=True)
 
 
 def test_missing_values_stay_empty(db_session, league):

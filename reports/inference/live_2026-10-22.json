@@ -1,0 +1,125 @@
+{
+  "today": "2026-10-22",
+  "data_version": "load_run-7+fd-4970f46095",
+  "model_versions": [
+    "scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle"
+  ],
+  "matches": 56,
+  "available": 5,
+  "unavailable_share": 0.9107142857142857,
+  "over_limit": true,
+  "with_market_reference": 0,
+  "reasons": {
+    "variables d'historique périmées": 51
+  },
+  "days": [
+    {
+      "day": "2026-10-22",
+      "matches": 0,
+      "statuses": {},
+      "out_of_scope": 36
+    },
+    {
+      "day": "2026-10-23",
+      "matches": 5,
+      "statuses": {
+        "available": 5
+      },
+      "out_of_scope": 19
+    },
+    {
+      "day": "2026-10-24",
+      "matches": 20,
+      "statuses": {
+        "unavailable": 20
+      },
+      "out_of_scope": 69
+    },
+    {
+      "day": "2026-10-25",
+      "matches": 22,
+      "statuses": {
+        "unavailable": 22
+      },
+      "out_of_scope": 48
+    },
+    {
+      "day": "2026-10-26",
+      "matches": 1,
+      "statuses": {
+        "unavailable": 1
+      },
+      "out_of_scope": 13
+    },
+    {
+      "day": "2026-10-27",
+      "matches": 3,
+      "statuses": {
+        "unavailable": 3
+      },
+      "out_of_scope": 37
+    },
+    {
+      "day": "2026-10-28",
+      "matches": 5,
+      "statuses": {
+        "unavailable": 5
+      },
+      "out_of_scope": 54
+    }
+  ],
+  "freshness": {
+    "39": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:24.550526+00:00"
+    },
+    "40": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:29.906626+00:00"
+    },
+    "61": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:28.914610+00:00"
+    },
+    "62": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:33.909422+00:00"
+    },
+    "78": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:26.554714+00:00"
+    },
+    "79": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:31.902188+00:00"
+    },
+    "135": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:27.910776+00:00"
+    },
+    "136": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:32.909112+00:00"
+    },
+    "140": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:25.549820+00:00"
+    },
+    "141": {
+      "complete_until": "2026-10-22",
+      "file": "2026-10-22T14:00:30.900064+00:00"
+    }
+  },
+  "overlay": {
+    "counts": {
+      "dates_reelles": 2,
+      "resultats_superposes": 8
+    },
+    "issues": []
+  },
+  "saved": {
+    "created": 5,
+    "kept": 0,
+    "refused": 0
+  }
+}

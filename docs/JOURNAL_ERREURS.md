@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-062 — Live : une réponse indisponible tracée aurait bloqué la prédiction écrite plus tard (2026-10-22)
+
+- **Contexte** : partie 5, phase B, 5.14, premier live réel. Le 2026-10-22, 51 des 56 matchs du top 5 des 7 jours suivants sont « périmés » : football-data n'a les résultats que jusqu'au 22 octobre (règle de fraîcheur, ADR-0011, règle 5).
+- **Message d'erreur** : aucun ; relevé à la lecture du code avant la première écriture live.
+- **Cause** : `save_prediction` est idempotente par (match, version du modèle, horizon, mode) et renvoie la ligne existante quel que soit son statut. `predict --save --mode live` (phase A) écrivait toutes les réponses, indisponibles comprises. Une ligne « périmée » écrite jeudi pour un match de dimanche aurait été renvoyée telle quelle samedi soir, une fois le match disponible : la vraie prédiction n'aurait jamais été tracée, sauf avec `--force`. La route de l'API n'était pas touchée (409 avant l'écriture).
+- **Solution** : `save_prediction` refuse d'écrire une réponse live non disponible (`LiveAnswerUnavailable`, comptée comme refusée par les commandes) ; la nouvelle commande `live --save` n'envoie que les prédictions disponibles. Le rejeu garde son comportement (une réponse indisponible y est une trace utile et définitive). Aucune ligne live indisponible n'a été écrite : les 5 premières lignes live sont disponibles.
+- **Fichiers concernés** : `src/foot_predictor/inference/store.py`, `src/foot_predictor/inference/__main__.py`.
+- **Prévention** : une écriture idempotente se relit avec la question « que se passe-t-il si l'état change entre deux écritures ? ».
+- **Test de non-régression** : `tests/inference/test_store.py` (réponse live indisponible refusée, puis prédiction disponible écrite), `tests/inference/test_live_report.py` (`live --save` n'envoie que des réponses disponibles).
+
 ## E-061 — Lecture du scellé : la carte du modèle final et le manifeste du jeu scellé se disent « non committés » à tort (2026-10-22)
 
 - **Contexte** : partie 4, phase B, 4.17. `train --final experiments/scelle_h1.yaml --model M3_G0G2 --include-sealed --dataset ds-2026-10-22-94969da0` est lancé le 2026-10-22 à 12:51 UTC, depuis `c6d9454`, arbre propre. Il est vérifié avant (contrôles de début de session) et après : `git status` ne montre que `reports/sealed_tests.md` modifié et la nouvelle carte, non suivie.

@@ -11,7 +11,9 @@
    **avec sa couverture annoncée** P̂(T ∈ [q10 ; q90]) (ADR-0009), variables utilisées et leurs
    valeurs, version du modèle, date des données ;
 5. en rejeu, le score réel (avant le 1er juillet 2025 seulement) ; à titre de comparaison, la
-   probabilité implicite de plus de 2,5 buts du marché avant clôture (`market_reference`, ADR-0036).
+   probabilité implicite de plus de 2,5 buts du marché avant clôture (`market_reference`, ADR-0036) :
+   en rejeu, celle de `staging` ; en live, celle du fichier des prochains matchs de football-data,
+   pour un match à venir seulement (ADR-0042).
 
 **Scellé** : toute date de référence à partir du 1er juillet 2025 est refusée tant que le test
 scellé H1 n'est pas terminé. Ensuite (ADR-0045), le live lit les matchs scellés comme historique ;
@@ -63,6 +65,8 @@ class InferenceContext:
     """Live : fraîcheur de football-data par championnat (`inference/live_sources.py`) ; sinon `freshness`."""
     live_blocked: dict[int, list[str]] = field(default_factory=dict)
     """Live : matchs indisponibles faute d'appariement sûr (nom d'équipe absent des YAML), avec la raison."""
+    live_summary: dict | None = None
+    """Live : version des fichiers de football-data lus, décomptes et lignes inutilisables de la superposition."""
     _rows: RowsCache | None = None
     _models: dict = field(default_factory=dict)
 
@@ -148,9 +152,16 @@ def distribution_summary(total: np.ndarray) -> dict:
     }
 
 
-def _market_reference(match_id: int, match_date: pd.Timestamp, context: InferenceContext) -> dict | None:
-    """Probabilité implicite de plus de 2,5 buts avant clôture (ADR-0036), jamais pour un match scellé."""
-    if context.odds is None or match_date >= pd.Timestamp(SEAL_DATE, tz="UTC"):
+def _market_reference(
+    match_id: int, match_date: pd.Timestamp, context: InferenceContext, mode: str = "replay"
+) -> dict | None:
+    """Probabilité implicite de plus de 2,5 buts avant clôture (ADR-0036), jamais une variable.
+
+    Après le 1er juillet 2025, seulement en live : la cote d'un match **à venir**, tirée du fichier des
+    prochains matchs (ADR-0042). La superposition retire celle d'un match joué, et les cotes de
+    `staging` restent fermées pour tous (ADR-0045) : aucune cote d'un match scellé joué n'est servie.
+    """
+    if context.odds is None or (mode != "live" and match_date >= pd.Timestamp(SEAL_DATE, tz="UTC")):
         return None
     odds = context.odds[(context.odds["match_id"] == match_id) & (context.odds["version"] == "avant_cloture")]
     if odds.empty:
@@ -185,7 +196,7 @@ def predict_match(match: pd.Series, rows: pd.DataFrame, model, context: Inferenc
     match_date = pd.Timestamp(match["match_date"])
     if mode == "replay" and match_date < pd.Timestamp(SEAL_DATE, tz="UTC") and match.get("status") == "played":
         result["actual_score"] = {"home": _int(match["home_goals_90"]), "away": _int(match["away_goals_90"])}
-    result["market_reference"] = _market_reference(int(match["match_id"]), match_date, context)
+    result["market_reference"] = _market_reference(int(match["match_id"]), match_date, context, mode)
     if not availability.is_available:
         return result
     predicted = model.model.predict(rows)

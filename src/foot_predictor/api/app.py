@@ -12,7 +12,8 @@
 
 Usage local seulement : liaison 127.0.0.1, ni authentification ni CORS ; aucune réponse ne contient
 de chemin de fichier, d'URL de base ou de secret. Le contexte d'inférence (table des matchs,
-caches) est gardé en mémoire et reconstruit quand la version des données change.
+caches) est gardé en mémoire et reconstruit quand sa clé change : chargement de `staging`, fichiers
+de football-data du live (un nouveau téléchargement) ou jour UTC (« aujourd'hui » du live).
 """
 
 from __future__ import annotations
@@ -45,27 +46,38 @@ class ApiError(Exception):
 
 
 class ContextProvider:
-    """Contexte d'inférence en cache dans le processus, reconstruit quand `version()` change."""
+    """Contexte d'inférence en cache dans le processus, reconstruit quand la clé `version()` change.
+
+    La clé est comparée à celle du dernier contexte construit, et non à sa version des données : elle
+    peut contenir davantage (le jour du live, par exemple).
+    """
 
     def __init__(self, build: Callable[[], InferenceContext], version: Callable[[], str]) -> None:
         self._build, self._version = build, version
         self._context: InferenceContext | None = None
+        self._key: str | None = None
         self._lock = threading.Lock()
 
     def get(self) -> InferenceContext:
         current = self._version()
         with self._lock:
-            if self._context is None or self._context.data_version != current:
-                self._context = self._build()
+            if self._context is None or self._key != current:
+                self._context, self._key = self._build(), current
             return self._context
 
 
 def default_provider() -> ContextProvider:
     from foot_predictor.db.session import get_engine
-    from foot_predictor.inference.context import build_context, last_load_run
+    from foot_predictor.inference.context import LIVE_RAW_DIR, build_context, last_load_run
+    from foot_predictor.inference.live_sources import files_version
 
     engine = get_engine()
-    return ContextProvider(lambda: build_context(engine), lambda: f"load_run-{last_load_run(engine)[0]}")
+
+    def key() -> str:
+        today = dt.datetime.now(dt.UTC).date()
+        return f"load_run-{last_load_run(engine)[0]}+{files_version(LIVE_RAW_DIR, today)}@{today.isoformat()}"
+
+    return ContextProvider(lambda: build_context(engine), key)
 
 
 def default_sessions() -> AbstractContextManager:
@@ -230,14 +242,35 @@ def create_app(
                 "complete_until": ctx.freshness.complete_until.isoformat(),
             },
             football_data_freshness(),
+            *live_freshness(ctx),
         ]
         return {"data_version": ctx.data_version, "sources": sources}
 
     return app
 
 
+def live_freshness(ctx: InferenceContext) -> list[dict]:
+    """Live (5.14) : une source par championnat du top 5, complète jusqu'à la veille de son premier match
+    sans résultat. Un match du jour J n'est prédit que si son championnat est complet jusqu'à J − 1."""
+    if not ctx.league_freshness:
+        return []
+    names = {}
+    if "competition_name" in ctx.matches.columns:
+        names = ctx.matches.drop_duplicates("api_league_id").set_index("api_league_id")["competition_name"].to_dict()
+    return [
+        {
+            "source": f"football-data (live) : {names.get(league, league)}",
+            "last_update": fresh.last_update.isoformat() if fresh.last_update else None,
+            "complete_until": fresh.complete_until.isoformat(),
+            "note": "un match du jour J est prédit si ce championnat est complet jusqu'à J − 1 (ADR-0011, règle 5)",
+        }
+        for league, fresh in sorted(ctx.league_freshness.items())
+        if league in TOP5
+    ]
+
+
 def football_data_freshness(manifest: Path = FOOTBALL_DATA_MANIFEST) -> dict:
-    """Dernier fichier de football-data stocké (journal de l'ADR-0024) ; le live arrive en 5.10."""
+    """Dernier fichier de football-data stocké (journal des bruts externes, ADR-0024)."""
     last = None
     if manifest.exists():
         lines = [line for line in manifest.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -245,8 +278,8 @@ def football_data_freshness(manifest: Path = FOOTBALL_DATA_MANIFEST) -> dict:
             entry = json.loads(lines[-1])
             last = entry.get("fetched_at") or entry.get("timestamp") or entry.get("date")
     return {
-        "source": "football-data (CSV historiques)",
+        "source": "football-data (dernier fichier stocké)",
         "last_update": last,
         "complete_until": None,
-        "note": "résultats et prochains matchs du live : sous-étape 5.10 (phase B pour les données réelles)",
+        "note": "historique et live : journal des bruts externes (ADR-0024)",
     }

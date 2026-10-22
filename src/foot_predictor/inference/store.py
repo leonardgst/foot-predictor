@@ -6,7 +6,9 @@
   L'identifiant API du match est recopié depuis la réponse (E-058).
 - **Live** : une prédiction n'est écrite qu'**avant le coup d'envoi** (heure connue) ou, sans heure,
   avant le début du jour du match (00:00 UTC) ; sinon, refus explicite. C'est ce qui fait du journal
-  `live` une évaluation prospective honnête (ADR-0011, règle 6).
+  `live` une évaluation prospective honnête (ADR-0011, règle 6). Une réponse live **indisponible**
+  n'est jamais écrite (E-062) : la ligne bloquerait, par idempotence, la prédiction écrite plus tard,
+  une fois l'historique complété.
 - `register_model` inscrit un modèle (carte, chemin) dans `ops.model_registry` ; `activate` en fait
   le modèle actif (un seul à la fois, garanti par un index unique partiel).
 """
@@ -24,8 +26,16 @@ from foot_predictor.db.models import ModelRegistry, Prediction
 from foot_predictor.inference.availability import AVAILABLE
 
 
-class LivePredictionTooLate(RuntimeError):
+class LivePredictionRefused(RuntimeError):
+    """Prédiction live non écrite : trop tard, ou réponse indisponible."""
+
+
+class LivePredictionTooLate(LivePredictionRefused):
     """Prédiction live demandée après le coup d'envoi (ou après le début du jour sans heure connue)."""
+
+
+class LiveAnswerUnavailable(LivePredictionRefused):
+    """Réponse live indisponible : jamais écrite, sinon l'idempotence bloquerait la prédiction devenue disponible."""
 
 
 @dataclass
@@ -75,6 +85,11 @@ def save_prediction(
         raise LivePredictionTooLate(
             f"Match {answer['match_id']} : prédiction live refusée après {live_deadline(answer).isoformat()} "
             "(coup d'envoi, ou début du jour sans heure connue)."
+        )
+    if answer["mode"] == "live" and answer["status"] != AVAILABLE:
+        raise LiveAnswerUnavailable(
+            f"Match {answer['match_id']} : réponse live « {answer['status']} » non écrite ; la prédiction le sera "
+            "quand le match sera disponible (une ligne indisponible la bloquerait, l'écriture étant idempotente)."
         )
     if not force:
         found = existing(session, answer)

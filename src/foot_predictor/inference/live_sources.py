@@ -311,10 +311,24 @@ def league_freshness(
     return freshness
 
 
+def _version_of(names: list[str]) -> str:
+    return "fd-" + hashlib.sha256("|".join(names).encode()).hexdigest()[:10] if names else "fd-aucun"
+
+
 def data_version(fixtures: list[SourceFile], results: dict[str, SourceFile]) -> str:
     """Version des fichiers lus : elle change dès qu'une nouvelle version est téléchargée (clé des caches)."""
-    names = [f.name for f in fixtures] + [results[d].name for d in sorted(results)]
-    return "fd-" + hashlib.sha256("|".join(names).encode()).hexdigest()[:10] if names else "fd-aucun"
+    return _version_of([f.name for f in fixtures] + [results[d].name for d in sorted(results)])
+
+
+def files_version(raw_dir: Path, today: dt.date, divisions=LIVE_DIVISIONS) -> str:
+    """La version qu'aurait `load_overlay(…, today)`, calculée sur les **noms** des fichiers, sans les lire.
+
+    Sert à l'API : un nouveau fichier téléchargé change la version, et le contexte est reconstruit.
+    """
+    names = [p.name for p in raw_bytes.versions(raw_dir, FIXTURES_DIR, FIXTURES_STEM, SUFFIX)]
+    season = season_of(today)
+    latest = {d: raw_bytes.latest(raw_dir, season_dir(season), d, SUFFIX) for d in divisions}
+    return _version_of(names + [latest[d].name for d in sorted(latest) if latest[d] is not None])
 
 
 def with_overlay(context, live: LiveOverlay):
@@ -326,12 +340,22 @@ def with_overlay(context, live: LiveOverlay):
     import dataclasses
 
     odds = live.odds if context.odds is None else pd.concat([context.odds, live.odds], ignore_index=True)
+    summary = {
+        "files_version": live.data_version,
+        "counts": dict(live.counts),
+        "issues": [
+            {"division": i.division, "date": i.date.isoformat() if i.date else None, "home": i.home, "away": i.away,
+             "reason": i.reason}
+            for i in live.issues
+        ],
+    }  # fmt: skip
     return dataclasses.replace(
         context,
         matches=live.matches,
         data_version=f"{context.data_version}+{live.data_version}",
         league_freshness=live.freshness,
         live_blocked=live.blocked,
+        live_summary=summary,
         odds=odds,
         _rows=None,
     )

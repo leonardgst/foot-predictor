@@ -246,6 +246,24 @@ def test_files_are_read_from_the_external_raw_dir_and_versions_change_the_data_v
     assert first.data_version != second.data_version and second.data_version.startswith("fd-")
 
 
+def test_files_version_is_the_overlay_version_without_reading_the_files(frozen, tmp_path):
+    """La clé de l'API (5.14) : même empreinte que la superposition, calculée sur les seuls noms de fichiers."""
+    original, table, played_later = frozen
+    today = dt.date(2024, 1, 15)
+    assert L.files_version(tmp_path, today) == "fd-aucun"
+    lines = "\r\n".join([HEADER, *[result_line(m) for _, m in played_later.iterrows()]]).encode()
+    when = dt.datetime(2024, 1, 10, 8, tzinfo=dt.UTC)
+    for division in ("E1", "E0"):  # ordre d'écriture différent de l'ordre de lecture
+        raw_bytes.write_bytes(tmp_path, f"football_data/csv/season={SEASON}", division, ".csv", lines, when)
+    raw_bytes.write_bytes(tmp_path, FIXTURES_DIR, "fixtures", ".csv", f"{FIXTURES_HEADER}\r\n".encode(), when)
+    first = L.files_version(tmp_path, today)
+    assert first == L.load_overlay(table, tmp_path, maps(original), today).data_version
+    raw_bytes.write_bytes(tmp_path, FIXTURES_DIR, "fixtures", ".csv", f"{FIXTURES_HEADER}\r\n".encode(),
+                          when + dt.timedelta(days=1))  # fmt: skip
+    second = L.files_version(tmp_path, today)
+    assert second != first and second == L.load_overlay(table, tmp_path, maps(original), today).data_version
+
+
 def test_with_overlay_combines_versions_and_empties_the_rows_cache(frozen):
     original, table, played_later = frozen
     live = L.overlay(table, maps(original), SEASON, [], {}, today=dt.date(2024, 1, 15))
@@ -255,6 +273,7 @@ def test_with_overlay_combines_versions_and_empties_the_rows_cache(frozen):
     ctx = L.with_overlay(base, live)
     assert ctx.data_version == f"v-test+{live.data_version}" and ctx._rows is None
     assert ctx.matches is live.matches and ctx.league_freshness == live.freshness
+    assert ctx.live_summary == {"files_version": live.data_version, "counts": live.counts, "issues": []}
 
 
 def test_live_rehearsal_restores_goals_and_elo_after_a_simulated_freeze(tmp_path):

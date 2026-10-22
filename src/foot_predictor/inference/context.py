@@ -10,11 +10,16 @@
   de la table des matchs hors de la porte).
 - **Cotes de référence** : `modeling.models.market` (porte `load_odds`, scellé filtré).
 - **Jeu de données** versionné : pour entraîner à la demande les modèles de rejeu.
+- **Live** (5.14, ADR-0042) : une fois la table ouverte, football-data (dossier des bruts externes,
+  ADR-0024) est superposé **en mémoire** à la saison du jour : résultats depuis le gel, dates réelles,
+  cotes avant clôture des matchs à venir, fraîcheur par championnat. `staging` n'est pas modifiée ; la
+  superposition ne touche que la saison courante, le rejeu (jusqu'en 2024-25) n'en voit rien.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+from pathlib import Path
 
 import pandas as pd
 from sqlalchemy import select, text
@@ -23,6 +28,8 @@ from foot_predictor.inference.availability import Freshness
 from foot_predictor.inference.predict import InferenceContext
 
 DATASET_VERSION = "ds-2026-09-30-ba2b91f7"
+LIVE_RAW_DIR = Path(__file__).resolve().parents[3] / "data" / "raw"
+"""Dossier des bruts externes du live (football-data, ADR-0024) : celui du worktree."""
 
 
 def last_load_run(engine) -> tuple[int | None, dt.datetime | None]:
@@ -50,6 +57,17 @@ def names(engine) -> tuple[dict[int, str], dict[int, str]]:
     return teams, competitions
 
 
+def api_to_internal(engine) -> dict[int, int]:
+    """Identifiant API d'une équipe → identifiant interne dans `staging` (appariement du live)."""
+    from sqlalchemy.orm import Session
+
+    from foot_predictor.db.models import Team
+
+    with Session(engine) as session:
+        pairs = session.execute(select(Team.id, Team.api_team_id)).all()
+    return {api: internal for internal, api in pairs if api is not None}
+
+
 def registry_active_version(engine) -> str | None:
     """Modèle actif désigné par `ops.model_registry` (migration 0008), sinon None (version par défaut)."""
     from sqlalchemy.exc import ProgrammingError
@@ -64,7 +82,9 @@ def registry_active_version(engine) -> str | None:
         return None
 
 
-def build_context(engine=None, with_odds: bool = True, today: dt.date | None = None) -> InferenceContext:
+def build_context(
+    engine=None, with_odds: bool = True, today: dt.date | None = None, raw_dir: Path = LIVE_RAW_DIR
+) -> InferenceContext:
     from foot_predictor.features.sources import load_dataset, load_matches
 
     if engine is None:
@@ -83,7 +103,7 @@ def build_context(engine=None, with_odds: bool = True, today: dt.date | None = N
 
         odds = load_market_probabilities()
     dataset, _ = load_dataset(DATASET_VERSION)
-    return InferenceContext(
+    context = InferenceContext(
         matches=matches,
         data_version=f"load_run-{run_id}",
         freshness=staging_freshness(matches, finished),
@@ -95,3 +115,9 @@ def build_context(engine=None, with_odds: bool = True, today: dt.date | None = N
         active_version=registry_active_version(engine),
         history_opened=opened,
     )
+    if not opened:  # avant le test scellé H1 : pas de saison courante, donc rien à superposer
+        return context
+    from foot_predictor.inference import live_sources
+
+    maps = live_sources.TeamMaps.from_yaml(api_to_internal(engine))
+    return live_sources.with_overlay(context, live_sources.load_overlay(context.matches, raw_dir, maps, context.today))

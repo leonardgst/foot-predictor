@@ -59,4 +59,4 @@ Le mémo de session garde au plus 20 réponses de `/competitions` et `/matches` 
 - Heures affichées en UTC (celles de l'API) : pas de conversion à l'heure de Paris.
 - La courbe d'apport est une figure statique du dépôt (partie 4), lue sur le disque comme une illustration, pas une donnée servie par l'API.
 - `AppTest` ne rend pas le graphique : les tests vérifient les données du diagramme (`views.distribution_frame`), pas son dessin.
-- Le mode live n'affichera des matchs qu'en phase B (après le test scellé et la sous-étape 5.14).
+- Mode live réel depuis 5.14 : vérifié le 2026-10-22 avec `AppTest` branché sur la vraie API (24 matchs du 23 octobre : 5 disponibles, boutons « Prédiction » actifs ; 19 hors périmètre). Les matchs plus lointains sont « périmés » tant que football-data n'a pas les résultats d'avant leur jour.

@@ -7,7 +7,10 @@ développement (porte `features/sources.py`), sauf `rows-scelle` (ci-dessous).
 Contrôle des lignes (décision 2, test (a)) : pour un échantillon de jours des quatre saisons de
 validation et des cas limites (première journée d'une saison et ses promus, Ligue 1 à 18 clubs,
 huis clos), les lignes d'inférence du jour doivent être **identiques au bit près** aux lignes du
-jeu d'entraînement pour les mêmes matchs, toutes colonnes sauf celles d'après-match.
+jeu d'entraînement pour les mêmes matchs, toutes colonnes sauf celles d'après-match. Les lignes se
+rapprochent par (`match_id`, `team_id`), identifiants internes qui changent quand le brut grandit
+(E-058) : le jeu comparé doit venir du **même chargement** de `staging` que la table lue, ce que le
+rapport vérifie.
 
 Contrôle des lignes sur la période scellée (`rows-scelle`, 5.13, ADR-0045), seulement sur demande :
 la même comparaison, sur des jours de 2025-26 et du début de 2026-27, entre l'inférence (table
@@ -31,6 +34,9 @@ from foot_predictor.seal import SEAL_DATE
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REPORTS_DIR = REPO_ROOT / "reports" / "inference"
 DATASET_VERSION = "ds-2026-09-30-ba2b91f7"
+"""Jeu de l'évaluation (expérience d'ablation) : celui que reproduisent les contrôles `replay` et `predictions`."""
+ROWS_DATASET_VERSION = "ds-2026-10-22-bf786ef1"
+"""Jeu du contrôle `rows` : construit sur le chargement n° 7 de `staging`, celui en vigueur (3.11, E-058)."""
 SEALED_DATASET_VERSION = "ds-2026-10-22-94969da0"
 """Jeu construit avec `--sealed-test` (4.16) : celui du test scellé H1 et du modèle final (ADR-0044)."""
 
@@ -108,20 +114,36 @@ def compare_day(matches: pd.DataFrame, dataset: pd.DataFrame, day: dt.date, **pa
     }
 
 
-def run_rows_check(matches: pd.DataFrame | None = None, dataset: pd.DataFrame | None = None) -> dict:
+def run_rows_check(
+    matches: pd.DataFrame | None = None,
+    dataset: pd.DataFrame | None = None,
+    manifest: dict | None = None,
+    staging_load_run: int | None = None,
+) -> dict:
+    """Lignes de l'inférence contre le jeu du chargement en vigueur ; `same_load_run` dit si le rapprochement
+    par identifiants internes a un sens (None : chargement inconnu, données fournies par l'appelant)."""
     from foot_predictor.features.sources import load_dataset, load_matches
 
     if matches is None:
-        matches = load_matches()
+        from foot_predictor.db.session import get_engine
+        from foot_predictor.inference.context import last_load_run
+
+        engine = get_engine()
+        matches = load_matches(engine)
+        staging_load_run = last_load_run(engine)[0]
     if dataset is None:
-        dataset, _ = load_dataset(DATASET_VERSION)
+        dataset, manifest = load_dataset(ROWS_DATASET_VERSION)
+    dataset_load_run = (manifest or {}).get("load_run_id")
+    same = None if dataset_load_run is None or staging_load_run is None else dataset_load_run == staging_load_run
     results = []
     for day, reason in sample_days(dataset):
         result = compare_day(matches, dataset, day)
         result["reason"] = reason
         results.append(result)
     return {
-        "dataset": DATASET_VERSION,
+        "dataset": (manifest or {}).get("version", ROWS_DATASET_VERSION),
+        "load_runs": {"dataset": dataset_load_run, "staging": staging_load_run},
+        "same_load_run": same,
         "days": results,
         "all_identical": all(r["identical"] for r in results),
         "rows_compared": sum(r["rows"] for r in results),
@@ -172,6 +194,17 @@ def render_rows(report: dict) -> str:
         f"**Verdict : {'identiques au bit près' if report['all_identical'] else 'ÉCART'}** sur {len(report['days'])} "
         f"jours et {report['rows_compared']} lignes.",
         "",
+    ]
+    if "load_runs" in report:  # contrôle `rows` : même chargement de `staging` que le jeu (E-058)
+        runs, same = report["load_runs"], report["same_load_run"]
+        verdict = {
+            True: "même chargement",
+            False: "**CHARGEMENTS DIFFÉRENTS** : rapprochement sans objet",
+            None: "inconnu",
+        }
+        lines += [f"Chargement du jeu : n° {runs['dataset']} ; chargement de `staging` lu : n° {runs['staging']} "
+                  f"({verdict[same]}).", ""]  # fmt: skip
+    lines += [
         "| Jour | Raison du choix | Lignes | Identiques | Colonnes en écart | Durée (s) |",
         "|---|---|---|---|---|---|",
     ]

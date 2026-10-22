@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-22 (5.13 terminée : scellé ouvert à l'inférence seulement, rejeu fermé jusqu'au test de H2, modèle final actif)
+**Dernière mise à jour** : 2026-10-22 (E-058 corrigé : identifiant API tracé, contrôle des lignes sur le chargement n° 7 ; reprise à 5.14)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2, 3 et 4 terminées** (tags `v0.3.0`, `v0.4.0` et `v0.5.0` ; `docs/retours/partie-2_2026-10-19.md`, `partie-3_2026-10-22.md`, `partie-4_2026-10-22.md`). La phase B de la partie 5 se fait sur demande.
 
-**Reprise de la partie 5 à la phase B, lot 4, suite de 5.13 : avant 5.14 (E-058)**, `api_fixture_id` passé à `save_prediction` avec un test, puis `inference check --only rows` sur un jeu du `staging` courant ; ensuite 5.14, live réel. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
+**Reprise de la partie 5 à la phase B, lot 4, sous-étape 5.14 : live réel** (football-data superposé en mémoire, commande `live --days`, API et interface en live ; requêtes à football-data avec un plafond écrit dans la PR). Puis 5.15 (bout en bout réel, critères E.1, tag `v0.6.0`) et le retour du lot 4. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -42,6 +42,7 @@
   - porte : `load_matches(opened_for_inference=True)`, refusée avant le test H1, sans ligne de journal, réservée à `inference/` (test d'architecture) ; développement et cotes fermés jusqu'au test de H2 ;
   - live : historique complet ; **rejeu des saisons scellées fermé jusqu'au test de H2** (choix de l'utilisateur) ; modèle final actif dans `ops.model_registry` (`models --activate`) ;
   - réel : 434 lignes de la période scellée identiques au bit près au jeu `94969da0` (8 jours) ; rejeu de 2021-22 à 2024-25 inchangé ; live du 2026-10-24 : top 5 « périmé » jusqu'à 5.14.
+- **Partie 5, phase B, E-058 corrigé** (2026-10-22, PR #85) : `api_fixture_id` porté par la réponse et recopié par `save_prediction` (API et commande) ; `check --only rows` sur `ds-2026-10-22-bf786ef1`, même chargement n° 7 vérifié : 622 lignes identiques au bit près ; 5 prédictions de rejeu réelles tracées avec leur identifiant API (`ops.prediction` : 83 lignes).
 
 ## En cours
 
@@ -52,10 +53,7 @@
 - Rien.
 - Points de vigilance :
   - `lock-status` (avec `--raw-dir C:/foot-predictor/data/raw` depuis le worktree) avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure de 6 à 13 minutes (377 s pour le chargement n° 7, 493 s pour le n° 6, 778 s pour le n° 5) ;
-  - **identifiants internes non stables d'un brut à l'autre** (E-058). Décidé le 2026-10-22 :
-    - passer `api_fixture_id` à `save_prediction` au lot 4 de la partie 5, avant 5.14, avec un test ;
-    - garder telles quelles les 78 lignes de rejeu d'`ops.prediction` ;
-    - pointer `inference check --only rows` sur un jeu du `staging` courant (`ds-2026-10-22-bf786ef1` ou plus récent) avant de le relancer : avec `ba2b91f7`, 1 jour sur 17 aurait un écart de clés ;
+  - **identifiants internes non stables d'un brut à l'autre** (E-058, corrigé par la PR #85) : hors de `staging`, rapprocher par l'identifiant API ; les 78 premières lignes d'`ops.prediction` restent sans identifiant API ; un nouveau `load` sur un brut plus grand demanderait un nouveau jeu pour `check --only rows` ;
   - **fin du gel de `pre-scelle-h1`** avec la fusion de la PR #83 (ADR-0044) : les chemins figés se modifient de nouveau par PR (E-060 et E-061 d'abord). Garde : une PR qui touche `modeling/models/` montre que les prédictions du modèle final H1 sont inchangées ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ; ouvert à `inference/` seulement (ADR-0045), jamais au développement de H2 ;
   - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`) ;
@@ -77,10 +75,7 @@ docker ps ; uv run alembic current        # deux conteneurs « Up » (E-050) ; 0
 git tag -l data-freeze-2026-10 v0.3.0 v0.4.0 v0.5.0     # les quatre tags, sinon s'arrêter
 uv run python -m foot_predictor.inference models     # actif : scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle (5.13)
 uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw lock-status   # libre
-git switch --no-track -c fix/11-api-fixture-id origin/main        # lot 4, avant 5.14 (E-058)
-# api_fixture_id passé à save_prediction, avec un test ;
-# inference check --only rows sur un jeu du staging courant (ds-2026-10-22-bf786ef1 ou plus récent)
-# 5.14 (live réel ; plafond écrit dans la PR) :
+git switch --no-track -c feat/11-live-reel origin/main            # 5.14 (live réel ; plafond écrit dans la PR)
 uv run python -m foot_predictor.collect.football_data.live fixtures --max-requests 1
 uv run python -m foot_predictor.collect.football_data.live season --season 2026 --max-requests 10
 ```

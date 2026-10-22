@@ -152,6 +152,9 @@ def test_creating_a_prediction_is_traced_and_idempotent(ctx, tmp_path, _test_eng
         body = first.json()
         assert body["saved"]["created"] is True and body["prediction"]["interval"]["announced_coverage"] > 0
         assert body["actual_score"] is not None
+        with Session(_test_engine) as session:  # E-058 : la route trace l'identifiant API du match
+            traced = session.get(Prediction, body["saved"]["id"])
+            assert traced.api_fixture_id == int(match["api_fixture_id"])
         again = client.post(url)
         assert again.status_code == 200 and again.json()["saved"]["id"] == body["saved"]["id"]
         forced = client.post(url, params={"force": "true"})

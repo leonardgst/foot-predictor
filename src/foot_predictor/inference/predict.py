@@ -111,8 +111,12 @@ def check_reference_date(day: dt.date, mode: str, context: InferenceContext) -> 
 
 def _match_info(match: pd.Series, context: InferenceContext) -> dict:
     kickoff = pd.Timestamp(match["match_date"])
+    fixture = match.get("api_fixture_id")
     return {
         "match_id": int(match["match_id"]),
+        # Identifiant API, stable d'un chargement à l'autre, contrairement à `match_id` (E-058) ;
+        # vide pour un match « hors API ». Recopié dans `ops.prediction` par `save_prediction`.
+        "api_fixture_id": None if fixture is None or pd.isna(fixture) else int(fixture),
         "date": as_day(match["match_day"]).isoformat(),
         "kickoff_utc": kickoff.isoformat() if match.get("origin") != "hors_api" else None,
         "competition_id": int(match["competition_id"]),

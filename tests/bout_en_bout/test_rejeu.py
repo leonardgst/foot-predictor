@@ -15,6 +15,7 @@ from __future__ import annotations
 import datetime as dt
 
 import numpy as np
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -155,8 +156,11 @@ def test_replay_end_to_end_from_raw_files_to_the_interface(loaded, tmp_path, mon
     # 5. Traçabilité : une ligne de ops.prediction, mode rejeu, loi du total complète.
     with engine.connect() as connection:
         rows = connection.execute(
-            text("SELECT mode, status, model_version, total_distribution FROM ops.prediction WHERE match_id = :m"),
+            text("SELECT mode, status, model_version, total_distribution, api_fixture_id FROM ops.prediction "
+                 "WHERE match_id = :m"),
             {"m": target},
         ).mappings().all()  # fmt: skip
     assert len(rows) == 1 and rows[0]["mode"] == "replay" and rows[0]["status"] == AVAILABLE
     assert abs(sum(rows[0]["total_distribution"].values()) - 1) < 1e-9
+    fixture = table.loc[table["match_id"] == target, "api_fixture_id"].item()  # E-058 : identifiant API recopié
+    assert pd.notna(fixture) and rows[0]["api_fixture_id"] == int(fixture)

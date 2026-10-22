@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-22 (4.16 interrompue : le test scellé a planté à l'écriture du rapport, aucun résultat produit ; E-059, décision ouverte)
+**Dernière mise à jour** : 2026-10-22 (4.16 : E-059 tranché par l'ADR-0043, relance unique du test scellé préparée et répétée sur données synthétiques, pas encore lancée)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2 et 3 terminées** (tags `v0.3.0` et `v0.4.0` ; `docs/retours/partie-2_2026-10-19.md`, `docs/retours/partie-3_2026-10-22.md`). Les phases B des parties 4 et 5 se font sur demande, dans cet ordre.
 
-**Reprise de la partie 4 à la phase B, sous-étape 4.16, après la décision d'E-059** : le premier lancement du test scellé a planté (date du fichier d'expérience non sérialisable), sans aucun résultat produit ni vu. **Ne pas relancer `evaluate --sealed-test` ni `build --sealed-test`** avant la décision de l'utilisateur et sa nouvelle ADR. Ensuite 4.17 (entraînement final, tag `v0.5.0`), puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente.
+**Reprise de la partie 4 à la phase B, sous-étape 4.16, par la relance unique de l'ADR-0043** : le premier lancement du test scellé a planté (date du fichier d'expérience non sérialisable), sans aucun résultat produit ni vu (E-059). **Jamais `evaluate --sealed-test` ni `build --sealed-test` pour H1** : seulement `uv run python -m foot_predictor.sealed_rerun`, une fois, avec l'accord de l'utilisateur. Ensuite 4.17 (entraînement final, tag `v0.5.0`), puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -32,11 +32,15 @@
 
 ## En cours
 
-- **Partie 4, phase B, 4.16** (2026-10-22, branche `data/10-test-scelle-h1`) : jeu scellé `ds-2026-10-22-94969da0` construit (205 216 lignes, dont 9 118 scellées) ; évaluation lancée une fois, **en échec technique** (E-059). Publié tel quel dans `docs/resultats/test_scelle_h1.md`. Aucune tâche planifiée ni collecte automatique.
+- **Partie 4, phase B, 4.16** (2026-10-22) :
+  - PR #80 : jeu scellé `ds-2026-10-22-94969da0` construit (205 216 lignes, dont 9 118 scellées) ; évaluation lancée une fois, **en échec technique** (E-059), publié tel quel dans `docs/resultats/test_scelle_h1.md` ;
+  - PR #81 : **ADR-0043** (relance unique, choisie par l'utilisateur), lanceur `foot_predictor.sealed_rerun` et ses tests. Le vrai `scelle_h1.yaml` y est répété de bout en bout sur des données synthétiques ;
+  - reste : la relance elle-même, après la fusion de la PR #81 et l'accord de l'utilisateur, puis la publication du résultat.
+- Aucune tâche planifiée ni collecte automatique.
 
 ## Bloqué
 
-- **4.16 : E-059**, décision de l'utilisateur attendue (voir « Décisions ouvertes »). Le fichier de prédictions du lancement reste **non ouvert** (sha256 `14b103d3…cdd560e44`).
+- Rien. Le fichier de prédictions du premier lancement reste **non ouvert** jusqu'à la publication du résultat (sha256 `14b103d3…cdd560e44`, ADR-0043).
 - Points de vigilance :
   - `lock-status` (avec `--raw-dir C:/foot-predictor/data/raw` depuis le worktree) avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure de 6 à 13 minutes (377 s pour le chargement n° 7, 493 s pour le n° 6, 778 s pour le n° 5) ;
   - **identifiants internes non stables d'un brut à l'autre** (E-058). Décidé le 2026-10-22 :
@@ -50,26 +54,22 @@
 
 ## Décisions ouvertes
 
-- **E-059, suite du test scellé H1** (à consigner dans une nouvelle ADR, qui dit ce qui a déjà été lancé) :
-  - **(a) relancer une fois l'évaluation, code figé inchangé** : par un lanceur hors des chemins figés, qui appelle les mêmes garde-fous et la même fonction et ne change que l'écriture des dates dans le rapport. Contrôle : le nouveau fichier de prédictions doit avoir le même sha256 que celui du premier lancement, jamais ouvert ; cela prouve que la relance refait le même calcul, sans seconde chance. **Recommandé** ;
-  - (b) corriger `experiments/scelle_h1.yaml` ou l'encodeur : c'est modifier un chemin figé, donc aussi le garde-fou de `evaluate --sealed-test`, ou poser un nouveau tag. Plus lourd, et la liste figée change ;
-  - (c) ne pas relancer : aucun test scellé pour H1. `train --final --include-sealed` (4.17) reste alors refusé par le code, qui exige une évaluation terminée.
 - **Renouvellement automatique de l'abonnement : coupé par l'utilisateur le 2026-10-19** (déclaré, non vérifiable par l'assistant ; fin de l'abonnement le 22 octobre à 07:56 UTC, ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
 
 ## Prochaines actions
 
-**Reprise de la partie 4 à la phase B, sous-étape 4.16** (sur demande ; parties 2 et 3 terminées, tags `v0.3.0` et `v0.4.0`).
-**ATTENTION (E-059)** : le `build --sealed-test` et un premier `evaluate --sealed-test` ont déjà été lancés le 2026-10-22. Les deux commandes du test ci-dessous ne se relancent **pas** telles quelles : la marche à suivre sera celle de l'ADR qui tranchera E-059.
+**Reprise de la partie 4 à la phase B, sous-étape 4.16 : relance unique du test scellé** (ADR-0043 ; après la fusion de la PR #81 et l'accord de l'utilisateur).
+**ATTENTION (E-059)** : `build --sealed-test` et un premier `evaluate --sealed-test` ont déjà été lancés le 2026-10-22. Pour H1, ni l'un ni l'autre ne se relance : seulement le lanceur ci-dessous, une fois.
 ```bash
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
-docker ps                                                          # deux conteneurs « Up » (E-050)
+docker ps                                                          # deux conteneurs « Up » (E-050) : les cotes se lisent en base
 git tag -l data-freeze-2026-10 v0.3.0 v0.4.0 pre-scelle-h1        # les quatre tags doivent exister
-uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw lock-status   # libre
 git diff --stat pre-scelle-h1..HEAD -- src/foot_predictor/modeling src/foot_predictor/features src/foot_predictor/seal.py experiments tests/modeling tests/features   # VIDE, sinon s'arrêter
-git switch --no-track -c data/10-test-scelle-h1 origin/main
-uv run python -m foot_predictor.features build --sealed-test --experiment experiments/scelle_h1.yaml   # 1 ligne au journal
-uv run python -m foot_predictor.modeling evaluate experiments/scelle_h1.yaml --sealed-test --dataset <version de data/datasets_scelles/>
-# UNE seule fois ; résultat tel quel dans docs/resultats/test_scelle_h1.md ; en cas d'erreur technique : ne pas relancer, écrire et s'arrêter
+git switch --no-track -c data/10-relance-test-scelle origin/main
+uv run python -m foot_predictor.sealed_rerun                       # UNE fois ; refuse si une condition de l'ADR-0043 manque
+uv run python -m foot_predictor.modeling summary reports/experiments/<id de la relance>.json --output <fichier temporaire>
+# résultat tel quel dans docs/resultats/test_scelle_h1.md, sha256 égal ou non au premier lancement ;
+# si la relance échoue : ne rien relancer, écrire et s'arrêter (le lanceur refuse de toute façon une seconde fois)
 git switch --no-track -c feat/10-modele-final origin/main   # 4.17, après fusion de 4.16
 uv run python -m foot_predictor.modeling train --final experiments/scelle_h1.yaml --model M3_G0G2 --include-sealed     --dataset <version scellée> --validation-report reports/experiments/<rapport du test scellé>.json
 # ADR de clôture, tag v0.5.0, retour docs/retours/partie-4_<date>.md

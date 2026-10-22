@@ -162,9 +162,10 @@ def cmd_check(args) -> int:
         report = check.run_rows_check()
         report["date"] = today
         _, md_path = check.write_report(report, f"lignes_{today}", check.render_rows(report))
-        print(f"Lignes : {'identiques' if report['all_identical'] else 'ÉCART'} ({report['rows_compared']} lignes) ; "
-              f"{md_path}")  # fmt: skip
-        ok &= report["all_identical"]
+        same = report["same_load_run"] is not False  # E-058 : jeu et staging du même chargement
+        print(f"Lignes : {'identiques' if report['all_identical'] else 'ÉCART'} ({report['rows_compared']} lignes)"
+              f"{'' if same else ', CHARGEMENTS DIFFÉRENTS'} ; {md_path}")  # fmt: skip
+        ok &= report["all_identical"] and same
     if args.only in (None, "replay"):
         report = check.run_replay_check()
         report["date"] = today

@@ -108,6 +108,22 @@ def test_check_compare_day_reports_identity_and_detects_a_difference():
     assert not result["identical"] and result["differing_columns"] == ["elo_pre"]
 
 
+def test_rows_check_requires_the_dataset_of_the_staging_load_it_reads(monkeypatch):
+    """E-058 : rapprochement par identifiants internes, qui changent d'un chargement à l'autre."""
+    from foot_predictor.inference import check
+
+    monkeypatch.setattr(check, "sample_days", lambda dataset: [])  # seul le contrôle de chargement est testé ici
+    matches = synthetic_matches()
+    run = lambda load: check.run_rows_check(matches, reference(matches), {"version": "ds-x", "load_run_id": 7}, load)  # noqa: E731
+    same, other, unknown = run(7), run(6), run(None)
+    assert same["same_load_run"] is True and same["load_runs"] == {"dataset": 7, "staging": 7}
+    assert other["same_load_run"] is False and unknown["same_load_run"] is None
+    assert same["dataset"] == "ds-x"
+    other["date"] = "2026-10-22"
+    assert "CHARGEMENTS DIFFÉRENTS" in check.render_rows(other)
+    assert check.ROWS_DATASET_VERSION == "ds-2026-10-22-bf786ef1"  # chargement n° 7, en vigueur depuis 3.11
+
+
 def sealed_matches() -> pd.DataFrame:
     """Les mêmes matchs, décalés de six ans : 2025-26 et 2026-27, tous sous scellés."""
     matches = synthetic_matches()

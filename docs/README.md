@@ -48,7 +48,7 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Inférence et disponibilité (formules) : chapitre LaTeX | [`latex/mathematiques/chapitres/inference.tex`](latex/mathematiques/chapitres/inference.tex) |
 | Mini-cours des technologies | [`technologies/`](technologies/README.md) |
 | Cartes d'identité des modèles entraînés | [`../reports/model_cards/`](../reports/model_cards/) |
-| Résultats lisibles (références, puis modèles) | [`resultats/`](resultats/) : [`references.md`](resultats/references.md), [`modeles.md`](resultats/modeles.md), [`ablations.md`](resultats/ablations.md), [`tirs_live.md`](resultats/tirs_live.md) (tirs de football-data en live) |
+| Résultats lisibles (références, puis modèles) | [`resultats/`](resultats/) : [`references.md`](resultats/references.md), [`modeles.md`](resultats/modeles.md), [`ablations.md`](resultats/ablations.md), [`tirs_live.md`](resultats/tirs_live.md) (tirs de football-data en live), [`test_scelle_h1.md`](resultats/test_scelle_h1.md) (test scellé du MVP) |
 | Rapports d'expériences (JSON) et index de tous les essais | [`../reports/experiments/INDEX.md`](../reports/experiments/INDEX.md) |
 | Chapitres mathématiques LaTeX (compilation sur Overleaf) | [`latex/mathematiques/`](latex/mathematiques/) |
 | Anciens récaps, RECAP_PROJET, guide d'abonnement | [`archives/`](archives/) (non maintenus) |

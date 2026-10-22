@@ -83,6 +83,20 @@ def test_after_the_opening_a_played_sealed_match_is_never_served(tmp_path):
     assert live.status_code == 200 and live.json()["status"] == "available"  # un match à venir est servi
 
 
+def test_the_context_is_rebuilt_only_when_its_key_changes(ctx):
+    """5.14 : la clé (chargement, fichiers de football-data, jour) est comparée à celle du dernier contexte,
+    pas à sa version des données, qui peut être différente (`load_run-n+fd-…`)."""
+    builds, key = [], {"value": "load_run-7+fd-a@2026-10-22"}
+    provider = ContextProvider(lambda: builds.append(1) or ctx, lambda: key["value"])
+    provider.get(), provider.get()
+    assert len(builds) == 1  # ctx.data_version (« v-test ») diffère de la clé : aucune reconstruction pour autant
+    key["value"] = "load_run-7+fd-b@2026-10-22"  # nouveau fichier téléchargé
+    provider.get()
+    key["value"] = "load_run-7+fd-b@2026-10-23"  # nouveau jour
+    provider.get()
+    assert len(builds) == 3
+
+
 def test_availability_detail_unknown_match_and_h2(client, ctx):
     match = a_match(ctx)
     body = client.get(f"/matches/{int(match['match_id'])}/availability").json()
@@ -125,6 +139,19 @@ def test_active_model_card_has_no_file_path_and_missing_model_is_503(client, mon
 def test_freshness_lists_the_sources(client):
     body = client.get("/data/freshness").json()
     assert body["data_version"] == "v-test" and len(body["sources"]) == 2
+
+
+def test_freshness_lists_each_top5_league_of_the_live(ctx):
+    import dataclasses
+
+    from foot_predictor.inference.availability import Freshness
+
+    fresh = {39: Freshness("football-data (live)", dt.date(2026, 10, 22), dt.datetime(2026, 10, 22, 14, tzinfo=dt.UTC)),
+             40: Freshness("football-data (live)", dt.date(2026, 10, 21), None)}  # fmt: skip
+    live = dataclasses.replace(ctx, league_freshness=fresh)
+    body = TestClient(create_app(ContextProvider(lambda: live, lambda: "v"))).get("/data/freshness").json()
+    leagues = [s for s in body["sources"] if s["source"].startswith("football-data (live)")]
+    assert len(leagues) == 1 and leagues[0]["complete_until"] == "2026-10-22"  # top 5 seulement (40 : D2)
 
 
 def test_openapi_documentation_is_generated(client):

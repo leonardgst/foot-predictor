@@ -198,6 +198,22 @@ def test_after_the_h1_test_live_reads_the_sealed_history_and_replay_stays_closed
         P.predict_day(upcoming["match_day"], "live", closed, match_ids=[upcoming["match_id"]])
 
 
+def test_live_serves_the_pre_closing_market_reference_of_an_upcoming_match(tmp_path):
+    """ADR-0042 : en live, la cote avant clôture du fichier des prochains matchs ; jamais hors du live après le scellé."""
+    matches = shifted_matches(years=6)
+    loaded = LoadedModel("essai", FakeModel(), {"version": "essai"}, None)
+    log = tmp_path / "journal.md"
+    log.write_text(f"| x | y | {H1_SEALED_EXPERIMENT} | {SEALED_DONE}, rapport z |\n", encoding="utf-8")
+    upcoming = day_of(matches, lambda m: m["status"] != "played")
+    odds = pd.DataFrame([{"match_id": int(upcoming["match_id"]), "version": "avant_cloture", "p_over": 0.55,
+                          "odds_column": "Avg"}])  # fmt: skip
+    ctx = context(matches, loaded, sealed_log=log, today=upcoming["match_day"], history_opened=True, odds=odds)
+    (answer,) = P.predict_day(upcoming["match_day"], "live", ctx, match_ids=[upcoming["match_id"]])
+    assert answer["market_reference"] == {"p_over_2_5": 0.55, "odds_column": "Avg", "version": "avant_cloture"}
+    match_date = pd.Timestamp(upcoming["match_date"])
+    assert P._market_reference(int(upcoming["match_id"]), match_date, ctx, "replay") is None
+
+
 def test_live_refuses_past_days_with_a_simulated_today(setup):
     matches, _, loaded = setup
     upcoming = day_of(matches, lambda m: m["status"] != "played")

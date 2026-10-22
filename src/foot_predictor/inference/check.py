@@ -566,12 +566,7 @@ def render_live(report: dict) -> str:
 
 
 def _api_to_internal() -> dict[int, int]:
-    from sqlalchemy import select
-    from sqlalchemy.orm import Session
-
-    from foot_predictor.db.models import Team
     from foot_predictor.db.session import get_engine
+    from foot_predictor.inference.context import api_to_internal
 
-    with Session(get_engine()) as session:
-        pairs = session.execute(select(Team.id, Team.api_team_id)).all()
-    return {api: internal for internal, api in pairs if api is not None}
+    return api_to_internal(get_engine())

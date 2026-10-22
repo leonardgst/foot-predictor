@@ -8,6 +8,12 @@ Pour un match, chaque variable requise par le modèle, pour chaque équipe, reç
 - **périmée** : la source ne contient pas encore tous les matchs antérieurs au jour du match
   (sa dernière mise à jour est trop ancienne), avec la raison et la date de la source.
 
+**Fraîcheur par équipe** (ADR-0046) : une source complète jusqu'au jour C seulement ne périme les
+variables d'historique d'un match A–B du jour J que si A ou B a un match de championnat (des
+échelles, statut quelconque sauf annulé) daté strictement entre C et J. Sinon, l'Elo et les
+glissants des deux équipes ne dépendent que de matchs d'au plus C, tous connus : ils sont
+identiques à ceux de l'historique complet.
+
 Le match reçoit ensuite un statut global :
 
 | Statut | Sens | Prédiction |
@@ -28,7 +34,7 @@ from dataclasses import asdict, dataclass, field
 
 import pandas as pd
 
-from foot_predictor.features.leagues import TOP5
+from foot_predictor.features.leagues import LADDERS, TOP5
 
 PRESENT, MISSING, STALE = "presente", "manquante", "perimee"
 AVAILABLE, UNAVAILABLE, OUT_OF_SCOPE, EXCLUDED, H2_UNAVAILABLE = (
@@ -83,6 +89,22 @@ class Availability:
         }
 
 
+def teams_busy_between(matches: pd.DataFrame, team_ids, after: dt.date, before: dt.date) -> dict[int, list[dt.date]]:
+    """Équipes de `team_ids` qui ont un match des échelles (statut quelconque sauf annulé) daté strictement
+    entre `after` et `before`, avec ses dates (ADR-0046) : leur historique pourrait manquer un résultat."""
+    days = matches["match_day"]
+    window = matches[
+        matches["api_league_id"].isin(list(LADDERS)) & (matches["status"] != "cancelled")
+        & (days > after) & (days < before)
+    ]  # fmt: skip
+    busy = {}
+    for team in team_ids:
+        team_days = window.loc[(window["home_team_id"] == team) | (window["away_team_id"] == team), "match_day"]
+        if len(team_days):
+            busy[int(team)] = sorted(team_days)
+    return busy
+
+
 def missing_reason(variable: str) -> str:
     """Raison lisible d'une variable vide (toutes viennent de `features/`, jamais remplies)."""
     base = variable.removeprefix("opp_")
@@ -108,8 +130,14 @@ def match_availability(
     features: tuple[str, ...],
     freshness: Freshness | None = None,
     horizon: str = "H1",
+    busy: dict[str, list[dt.date]] | None = None,
 ) -> Availability:
-    """Disponibilité d'un match : `match` (une ligne de la table des matchs), `rows` (ses lignes d'inférence)."""
+    """Disponibilité d'un match : `match` (une ligne de la table des matchs), `rows` (ses lignes d'inférence).
+
+    `busy` : fraîcheur par équipe (ADR-0046), équipes du match (nom → dates) qui ont un match entre la date
+    de complétude de la source et le jour du match. `None` : règle par source seule (sans table des matchs) ;
+    `{}` : aucune des deux équipes n'a joué depuis, l'historique du match est complet.
+    """
     match_id = int(match["match_id"])
     if horizon != "H1":
         return Availability(match_id, H2_UNAVAILABLE, ["horizon H2 (avec composition) : pas avant la partie 6"])
@@ -126,7 +154,10 @@ def match_availability(
         return Availability(match_id, UNAVAILABLE, ["lignes du match incalculables (équipe inconnue du référentiel)"])
 
     day = match["match_day"] if isinstance(match["match_day"], dt.date) else pd.Timestamp(match["match_day"]).date()
-    stale = freshness is not None and freshness.is_stale_for(day)
+    stale = freshness is not None and freshness.is_stale_for(day) and (busy is None or bool(busy))
+    teams = "" if not busy else " ; " + ", ".join(
+        f"{name} a un match le {', '.join(d.isoformat() for d in dates)}" for name, dates in busy.items()
+    )  # fmt: skip
     variables, reasons = [], []
     for _, row in rows.sort_values("is_home", ascending=False).iterrows():
         side = "domicile" if row["is_home"] else "exterieur"
@@ -135,7 +166,7 @@ def match_availability(
             if stale and name.startswith(HISTORY_PREFIXES):
                 reason = (
                     f"source {freshness.source} complète jusqu'au {freshness.complete_until.isoformat()} seulement "
-                    f"(il faut tous les matchs d'avant le {day.isoformat()})"
+                    f"(il faut tous les matchs d'avant le {day.isoformat()}){teams}"
                 )
                 variables.append(VariableStatus(name, side, STALE, value, reason, freshness.complete_until.isoformat()))
                 reasons.append(f"variables d'historique périmées : {reason}")  # une seule raison par source

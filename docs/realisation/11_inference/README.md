@@ -4,11 +4,11 @@ Mode d'emploi de l'inférence : variables d'un match quelconque, modèles actif 
 
 ## En bref
 
-- **Même fonction que l'entraînement** : les variables d'un jour J viennent de `features.dataset.build_frame`, appelée sur la table des matchs tronquée au jour J, les matchs cibles à 0-0 sans statistiques ; un jour à la fois ; colonnes d'après-match retirées (`goals_for`, `goals_against`, `shots_source`). Contrôle réel : 622 lignes identiques au bit près au jeu `ds-2026-09-30-ba2b91f7`.
+- **Même fonction que l'entraînement** : les variables d'un jour J viennent de `features.dataset.build_frame`, appelée sur la table des matchs tronquée au jour J, les matchs cibles à 0-0 sans statistiques ; un jour à la fois ; colonnes d'après-match retirées (`goals_for`, `goals_against`, `shots_source`). Contrôle réel : 622 lignes identiques au bit près au jeu du chargement en vigueur (`ds-2026-10-22-bf786ef1`, chargement n° 7).
 - **Modèle de rejeu** de la saison S : le pli S (appris sur 2015-16 à S − 1, procédure de `experiments/scelle_h1.yaml`), mis en cache dans `models/rejeu/<S>/`. Contrôle réel : écart nul avec les prédictions de l'évaluation (7 156 matchs).
 - **Modèle actif** (live) : celui du registre `ops.model_registry`, allégé au chargement (25 Mo → 576 Ko, prédictions identiques). Depuis 5.13 : le modèle final H1, `scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle` (ADR-0044).
 - **Disponibilité** : chaque variable requise est présente, manquante (raison) ou périmée (source en retard) ; une seule non présente ⇒ `unavailable`, aucune prédiction.
-- **Traçabilité** : `ops.prediction` (migration 0008), idempotente ; live écrit avant le coup d'envoi seulement.
+- **Traçabilité** : `ops.prediction` (migration 0008), idempotente ; live écrit avant le coup d'envoi seulement ; identifiant API du match recopié depuis la réponse (E-058), stable quand `match_id` ne l'est pas.
 - **Scellé** (ADR-0045) : le test scellé H1 étant terminé, la table des matchs est **ouverte à l'inférence**, comme historique des variables du live. Le rejeu reste limité à 2021-22 à 2024-25 **jusqu'au test scellé de H2** ; le score réel et la cote d'un match scellé ne sont jamais servis.
 
 ## Commandes
@@ -49,9 +49,13 @@ Codes de sortie de `predict` : 0 (réponses rendues, disponibles ou non), 3 (dat
 
 | Contrôle | Rapport | Résultat du 2026-09-30 |
 |---|---|---|
-| `rows` : lignes d'inférence contre le jeu d'entraînement | `reports/inference/lignes_2026-09-30.md` | 17 jours, 622 lignes identiques au bit près |
+| `rows` : lignes d'inférence contre le jeu d'entraînement | `reports/inference/lignes_2026-09-30.md` | 17 jours, 622 lignes identiques au bit près (jeu `ba2b91f7`) |
 | `replay` : modèles de rejeu contre l'évaluation | `reports/inference/rejeu_2026-09-30.md` | écart nul, 4 saisons, 7 156 matchs |
 | `predictions` : journées de rejeu contre l'évaluation | `reports/inference/predictions_2026-09-30.md` | 8 journées, λ à 9e-16 près, log-loss identique |
+
+**Jeu de chaque contrôle** (E-058) : `rows` rapproche les lignes par (`match_id`, `team_id`), identifiants internes qui changent quand le brut grandit. Il compare donc au jeu du **chargement en vigueur** (`ROWS_DATASET_VERSION` = `ds-2026-10-22-bf786ef1`, chargement n° 7), et le rapport vérifie que jeu et `staging` viennent du même chargement : sinon, « CHARGEMENTS DIFFÉRENTS » et échec. `replay` et `predictions` gardent `ba2b91f7`, le jeu de l'évaluation qu'ils reproduisent (identifiants du top 5 inchangés depuis 2015-16).
+
+**Relance du 2026-10-22** (`reports/inference/lignes_2026-10-22.md`) : 17 jours, 622 lignes identiques au bit près, chargement n° 7 des deux côtés ; le 2020-12-15, en écart de clés avec l'ancien jeu (E-058), est identique.
 
 ## Ouverture du scellé à l'inférence (5.13, ADR-0045)
 

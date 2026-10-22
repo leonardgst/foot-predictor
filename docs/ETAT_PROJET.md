@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-22 (partie 3 terminée : jeu sur le brut définitif identique à `ba2b91f7`, tag `v0.4.0`)
+**Dernière mise à jour** : 2026-10-22 (4.16 interrompue : le test scellé a planté à l'écriture du rapport, aucun résultat produit ; E-059, décision ouverte)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2 et 3 terminées** (tags `v0.3.0` et `v0.4.0` ; `docs/retours/partie-2_2026-10-19.md`, `docs/retours/partie-3_2026-10-22.md`). Les phases B des parties 4 et 5 se font sur demande, dans cet ordre.
 
-**Reprise de la partie 4 à la phase B, sous-étape 4.16** (test scellé H1, **une seule fois**), puis 4.17 (entraînement final, tag `v0.5.0`), puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente ; commandes plus bas.
+**Reprise de la partie 4 à la phase B, sous-étape 4.16, après la décision d'E-059** : le premier lancement du test scellé a planté (date du fichier d'expérience non sérialisable), sans aucun résultat produit ni vu. **Ne pas relancer `evaluate --sealed-test` ni `build --sealed-test`** avant la décision de l'utilisateur et sa nouvelle ADR. Ensuite 4.17 (entraînement final, tag `v0.5.0`), puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -32,11 +32,12 @@
 
 ## En cours
 
-- Rien. Aucune tâche planifiée ni collecte automatique.
+- **Partie 4, phase B, 4.16** (2026-10-22, branche `data/10-test-scelle-h1`) : jeu scellé `ds-2026-10-22-94969da0` construit (205 216 lignes, dont 9 118 scellées) ; évaluation lancée une fois, **en échec technique** (E-059). Publié tel quel dans `docs/resultats/test_scelle_h1.md`. Aucune tâche planifiée ni collecte automatique.
 
 ## Bloqué
 
-- Rien. Points de vigilance :
+- **4.16 : E-059**, décision de l'utilisateur attendue (voir « Décisions ouvertes »). Le fichier de prédictions du lancement reste **non ouvert** (sha256 `14b103d3…cdd560e44`).
+- Points de vigilance :
   - `lock-status` (avec `--raw-dir C:/foot-predictor/data/raw` depuis le worktree) avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure de 6 à 13 minutes (377 s pour le chargement n° 7, 493 s pour le n° 6, 778 s pour le n° 5) ;
   - **identifiants internes non stables d'un brut à l'autre** (E-058). Décidé le 2026-10-22 :
     - passer `api_fixture_id` à `save_prediction` au lot 4 de la partie 5, avant 5.14, avec un test ;
@@ -49,11 +50,16 @@
 
 ## Décisions ouvertes
 
+- **E-059, suite du test scellé H1** (à consigner dans une nouvelle ADR, qui dit ce qui a déjà été lancé) :
+  - **(a) relancer une fois l'évaluation, code figé inchangé** : par un lanceur hors des chemins figés, qui appelle les mêmes garde-fous et la même fonction et ne change que l'écriture des dates dans le rapport. Contrôle : le nouveau fichier de prédictions doit avoir le même sha256 que celui du premier lancement, jamais ouvert ; cela prouve que la relance refait le même calcul, sans seconde chance. **Recommandé** ;
+  - (b) corriger `experiments/scelle_h1.yaml` ou l'encodeur : c'est modifier un chemin figé, donc aussi le garde-fou de `evaluate --sealed-test`, ou poser un nouveau tag. Plus lourd, et la liste figée change ;
+  - (c) ne pas relancer : aucun test scellé pour H1. `train --final --include-sealed` (4.17) reste alors refusé par le code, qui exige une évaluation terminée.
 - **Renouvellement automatique de l'abonnement : coupé par l'utilisateur le 2026-10-19** (déclaré, non vérifiable par l'assistant ; fin de l'abonnement le 22 octobre à 07:56 UTC, ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
 
 ## Prochaines actions
 
-**Reprise de la partie 4 à la phase B, sous-étape 4.16** (sur demande ; parties 2 et 3 terminées, tags `v0.3.0` et `v0.4.0`) :
+**Reprise de la partie 4 à la phase B, sous-étape 4.16** (sur demande ; parties 2 et 3 terminées, tags `v0.3.0` et `v0.4.0`).
+**ATTENTION (E-059)** : le `build --sealed-test` et un premier `evaluate --sealed-test` ont déjà été lancés le 2026-10-22. Les deux commandes du test ci-dessous ne se relancent **pas** telles quelles : la marche à suivre sera celle de l'ADR qui tranchera E-059.
 ```bash
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
 docker ps                                                          # deux conteneurs « Up » (E-050)

@@ -28,6 +28,8 @@ uv run python -m foot_predictor.modeling train --final experiments/scelle_h1.yam
     --include-sealed --dataset <version scellée>                                                        # 4.17, après le test
 ```
 
+**4.16, 2026-10-22** : `build --sealed-test` fait (`ds-2026-10-22-94969da0`) ; premier `evaluate --sealed-test` en **échec technique** à l'écriture du rapport, sans aucun résultat produit (E-059, [`docs/resultats/test_scelle_h1.md`](../../resultats/test_scelle_h1.md)). Ces deux commandes ne se relancent pas telles quelles : la suite attend la décision consignée dans une nouvelle ADR.
+
 ## Ce que fait chaque commande
 
 | Commande | Effet | Garde-fous |

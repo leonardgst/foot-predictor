@@ -7,3 +7,6 @@ Un usage absent de ce journal est une levée du scellé à constater dans une no
 
 | Date (UTC) | Commit | Fichier d'expérience | Résultat |
 |---|---|---|---|
+| 2026-10-22 08:02 | 97248299f605 | experiments/scelle_h1.yaml | accès autorisé, résultat à compléter (17381 match(s) scellé(s) lus) |
+| 2026-10-22 08:03 | 70f976631fbf | experiments/scelle_h1.yaml | accès autorisé, résultat à compléter (9118 match(s) scellé(s) lus) |
+| 2026-10-22 08:03 | 70f976631fbf | experiments/scelle_h1.yaml | accès autorisé, résultat à compléter (8694 match(s) scellé(s) lus) |

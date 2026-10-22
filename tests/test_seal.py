@@ -66,9 +66,12 @@ def test_sealed_test_appends_one_line_to_the_log(tmp_path):
     assert len(rows) == 2  # chaque usage de l'option est journalisé, même sans match scellé
 
 
-def test_the_versioned_log_has_no_usage_yet():
-    """Aucun test scellé pendant le développement : le journal versionné n'a que son en-tête."""
+def test_the_versioned_log_only_lists_the_frozen_sealed_test():
+    """Aucun usage pendant le développement ; depuis la phase B (4.16, après le gel du 2026-10-19),
+    seulement le fichier figé par le tag `pre-scelle-h1`. La version intermédiaire (H2) ajoutera son fichier."""
     from foot_predictor.seal import SEALED_TESTS_LOG
 
     rows = [line for line in SEALED_TESTS_LOG.read_text(encoding="utf-8").splitlines() if line.startswith("| 20")]
-    assert rows == []
+    cells = [[cell.strip() for cell in row.strip().strip("|").split("|")] for row in rows]
+    assert all(date >= "2026-10-19" for date, *_ in cells)
+    assert all(experiment == "experiments/scelle_h1.yaml" for _, _, experiment, _ in cells)

@@ -15,6 +15,20 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-059 — Test scellé H1 : l'évaluation plante à l'écriture du rapport, aucun résultat produit (2026-10-22)
+
+- **Contexte** : partie 4, phase B, sous-étape 4.16, premier et seul lancement de `uv run python -m foot_predictor.modeling evaluate experiments/scelle_h1.yaml --sealed-test --dataset ds-2026-10-22-94969da0`. Lancé le 2026-10-22 à 08:03:17 UTC, depuis `70f9766` (arbre propre), après `features build --sealed-test` (jeu `ds-2026-10-22-94969da0`). Toutes les préconditions étaient remplies (tags, verrou libre, chemins figés inchangés depuis `pre-scelle-h1`).
+- **Message d'erreur** : `TypeError: <class 'datetime.date'>`, levé par `_json_default` (`src/foot_predictor/modeling/experiment.py:289`) pendant `json.dumps(report, …)` (`experiment.py:251`). Code de sortie 1, après 8 s.
+- **Cause** : `experiments/scelle_h1.yaml` contient `test_from: 2025-07-01`. YAML lit cette valeur comme une date (`datetime.date`), et le rapport recopie le fichier d'expérience (`report["spec"]`). L'encodeur du rapport accepte les types de NumPy, pas les dates. La clé n'est lue par aucun code : elle est seulement descriptive. Aucun autre fichier d'expérience n'a de date, et le fichier du test unitaire (`tests/modeling/test_sealed_and_final.py`, `SEALED_SPEC`) non plus. Aucun test ne passait le vrai `scelle_h1.yaml` jusqu'à l'écriture du rapport.
+- **Conséquences constatées** (présence de fichiers seulement, aucun contenu lu) :
+  - le calcul est allé au bout : `data/experiments/scelle-h1-20261022T080319/predictions.parquet` existe (283 936 octets, écrit à 08:03:24 UTC, non ouvert ; sha256 `14b103d3292cef4b3055034b8aea88a368f0b37b99fd77e66c9c1f2cdd560e44`, relevé avant toute décision) ;
+  - **aucun résultat n'a été affiché ni écrit** : pas de rapport dans `reports/experiments/`, `INDEX.md` non régénéré (il compte toujours 9 essais : cet essai en échec n'y figure pas) ;
+  - journal `reports/sealed_tests.md` : 3 lignes en tout, celle du `build` (17 381 matchs scellés lus, historique toutes compétitions) et deux lectures de l'évaluation (jeu : 9 118 lignes scellées ; cotes : 8 694). Il n'y a pas de ligne de résultat : le plantage précède `append_log_line`. Le journal ne contient donc pas « évaluation terminée », et rien dans le code n'empêcherait une relance.
+- **Solution** : **aucune pour l'instant**. Consigne de `ETAT_PROJET.md` : en cas d'erreur technique, ne pas relancer, écrire et s'arrêter. La correction touche des chemins figés (`experiments/`, `modeling/`), et le garde-fou de `evaluate --sealed-test` refuse toute modification depuis `pre-scelle-h1`. Toute suite passe par une décision de l'utilisateur et une nouvelle ADR (ADR-0012, ADR-0039).
+- **Fichiers concernés** : `experiments/scelle_h1.yaml` (clé `test_from`), `src/foot_predictor/modeling/experiment.py` (`_json_default`, `run_experiment`), `tests/modeling/test_sealed_and_final.py`.
+- **Prévention** : un test qui charge chaque `experiments/*.yaml` par `load_spec` et le sérialise par l'encodeur du rapport, à écrire avec la décision (hors chemins figés tant que le test scellé n'est pas fait, ou après lui). Plus généralement, une commande qui ne s'exécute qu'une fois doit avoir été répétée de bout en bout sur son vrai fichier d'entrée, avec des données synthétiques.
+- **Test de non-régression** : à écrire avec la décision.
+
 ## E-058 — Les identifiants internes changent quand le brut grandit ; `ops.prediction` sans identifiant API (2026-10-19)
 
 - **Contexte** : partie 2, phase B, sous-étape 2.10 : `load` n° 6 sur le brut définitif. Avant et après, photo de la correspondance entre identifiant interne et identifiant API (lecture seule ; matchs d'avant le 1er juillet 2025 seulement).

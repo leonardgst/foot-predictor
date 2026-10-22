@@ -1,6 +1,7 @@
 """Inférence en ligne de commande (partie 5, ADR-0040).
 
     python -m foot_predictor.inference predict --date 2024-05-19 --mode replay [--competition <id>] [--match <id>] [--json]
+    python -m foot_predictor.inference live [--days 7] [--save] [--json]
     python -m foot_predictor.inference models [--register] [--activate <version>]
     python -m foot_predictor.inference check [--only rows|replay|predictions|live|rows-scelle]
 
@@ -8,7 +9,9 @@
 2024-25, jusqu'au test scellé de H2) ou en live ; les dates à partir du 1er juillet 2025 sont
 refusées tant que le test scellé H1 n'est pas fait (ADR-0045). `models` : modèle actif et modèles
 de rejeu en cache, avec leur carte ; `--activate` inscrit un modèle de `models/` et en fait le
-modèle actif. `check` : contrôles sur données réelles, rapports dans `reports/inference/` ;
+modèle actif. `live` (5.14) : prochains jours en live, football-data superposé, rapport de
+disponibilité dans `reports/inference/live_<date>.md`, et avec `--save` les réponses du top 5 dans
+`ops.prediction` (avant le coup d'envoi). `check` : contrôles sur données réelles, rapports dans `reports/inference/` ;
 `rows-scelle` (seulement sur demande, lecture du jeu scellé journalisée) compare les lignes de
 l'inférence au jeu scellé sur la période scellée.
 """
@@ -32,6 +35,10 @@ def build_parser() -> argparse.ArgumentParser:
     predict.add_argument("--json", action="store_true", help="sortie JSON complète")
     predict.add_argument("--save", action="store_true", help="écrit les réponses dans ops.prediction (idempotent)")
     predict.add_argument("--force", action="store_true", help="avec --save : nouvelle ligne même si elle existe déjà")
+    live = sub.add_parser("live", help="live des prochains jours : disponibilité, rapport, traçage (5.14)")
+    live.add_argument("--days", type=int, default=7, help="nombre de jours à partir d'aujourd'hui (UTC)")
+    live.add_argument("--save", action="store_true", help="écrit les prédictions disponibles du top 5 (mode live)")
+    live.add_argument("--json", action="store_true", help="réponses complètes du top 5")
     models = sub.add_parser("models", help="modèle actif et modèles de rejeu en cache")
     models.add_argument(
         "--register", action="store_true",
@@ -64,6 +71,65 @@ def _line(result: dict) -> str:
     )
 
 
+def save_answers(results: list[dict], reference: dt.date, force: bool = False) -> dict[str, int]:
+    """Écrit des réponses dans `ops.prediction` (idempotent) ; une prédiction live tardive est refusée et comptée."""
+    from sqlalchemy.orm import Session
+
+    from foot_predictor.db.session import get_engine
+    from foot_predictor.inference.store import LivePredictionRefused, save_prediction
+
+    counts = {"created": 0, "kept": 0, "refused": 0}
+    with Session(get_engine()) as session:
+        for result in results:
+            try:
+                saved = save_prediction(session, result, reference, force=force)
+            except LivePredictionRefused as error:  # trop tard, ou réponse live indisponible
+                counts["refused"] += 1
+                print(str(error), file=sys.stderr)
+                continue
+            counts["created" if saved.created else "kept"] += 1
+        session.commit()
+    return counts
+
+
+def cmd_live(args) -> int:
+    """Prochains jours en live : réponses des matchs du top 5, rapport de disponibilité, traçage facultatif."""
+    from foot_predictor.inference import live_report
+    from foot_predictor.inference.availability import AVAILABLE, OUT_OF_SCOPE
+    from foot_predictor.inference.check import write_report
+    from foot_predictor.inference.context import build_context
+    from foot_predictor.inference.predict import predict_day
+
+    context = build_context()
+    if not context.history_opened:
+        print("Live fermé : le test scellé H1 n'est pas terminé (ADR-0045).", file=sys.stderr)
+        return 3
+    days = [context.today + dt.timedelta(days=offset) for offset in range(args.days)]
+    answers = {day: predict_day(day, "live", context) for day in days}
+    report = live_report.summarize(answers, context)
+    in_scope = [a for day in days for a in answers[day] if a["status"] != OUT_OF_SCOPE]
+    if args.save:  # prédictions disponibles du top 5 : la preuve prospective (ADR-0011, règle 6)
+        # Jamais une réponse indisponible : l'écriture est idempotente par match, et cette ligne empêcherait
+        # d'écrire plus tard la prédiction devenue disponible (historique complété).
+        report["saved"] = save_answers([a for a in in_scope if a["status"] == AVAILABLE], context.today)
+    _, md_path = write_report(report, f"live_{context.today.isoformat()}", live_report.render(report))
+    if args.json:
+        print(json.dumps(in_scope, indent=2, ensure_ascii=False))
+    else:
+        for answer in in_scope:
+            print(_line(answer))
+    share = report["unavailable_share"]
+    print(f"{report['matches']} match(s) du top 5 sur {args.days} jour(s), {report['available']} disponible(s)"
+          f"{'' if share is None else f' ; {share:.0%} indisponibles'}"
+          f"{' (au-delà du critère : un sur cinq)' if report['over_limit'] else ''} ; {md_path}")  # fmt: skip
+    if "saved" in report:
+        s = report["saved"]
+        print(
+            f"ops.prediction (live) : {s['created']} écrite(s), {s['kept']} déjà présente(s), {s['refused']} refusée(s)"
+        )
+    return 0
+
+
 def cmd_predict(args) -> int:
     from foot_predictor.inference.context import build_context
     from foot_predictor.inference.predict import ReferenceDateRefused, predict_day
@@ -75,25 +141,10 @@ def cmd_predict(args) -> int:
         print(str(error), file=sys.stderr)
         return 3
     if args.save:
-        from sqlalchemy.orm import Session
-
-        from foot_predictor.db.session import get_engine
-        from foot_predictor.inference.store import LivePredictionTooLate, save_prediction
-
         reference = args.date if args.mode == "replay" else context.today
-        created = kept = refused = 0
-        with Session(get_engine()) as session:
-            for result in results:
-                try:
-                    saved = save_prediction(session, result, reference, force=args.force)
-                except LivePredictionTooLate as error:
-                    refused += 1
-                    print(str(error), file=sys.stderr)
-                    continue
-                created += saved.created
-                kept += not saved.created
-            session.commit()
-        print(f"ops.prediction : {created} écrite(s), {kept} déjà présente(s), {refused} refusée(s)")
+        saved = save_answers(results, reference, force=args.force)
+        print(f"ops.prediction : {saved['created']} écrite(s), {saved['kept']} déjà présente(s), "
+              f"{saved['refused']} refusée(s)")  # fmt: skip
     if args.json:
         print(json.dumps(results, indent=2, ensure_ascii=False))
     else:
@@ -202,6 +253,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "predict":
         return cmd_predict(args)
+    if args.command == "live":
+        return cmd_live(args)
     if args.command == "models":
         return cmd_models(args.register, args.activate)
     return cmd_check(args)

@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from foot_predictor.db.models import ModelRegistry, Prediction
 from foot_predictor.inference.store import (
+    LiveAnswerUnavailable,
     LivePredictionTooLate,
     active_version,
     live_deadline,
@@ -61,6 +62,17 @@ def test_the_api_fixture_id_of_the_answer_is_copied(db_session):
     assert saved.prediction.api_fixture_id == 1_234_567
     outside = save_prediction(db_session, answer(match_id=900_004) | {"api_fixture_id": None}, dt.date(2026, 10, 24))
     assert outside.prediction.api_fixture_id is None  # match « hors API »
+
+
+def test_an_unavailable_live_answer_is_never_written_and_never_blocks_the_later_prediction(db_session):
+    """E-062 : jeudi, le match de dimanche est « périmé » ; samedi soir, il est disponible et doit être tracé."""
+    early = dt.datetime(2026, 10, 22, 14, tzinfo=dt.UTC)
+    stale = answer("live", status="unavailable", match_id=900_005)
+    with pytest.raises(LiveAnswerUnavailable, match="non écrite"):
+        save_prediction(db_session, stale, dt.date(2026, 10, 22), now=early)
+    assert count(db_session, match_id=900_005) == 0
+    later = save_prediction(db_session, answer("live", match_id=900_005), dt.date(2026, 10, 24), now=early)
+    assert later.created and later.prediction.status == "available"
 
 
 def test_replay_and_live_are_separate(db_session):

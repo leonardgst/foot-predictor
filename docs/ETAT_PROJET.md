@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-22 (4.16 : E-059 tranché par l'ADR-0043, relance unique du test scellé préparée et répétée sur données synthétiques, pas encore lancée)
+**Dernière mise à jour** : 2026-10-22 (4.16 terminée : relance unique du test scellé faite, le modèle retenu bat B1 sur les matchs scellés ; résultat publié tel quel)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2 et 3 terminées** (tags `v0.3.0` et `v0.4.0` ; `docs/retours/partie-2_2026-10-19.md`, `docs/retours/partie-3_2026-10-22.md`). Les phases B des parties 4 et 5 se font sur demande, dans cet ordre.
 
-**Reprise de la partie 4 à la phase B, sous-étape 4.16, par la relance unique de l'ADR-0043** : le premier lancement du test scellé a planté (date du fichier d'expérience non sérialisable), sans aucun résultat produit ni vu (E-059). **Jamais `evaluate --sealed-test` ni `build --sealed-test` pour H1** : seulement `uv run python -m foot_predictor.sealed_rerun`, une fois, avec l'accord de l'utilisateur. Ensuite 4.17 (entraînement final, tag `v0.5.0`), puis la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), chacune seulement après la précédente.
+**Reprise de la partie 4 à la phase B, sous-étape 4.17 : entraînement final avec les matchs scellés** (ADR-0039), ADR de clôture, tag `v0.5.0`, retour de la partie 4. Le test scellé H1 est **terminé** (4.16, `docs/resultats/test_scelle_h1.md`) : aucun autre ne se lance, et aucun modèle H1 ne se modifie. Ensuite la partie 5 à la phase B (lot 4, 5.13 : ouverture du scellé), seulement après `v0.5.0`.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -29,25 +29,26 @@
   - `build` sur le chargement n° 7 : **`ds-2026-10-22-bf786ef1`**, 196 098 lignes ; `check --invariance` OK aux deux dates de coupe ;
   - comparée par identifiants API à `ba2b91f7` : **196 098 lignes sur 196 098, même ordre, 0 écart** sur les 65 colonnes ; seuls `match_id` (« hors_api ») et `team_id` diffèrent, jamais dans le top 5 depuis 2015-16 ; jalon J4 tenu, **tag `v0.4.0`** sur la fusion de la PR #79 ;
   - point 0 : `C:/foot-predictor` remis sur `main` ; `C:/fp_restauration/` absent ; décisions d'E-058 (voir « Points de vigilance »).
+- **Partie 4, phase B, 4.16 : test scellé H1** (2026-10-22, PR #80 à #82, `docs/resultats/test_scelle_h1.md`) :
+  - jeu scellé `ds-2026-10-22-94969da0` (205 216 lignes, dont 9 118 scellées) ; premier `evaluate --sealed-test` en **échec technique**, sans résultat (E-059) ;
+  - **ADR-0043**, relance unique par `foot_predictor.sealed_rerun` (PR #81), faite à 12:05 UTC : rapport `scelle-h1-20261022T120542`, sha256 des prédictions identique au premier lancement ;
+  - **le modèle retenu bat B1 sur les matchs scellés** : +0,0189 [+0,0102 ; +0,0282] de log-loss du total, sur 2 092 matchs (validation glissante : +0,0179) ; couverture de [q10 ; q90] à 0,2 point de l'annoncée ; pente de calibration 1,00. Le marché avant clôture reste meilleur sur plus/moins 2,5 ;
+  - **E-060** : la ligne « règle de décision » des tableaux (« ne remplace pas B1 ») n'a pas de sens sur un pli unique. Elle est publiée telle quelle et expliquée, puis à corriger pour H2.
 
 ## En cours
 
-- **Partie 4, phase B, 4.16** (2026-10-22) :
-  - PR #80 : jeu scellé `ds-2026-10-22-94969da0` construit (205 216 lignes, dont 9 118 scellées) ; évaluation lancée une fois, **en échec technique** (E-059), publié tel quel dans `docs/resultats/test_scelle_h1.md` ;
-  - PR #81 : **ADR-0043** (relance unique, choisie par l'utilisateur), lanceur `foot_predictor.sealed_rerun` et ses tests. Le vrai `scelle_h1.yaml` y est répété de bout en bout sur des données synthétiques ;
-  - reste : la relance elle-même, après la fusion de la PR #81 et l'accord de l'utilisateur, puis la publication du résultat.
-- Aucune tâche planifiée ni collecte automatique.
+- Rien. Aucune tâche planifiée ni collecte automatique.
 
 ## Bloqué
 
-- Rien. Le fichier de prédictions du premier lancement reste **non ouvert** jusqu'à la publication du résultat (sha256 `14b103d3…cdd560e44`, ADR-0043).
+- Rien. Le test scellé H1 est terminé : `train --final --include-sealed` est permis.
 - Points de vigilance :
   - `lock-status` (avec `--raw-dir C:/foot-predictor/data/raw` depuis le worktree) avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure de 6 à 13 minutes (377 s pour le chargement n° 7, 493 s pour le n° 6, 778 s pour le n° 5) ;
   - **identifiants internes non stables d'un brut à l'autre** (E-058). Décidé le 2026-10-22 :
     - passer `api_fixture_id` à `save_prediction` au lot 4 de la partie 5, avant 5.14, avec un test ;
     - garder telles quelles les 78 lignes de rejeu d'`ops.prediction` ;
     - pointer `inference check --only rows` sur un jeu du `staging` courant (`ds-2026-10-22-bf786ef1` ou plus récent) avant de le relancer : avec `ba2b91f7`, 1 jour sur 17 aurait un écart de clés ;
-  - **chemins figés par `pre-scelle-h1`** (`modeling/`, `features/`, `seal.py`, `experiments/`, `tests/modeling`, `tests/features`) jusqu'à la fin du test scellé : on les importe, on ne les modifie pas ;
+  - **chemins figés par `pre-scelle-h1`** (`modeling/`, `features/`, `seal.py`, `experiments/`, `tests/modeling`, `tests/features`) jusqu'à la fin de 4.17 (ADR-0043) : on les importe, on ne les modifie pas. La correction d'E-060 vient après ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ;
   - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`) ;
   - Docker Desktop doit tourner (bases arrêtées sinon, E-050) : `docker ps` en début de session.
@@ -58,21 +59,18 @@
 
 ## Prochaines actions
 
-**Reprise de la partie 4 à la phase B, sous-étape 4.16 : relance unique du test scellé** (ADR-0043 ; après la fusion de la PR #81 et l'accord de l'utilisateur).
-**ATTENTION (E-059)** : `build --sealed-test` et un premier `evaluate --sealed-test` ont déjà été lancés le 2026-10-22. Pour H1, ni l'un ni l'autre ne se relance : seulement le lanceur ci-dessous, une fois.
+**Reprise de la partie 4 à la phase B, sous-étape 4.17 : entraînement final avec les matchs scellés** (ADR-0039, sur demande).
+**Test scellé H1 terminé** : jamais `evaluate --sealed-test`, `build --sealed-test` ni `sealed_rerun` (tous refusent de toute façon).
 ```bash
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
-docker ps                                                          # deux conteneurs « Up » (E-050) : les cotes se lisent en base
+docker ps                                                          # deux conteneurs « Up » (E-050)
 git tag -l data-freeze-2026-10 v0.3.0 v0.4.0 pre-scelle-h1        # les quatre tags doivent exister
+grep "évaluation terminée" reports/sealed_tests.md                 # une ligne : scelle-h1-20261022T120542
 git diff --stat pre-scelle-h1..HEAD -- src/foot_predictor/modeling src/foot_predictor/features src/foot_predictor/seal.py experiments tests/modeling tests/features   # VIDE, sinon s'arrêter
-git switch --no-track -c data/10-relance-test-scelle origin/main
-uv run python -m foot_predictor.sealed_rerun                       # UNE fois ; refuse si une condition de l'ADR-0043 manque
-uv run python -m foot_predictor.modeling summary reports/experiments/<id de la relance>.json --output <fichier temporaire>
-# résultat tel quel dans docs/resultats/test_scelle_h1.md, sha256 égal ou non au premier lancement ;
-# si la relance échoue : ne rien relancer, écrire et s'arrêter (le lanceur refuse de toute façon une seconde fois)
-git switch --no-track -c feat/10-modele-final origin/main   # 4.17, après fusion de 4.16
-uv run python -m foot_predictor.modeling train --final experiments/scelle_h1.yaml --model M3_G0G2 --include-sealed     --dataset <version scellée> --validation-report reports/experiments/<rapport du test scellé>.json
-# ADR de clôture, tag v0.5.0, retour docs/retours/partie-4_<date>.md
+git switch --no-track -c feat/10-modele-final origin/main
+uv run python -m foot_predictor.modeling train --final experiments/scelle_h1.yaml --model M3_G0G2 --include-sealed \
+    --dataset ds-2026-10-22-94969da0 --validation-report reports/experiments/scelle-h1-20261022T120542.json
+# carte dans reports/model_cards/ ; ADR de clôture de la partie 4 ; tag v0.5.0 ; retour docs/retours/partie-4_<date>.md
 ```
 
 **Reprise de la partie 5 à la phase B** (lots 4 et 5, sur demande, après `v0.5.0`) :

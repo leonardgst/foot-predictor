@@ -42,6 +42,8 @@ uv run python -m foot_predictor.modeling summary reports/experiments/<id de la r
 | le journal n'a pas exactement les 3 lignes du premier lancement | une seule relance, même en cas de nouvel échec |
 | les prédictions du premier lancement manquent ou ont changé | elles servent au contrôle par sha256 |
 
+**Relance faite le 2026-10-22 à 12:05 UTC** (commit `7d4f453`) : rapport `scelle-h1-20261022T120542`, statut `ok`, sha256 des prédictions identique à celui du premier lancement. **Le modèle retenu bat B1 sur les matchs scellés** : +0,0189 [+0,0102 ; +0,0282] de log-loss du total, sur 2 092 matchs. Résultat complet, lecture et limites (dont E-060, ligne « règle de décision » non applicable à un pli unique) : [`docs/resultats/test_scelle_h1.md`](../../resultats/test_scelle_h1.md). Le journal contient « évaluation terminée » : aucun autre test scellé H1 n'est possible, et `train --final --include-sealed` (4.17) est désormais permis.
+
 ## Ce que fait chaque commande
 
 | Commande | Effet | Garde-fous |

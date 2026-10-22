@@ -48,6 +48,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0040](ADR-0040-inference-api-interface.md) | Inférence, API et interface : même fonction que l'entraînement, modèle de rejeu par pli, disponibilité, traçabilité, API locale, interface par l'API seulement | acceptée | 2026-09-30 | F.5 à F.8, M10, M21 |
 | [0041](ADR-0041-tirs-football-data-en-live.md) | Tirs de football-data en live : écart de prédiction non significatif, pas de recalibration ; règle de lecture (IC poolé, Holm par championnat) | acceptée | 2026-10-01 | critère de révision de 0035 |
 | [0042](ADR-0042-live-football-data.md) | Live : football-data superposé en mémoire au calendrier API figé ; appariement sans la date (saison régulière), fraîcheur par championnat, conditions citées | acceptée | 2026-10-04 | C.3, G.11 ; ADR-0011 r. 3 et 5 |
+| [0043](ADR-0043-relance-test-scelle-h1.md) | Test scellé H1 : relance unique après l'échec technique du premier lancement (E-059), code figé inchangé, contrôle par sha256 des prédictions | acceptée | 2026-10-22 | ADR-0012 r. 5, ADR-0039 |
 
 **Décisions encore ouvertes** :
 

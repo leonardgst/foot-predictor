@@ -26,6 +26,7 @@ import json
 import time
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from foot_predictor.inference.rows import POST_MATCH_COLUMNS, rows_for_day
@@ -416,6 +417,11 @@ def render_predictions(report: dict) -> str:
 
 LIVE_FREEZE = dt.date(2024, 2, 15)
 LIVE_TODAY = dt.date(2024, 3, 9)
+FOLLOWING_DAYS = 7
+"""Jours suivants de la répétition (ADR-0046) : matchs prédits avec la fraîcheur par équipe, avant leurs résultats."""
+LAMBDA_TOLERANCE = 0.005
+OVER_TOLERANCE = 0.002
+"""Tolérance de l'ADR-0046, fixée avant la vérification : écart absolu de λ et de P(T > 2,5) dû à la règle par équipe."""
 STAT_COLUMNS = (
     "home_shots_api", "home_sot_api", "home_xg_api", "away_shots_api", "away_sot_api", "away_xg_api",
     "home_shots_fd", "home_sot_fd", "away_shots_fd", "away_sot_fd",
@@ -462,6 +468,7 @@ def run_live_rehearsal(
     maps=None,
     freeze: dt.date = LIVE_FREEZE,
     today: dt.date = LIVE_TODAY,
+    model=None,
 ) -> dict:
     """Répétition du live sur la période de développement (sous-étape 5.10, ADR-0042).
 
@@ -470,7 +477,15 @@ def run_live_rehearsal(
     superposés à la table gelée. Les lignes des matchs de `today` sont comparées à celles de la vraie
     table : buts et Elo doivent être identiques (même fonction, mêmes résultats) ; seules les variables
     de tirs peuvent différer (tirs de football-data au lieu de ceux de l'API, ADR-0041).
+
+    Jours suivants (`FOLLOWING_DAYS`, ADR-0046) : pour les matchs du top 5 que la fraîcheur par équipe
+    déclare disponibles sans les résultats d'après `today`, comparaison avec la même superposition
+    complétée de ces résultats (mêmes fichiers, donc mêmes tirs) : l'Elo doit être identique ; l'écart
+    des variables G2 (a priori μ du championnat) est mesuré, et avec `model`, celui de λ et de
+    P(T > 2,5), comparé à la tolérance de l'ADR-0046. On compte aussi les matchs que la fraîcheur par
+    championnat aurait déclarés disponibles.
     """
+    from foot_predictor.features.leagues import TOP5
     from foot_predictor.features.sources import load_matches
     from foot_predictor.inference import live_sources as L
     from foot_predictor.inference.availability import match_availability
@@ -481,11 +496,19 @@ def run_live_rehearsal(
     if maps is None:
         maps = L.TeamMaps.from_yaml(_api_to_internal())
     season = L.season_of(today)
-    fetched = dt.datetime.combine(today, dt.time(8), tzinfo=dt.UTC)
-    results = {}
-    for division, source in L.season_files(raw_dir, season).items():
-        rows = [r for r in source.rows if (L.parse_date(r.get("Date") or "") or today) < today]
-        results[division] = L.SourceFile(rows, fetched, source.name)
+    files = L.season_files(raw_dir, season)
+
+    def cut_results(sources: dict, cut: dt.date) -> dict:
+        """Les CSV de la saison coupés aux matchs d'avant `cut`, comme un fichier téléchargé ce matin-là."""
+        fetched = dt.datetime.combine(cut, dt.time(8), tzinfo=dt.UTC)
+        return {
+            division: L.SourceFile(
+                [r for r in source.rows if (L.parse_date(r.get("Date") or "") or cut) < cut], fetched, source.name
+            )
+            for division, source in sources.items()
+        }
+
+    results = cut_results(files, today)
     frozen = freeze_table(matches, freeze, season)
     started = time.perf_counter()
     live = L.overlay(frozen, maps, season, [], results, today)
@@ -514,6 +537,15 @@ def run_live_rehearsal(
         status = match_availability(match, rows, features, live.freshness.get(int(match["api_league_id"]))).status
         statuses[status] = statuses.get(status, 0) + 1
     history = ("goals_", "opp_goals_", "elo", "opp_elo")
+    following = []
+    for offset in range(1, FOLLOWING_DAYS + 1):
+        day = today + dt.timedelta(days=offset)
+        on_day = live.matches[(live.matches["match_day"] == day) & live.matches["api_league_id"].isin(list(TOP5))]
+        on_day = on_day[on_day["is_regular_season"].fillna(True).astype(bool)]
+        if not on_day.empty:
+            # Mêmes fichiers, résultats jusqu'à la veille du jour : seul l'effet de la règle par équipe reste.
+            complete = L.overlay(frozen, maps, season, [], cut_results(files, day), day)
+            following.append(_following_day(day, on_day, live, complete, features, model))
     return {
         "freeze": freeze.isoformat(),
         "today": today.isoformat(),
@@ -532,7 +564,60 @@ def run_live_rehearsal(
         "goals_and_elo_identical": columns is not None and not any(c.startswith(history) for c in differing),
         "statuses": statuses,
         "overlay_seconds": round(overlay_seconds, 2),
+        "following": following,
+        "following_ok": all(_following_ok(d) for d in following),
+        "tolerances": {"lambda": LAMBDA_TOLERANCE, "p_over_2_5": OVER_TOLERANCE},
     }
+
+
+def _following_ok(day: dict) -> bool:
+    """Jour suivant conforme à l'ADR-0046 : Elo identique, λ et P(T > 2,5) dans la tolérance (s'ils sont mesurés)."""
+    lam, over = day["max_lambda_gap"], day["max_over_gap"]
+    return (
+        day["elo_identical"] == day["team_rule"]
+        and (lam is None or lam <= LAMBDA_TOLERANCE)
+        and (over is None or over <= OVER_TOLERANCE)
+    )
+
+
+def _gap(a: pd.DataFrame, b: pd.DataFrame) -> float:
+    """Écart absolu maximal entre deux blocs de valeurs ; une valeur vide d'un seul côté compte comme infinie."""
+    x, y = a.astype(float).to_numpy(), b.astype(float).to_numpy()
+    gap = np.where(np.isnan(x) & np.isnan(y), 0.0, np.abs(x - y))
+    return float(np.nan_to_num(gap, nan=np.inf).max()) if gap.size else 0.0
+
+
+def _following_day(day, on_day, live, complete, features, model) -> dict:
+    """Un jour suivant de la répétition : règle par championnat, règle par équipe, écart à l'historique complété."""
+    from foot_predictor.inference.availability import AVAILABLE, match_availability, teams_busy_between
+
+    seen, full = rows_for_day(live.matches, day), rows_for_day(complete.matches, day)
+    elo = [c for c in features if c.startswith(("elo", "opp_elo"))]
+    g2 = [c for c in features if c.startswith(("goals_", "opp_goals_", "xgp_", "opp_xgp_"))]
+    counts = {
+        "day": day.isoformat(), "matches": 0, "league_rule": 0, "team_rule": 0, "elo_identical": 0,
+        "max_g2_gap": 0.0, "max_lambda_gap": None, "max_over_gap": None,
+    }  # fmt: skip
+    for _, match in on_day.iterrows():
+        fresh = live.freshness.get(int(match["api_league_id"]))
+        rows = seen[seen["match_id"] == match["match_id"]].sort_values("team_id").reset_index(drop=True)
+        counts["matches"] += 1
+        counts["league_rule"] += match_availability(match, rows, features, fresh).status == AVAILABLE
+        teams = (match["home_team_id"], match["away_team_id"])
+        busy = {str(k): v for k, v in teams_busy_between(live.matches, teams, fresh.complete_until, day).items()}
+        if match_availability(match, rows, features, fresh, busy=busy).status != AVAILABLE:
+            continue
+        counts["team_rule"] += 1
+        truth = full[full["match_id"] == match["match_id"]].sort_values("team_id").reset_index(drop=True)
+        counts["elo_identical"] += len(truth) == len(rows) and _gap(rows[elo], truth[elo]) == 0.0
+        counts["max_g2_gap"] = max(counts["max_g2_gap"], _gap(rows[g2], truth[g2]))
+        if model is not None:
+            a, b = model.predict(rows), model.predict(truth)
+            lam = float(max(np.abs(a.lambda_home - b.lambda_home).max(), np.abs(a.lambda_away - b.lambda_away).max()))
+            over = float(np.abs(a.total[:, :3].sum(axis=1) - b.total[:, :3].sum(axis=1)).max())
+            counts["max_lambda_gap"] = max(counts["max_lambda_gap"] or 0.0, lam)
+            counts["max_over_gap"] = max(counts["max_over_gap"] or 0.0, over)
+    return counts
 
 
 def render_live(report: dict) -> str:
@@ -559,6 +644,25 @@ def render_live(report: dict) -> str:
     lines += [f"| `{c}` | {n} |" for c, n in sorted(report["differing_columns"].items())] or ["| aucune | 0 |"]
     freshness = ", ".join(f"{k} : {v}" for k, v in sorted(report["freshness"].items()))
     lines += ["", f"Fraîcheur par championnat (identifiant API : complet jusqu'au) : {freshness}."]
+    if report.get("following"):
+        tol = report["tolerances"]
+        verdict = "conforme" if report["following_ok"] else "NON CONFORME"
+        lines += [
+            "",
+            "**Jours suivants, sans leurs résultats (fraîcheur par équipe, ADR-0046)** : comparaison avec la même "
+            "superposition complétée des résultats manquants ; Elo identique attendu, écart de λ au plus "
+            f"{tol['lambda']} et de P(T > 2,5) au plus {tol['p_over_2_5']} : **{verdict}**.",
+            "",
+            "| Jour | Matchs du top 5 | Disponibles (par championnat) | Disponibles (par équipe) | Elo identique "
+            "| Écart max. G2 | Écart max. λ | Écart max. P(T > 2,5) |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        fmt = lambda v: "—" if v is None else f"{v:.1e}"  # noqa: E731
+        lines += [
+            f"| {d['day']} | {d['matches']} | {d['league_rule']} | {d['team_rule']} | {d['elo_identical']} | "
+            f"{fmt(d['max_g2_gap'])} | {fmt(d['max_lambda_gap'])} | {fmt(d['max_over_gap'])} |"
+            for d in report["following"]
+        ]
     if report["issues"]:
         lines += ["", "Lignes inutilisables :", ""]
         lines += [f"- {i['division']} {i['date']} : {i['reason']}" for i in report["issues"][:20]]

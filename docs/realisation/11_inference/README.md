@@ -133,6 +133,7 @@ uv run python -m foot_predictor.inference live --days 7 --save
 | Quand collecter | football-data met à jour le fichier des prochains matchs le **vendredi après-midi** (week-end) et le **mardi** (milieu de semaine) ; les résultats environ deux fois par semaine |
 | Ce qui est tracé | les prédictions **disponibles** des matchs du top 5 (`ops.prediction`, mode `live`) ; jamais une réponse indisponible (E-062), qui bloquerait par idempotence la prédiction écrite plus tard |
 | Référence de marché | cote avant clôture du fichier des prochains matchs, pour un match à venir (ADR-0042) ; jamais une variable |
+| Fraîcheur (ADR-0046) | **par équipe, approchée** : un match A–B du jour J est périmé si son championnat n'est complet que jusqu'à C < J − 1 **et** si A ou B a un match de championnat entre C et J ; sinon il est prédit (Elo exact, glissants approchés : leur a priori μ manque les derniers résultats du championnat) |
 | Part d'indisponibles | comparée au critère de l'ADR-0011 : plus d'un match du top 5 sur cinq |
 | API | contexte reconstruit quand change le chargement, un fichier de football-data ou le jour ; `/data/freshness` donne la fraîcheur de chaque championnat du top 5 |
 
@@ -144,6 +145,13 @@ uv run python -m foot_predictor.inference live --days 7 --save
 - **56 matchs du top 5 sur 7 jours, 5 disponibles, 91 % indisponibles** (« variables d'historique périmées ») : seuls les matchs du lendemain ont tout leur historique. **Le critère de révision de l'ADR-0011 est atteint dès le premier jour** (décision ouverte) ;
 - API et interface en live sur les vraies données : 5 matchs disponibles le 23 octobre, 20 « périmés » le 24 ; 403 pour un jour passé en live et pour un jour scellé en rejeu ;
 - **5 prédictions live tracées** (matchs du 23 octobre), écrites à 14:11 UTC pour des coups d'envoi de 18:30 à 19:00 UTC, avec leur identifiant API et le modèle final : début du journal prospectif.
+
+**Fraîcheur par équipe, même jour** (ADR-0046, mêmes fichiers, aucune nouvelle requête) :
+
+- mesure préalable sur 2023-24 (collecte simulée le jeudi, 1 455 matchs de week-end) : 1 455 prévisibles contre 1 avec la règle par championnat ; écart maximal 0,0011 sur λ et 0,0004 sur P(T > 2,5) ; tolérance fixée ensuite à 0,005 et 0,002 ;
+- répétition (`reports/inference/live_repetition_2026-10-22.md`, gel simulé au 2024-02-15, « aujourd'hui » 2024-03-09) : sur les sept jours suivants, 24 matchs déclarés disponibles par équipe (0 par championnat), **Elo identique pour les 24**, écart maximal 0,0005 sur λ et 0,00015 sur P(T > 2,5) : **conforme** ;
+- live : **48 matchs du top 5 sur 56 disponibles, 14 % d'indisponibles** (sous le critère d'un sur cinq) : toute la journée du 23 au 26 octobre ; les 8 matchs des 27 et 28 octobre restent périmés, leurs équipes jouant le week-end (raison nommée) ;
+- **48 prédictions live tracées** (43 nouvelles, les 5 de vendredi gardées), toutes avant le coup d'envoi, avec leur identifiant API ; `data_complete_until` = 2026-10-22 pour toutes.
 
 ## Temps mesurés (portable, 2026-09-30)
 
@@ -158,7 +166,7 @@ uv run python -m foot_predictor.inference live --days 7 --save
 
 ## Limites connues
 
-- Règle de fraîcheur par championnat : un match du jour J n'est prédit que si **tous** les matchs d'avant J de son championnat ont un résultat. Avec football-data (résultats deux fois par semaine), seuls les matchs du lendemain d'une mise à jour sont prédits (91 % d'indisponibles le 2026-10-22) : critère de révision de l'ADR-0011 atteint, règle à revoir (décision ouverte).
+- Fraîcheur par équipe (ADR-0046) : les glissants d'un match prédit alors que son championnat n'est pas complet sont **approchés** (a priori μ du championnat), dans la tolérance vérifiée par la répétition ; une prédiction faite ainsi se reconnaît à `data_complete_until` < J − 1. Un match dont une équipe a joué depuis la dernière mise à jour attend la suivante.
 - Fraîcheur par championnat, règle prudente : un match reporté sans nouvelle date bloque son championnat jusqu'à son résultat (ADR-0042, critère de révision).
 - Un seul jour est calculé à la fois (règle d'exactitude) : une plage de dates coûte quelques secondes par jour à froid.
 - Les identifiants de championnat de `--competition` sont internes ; l'API (étape 12) les liste.

@@ -295,3 +295,102 @@ def test_live_rehearsal_restores_goals_and_elo_after_a_simulated_freeze(tmp_path
     assert report["score_mismatches"] == 0 and not report["issues"] and report["same_matches"]
     assert report["results_restored"] == 12  # 2 championnats, 3 journées de 2 matchs entre le gel et ce jour
     assert report["goals_and_elo_identical"] and not report["differing_columns"]  # tirs identiques ici
+
+
+# --- Fraîcheur par équipe (ADR-0046) ----------------------------------------------------------------------------
+
+SPREAD_WEEK = 3
+
+
+def spread_week():
+    """Vraie table et calendrier figé au dimanche de la semaine `SPREAD_WEEK` de 2023 (championnat 39) : le match
+    1-2 se joue le lundi, le match 3-4 le mardi ; dans la table figée, les deux sont encore sans résultat."""
+    original = round_robin_matches()
+    sunday = dt.date(SEASON, 8, 6) + dt.timedelta(days=7 * SPREAD_WEEK)
+    week = (original["api_league_id"] == 39) & (original["match_day"] == sunday)
+    pair_12 = week & original["home_team_id"].isin([1, 2]) & original["away_team_id"].isin([1, 2])
+    pair_34 = week & ~pair_12
+    for mask, shift in ((pair_12, 1), (pair_34, 2)):
+        original.loc[mask, "match_day"] = sunday + dt.timedelta(days=shift)
+        original.loc[mask, "match_date"] = original.loc[mask, "match_date"] + pd.Timedelta(days=shift)
+    table = original.copy()
+    later = (original["api_league_id"] == 39) & (original["season_year"] == SEASON) & (original["match_day"] > sunday)
+    table.loc[later, "status"] = "scheduled"
+    for column in ("home_goals_90", "away_goals_90", "home_shots_fd", "away_shots_fd", "home_sot_fd", "away_sot_fd"):
+        table[column] = pd.to_numeric(table[column]).astype("Int64")
+        table.loc[later, column] = pd.NA
+    return original, table, original[pair_12].iloc[0], original[pair_34].iloc[0], sunday
+
+
+def test_teams_busy_between_uses_strict_bounds_and_ignores_cups_and_cancelled_matches():
+    from foot_predictor.inference.availability import teams_busy_between
+
+    _, table, missing, target, sunday = spread_week()
+    monday, tuesday = sunday + dt.timedelta(days=1), sunday + dt.timedelta(days=2)
+    assert teams_busy_between(table, [1, 2, 3, 4], sunday, tuesday) == {1: [monday], 2: [monday]}
+    assert set(teams_busy_between(table, [3, 4], sunday, tuesday + dt.timedelta(days=1))) == {3, 4}
+    cancelled = table.copy()
+    cancelled.loc[cancelled["match_id"] == missing["match_id"], "status"] = "cancelled"
+    assert teams_busy_between(cancelled, [1, 2], sunday, tuesday) == {}
+    cup = table.copy()
+    cup.loc[cup["match_id"] == missing["match_id"], "api_league_id"] = 45  # coupe : hors des échelles
+    assert teams_busy_between(cup, [1, 2], sunday, tuesday) == {}
+
+
+def test_team_freshness_predicts_a_match_whose_teams_did_not_play_since_elo_exact_and_g2_close():
+    """Le résultat du lundi (1-2) manque ; le match du mardi (3-4) est prédit. Son Elo est celui de l'historique
+    complet ; ses glissants (G2) en diffèrent un peu : leur a priori μ est la moyenne de tout le championnat."""
+    original, table, missing, target, sunday = spread_week()
+    tuesday = target["match_day"]
+    live = L.overlay(table, maps(original), SEASON, [], {}, today=tuesday)
+    assert live.freshness[39].complete_until == sunday  # championnat complet jusqu'au dimanche seulement
+    ctx = live_context(original, live, today=tuesday)
+    (answer,) = P.predict_day(tuesday, "live", ctx, match_ids=[target["match_id"]])
+    assert answer["status"] == AVAILABLE and answer["data_complete_until"] == sunday.isoformat()
+    seen = rows_for_day(live.matches, tuesday, [target["match_id"]], **KW).sort_values("team_id").reset_index(drop=True)
+    full = rows_for_day(original, tuesday, [target["match_id"]], **KW).sort_values("team_id").reset_index(drop=True)
+    elo = [c for c in seen.columns if c.startswith(("elo", "opp_elo"))]
+    g2 = [c for c in seen.columns if c.startswith(("goals_", "opp_goals_", "xgp_", "opp_xgp_"))]
+    pd.testing.assert_frame_equal(seen[elo], full[elo], check_dtype=False)  # exact
+    gap = (seen[g2].astype(float) - full[g2].astype(float)).abs().to_numpy()
+    assert 0 < gap.max() < 0.1  # approché (ADR-0046) ; petit championnat synthétique : l'écart y est plus grand
+
+
+def test_team_freshness_keeps_stale_a_match_whose_team_played_since_and_names_it():
+    original, table, missing, target, sunday = spread_week()
+    tuesday, next_sunday = target["match_day"], sunday + dt.timedelta(days=7)
+    live = L.overlay(table, maps(original), SEASON, [], {}, today=tuesday)
+    ctx = live_context(original, live, today=tuesday)
+    involving_1 = live.matches[(live.matches["match_day"] == next_sunday) & (live.matches["api_league_id"] == 39)
+                               & ((live.matches["home_team_id"] == 1) | (live.matches["away_team_id"] == 1))]  # fmt: skip
+    (answer,) = P.predict_day(next_sunday, "live", ctx, match_ids=[involving_1.iloc[0]["match_id"]])
+    assert answer["status"] == UNAVAILABLE and any(v["status"] == STALE for v in answer["availability"])
+    assert f"Club Un a un match le {(sunday + dt.timedelta(days=1)).isoformat()}" in answer["reasons"][0]
+
+
+def test_rehearsal_checks_the_following_days_with_the_team_rule(tmp_path):
+    from foot_predictor.inference.check import run_live_rehearsal
+
+    original, _, missing, target, sunday = spread_week()
+    for division, league in (("E0", 39), ("E1", 40)):
+        lines = [result_line(m) for _, m in original[original["season_year"] == SEASON].iterrows()
+                 if m["api_league_id"] == league]  # fmt: skip
+        raw_bytes.write_bytes(tmp_path, f"football_data/csv/season={SEASON}", division, ".csv",
+                              "\r\n".join([HEADER, *lines]).encode(), dt.datetime(2024, 1, 1, tzinfo=dt.UTC))  # fmt: skip
+    monday = sunday + dt.timedelta(days=1)
+    report = run_live_rehearsal(original, tmp_path, maps(original), freeze=sunday - dt.timedelta(days=14), today=monday)
+    tuesday = next(d for d in report["following"] if d["day"] == target["match_day"].isoformat())
+    assert {k: tuesday[k] for k in ("matches", "league_rule", "team_rule", "elo_identical")} == {
+        "matches": 1, "league_rule": 0, "team_rule": 1, "elo_identical": 1}  # fmt: skip
+    assert tuesday["max_g2_gap"] > 0 and tuesday["max_lambda_gap"] is None  # sans modèle : pas d'écart de λ
+    assert report["following_ok"] and report["tolerances"] == {"lambda": 0.005, "p_over_2_5": 0.002}
+
+
+def test_following_day_verdict_applies_the_tolerance():
+    from foot_predictor.inference.check import _following_ok
+
+    day = {"team_rule": 2, "elo_identical": 2, "max_lambda_gap": 0.004, "max_over_gap": 0.001}
+    assert _following_ok(day)
+    assert not _following_ok(day | {"max_lambda_gap": 0.006})
+    assert not _following_ok(day | {"max_over_gap": 0.0021})
+    assert not _following_ok(day | {"elo_identical": 1})  # un Elo différent n'est jamais toléré

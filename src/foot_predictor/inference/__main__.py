@@ -237,10 +237,14 @@ def cmd_check(args) -> int:
               f"({report['rows_compared']} lignes) ; {md_path}")  # fmt: skip
         ok &= report["all_identical"]
     if args.only in (None, "live"):
-        report = check.run_live_rehearsal()
+        from foot_predictor.inference import models as model_store
+
+        # Modèle du pli de la saison de la répétition : il mesure l'écart de λ de la règle par équipe (ADR-0046).
+        model = model_store.replay_model(model_store.season_of(check.LIVE_TODAY)).model
+        report = check.run_live_rehearsal(model=model)
         report["date"] = today
         _, md_path = check.write_report(report, f"live_repetition_{today}", check.render_live(report))
-        verdict = report["goals_and_elo_identical"] and report["score_mismatches"] == 0
+        verdict = report["goals_and_elo_identical"] and report["score_mismatches"] == 0 and report["following_ok"]
         print(f"Répétition du live : {'buts et Elo identiques' if verdict else 'ÉCART'} ; {md_path}")
         ok &= verdict
     return 0 if ok else 1

@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-22 (5.14 : live réel branché, 5 prédictions live tracées ; 91 % d'indisponibles, critère de l'ADR-0011 atteint)
+**Dernière mise à jour** : 2026-10-22 (fraîcheur par équipe, ADR-0046 : 14 % d'indisponibles, 48 prédictions live tracées ; reprise à 5.15)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2, 3 et 4 terminées** (tags `v0.3.0`, `v0.4.0` et `v0.5.0` ; `docs/retours/partie-2_2026-10-19.md`, `partie-3_2026-10-22.md`, `partie-4_2026-10-22.md`). La phase B de la partie 5 se fait sur demande.
 
-**Reprise de la partie 5 à la phase B, lot 4 : d'abord la décision sur la règle de fraîcheur du live** (« Décisions ouvertes »), puis 5.15 (bout en bout réel, critères E.1, tag `v0.6.0`) et le retour du lot 4. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
+**Reprise de la partie 5 à la phase B, lot 4, sous-étape 5.15 : bout en bout réel** (critères E.1, tag `v0.6.0`), puis le retour du lot 4 (5.13 à 5.15). Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -46,6 +46,7 @@
   - football-data superposé au contexte d'inférence (API, `predict`, nouvelle commande `live --days N [--save]` et son rapport) ; contexte de l'API reconstruit par clé (chargement, fichiers, jour) ; cote avant clôture des matchs à venir ;
   - collecte : 11 requêtes (accord de l'utilisateur, plafonds 1 + 10), 0 ligne inutilisable (promus dans le YAML) ; **56 matchs du top 5 sur 7 jours, 91 % « périmés »** ;
   - **5 prédictions live tracées** (23 octobre, avant le coup d'envoi) : début du journal prospectif ; **E-062** : une réponse live indisponible n'est plus jamais écrite.
+- **Partie 5, phase B, fraîcheur par équipe** (2026-10-22, PR #87, **ADR-0046**) : règle **approchée** choisie par l'utilisateur après mesure (E-063 : l'exactitude d'abord annoncée était fausse, à cause de l'a priori μ des glissants) ; tolérance 0,005 sur λ et 0,002 sur P(T > 2,5) ; répétition conforme (Elo identique, écart maximal 0,0005 sur λ) ; live : **14 % d'indisponibles**, **48 prédictions live tracées** (journée du 23 au 26 octobre, `ops.prediction` : 131 lignes).
 - **Partie 5, phase B, E-058 corrigé** (2026-10-22, PR #85) : `api_fixture_id` porté par la réponse et recopié par `save_prediction` (API et commande) ; `check --only rows` sur `ds-2026-10-22-bf786ef1`, même chargement n° 7 vérifié : 622 lignes identiques au bit près ; 5 prédictions de rejeu réelles tracées avec leur identifiant API (`ops.prediction` : 83 lignes).
 
 ## En cours
@@ -65,7 +66,6 @@
 
 ## Décisions ouvertes
 
-- **Règle de fraîcheur du live** (ADR-0011, règle 5 ; ADR-0042) : un match du jour J exige tous les résultats d'avant J **de son championnat** ; football-data ne les publie qu'environ deux fois par semaine, d'où 91 % d'indisponibles le 2026-10-22 : **critère de révision de l'ADR-0011 atteint**. Piste citée par l'ADR-0042 : fraîcheur **par équipe** (variables exactes si aucune des deux équipes n'a de match manquant avant J). Nouvelle ADR à décider avant 5.15.
 - **Copies sur `D:`** du jeu scellé `94969da0` (64 Mo) et du modèle final (29 Mo), seuls sur `C:` et non reconstructibles pour H1 : **acceptées par l'utilisateur le 2026-10-22**, pas faites : `D:` n'était pas monté. À faire dès qu'il est visible, avec contrôle par sha256, dans `D:/foot-predictor/copies-2026-10-22/`.
 - **Renouvellement automatique de l'abonnement : coupé par l'utilisateur le 2026-10-19** (déclaré, non vérifiable par l'assistant ; fin de l'abonnement le 22 octobre à 07:56 UTC, ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
 

@@ -47,10 +47,11 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0039](ADR-0039-modele-mvp-h1.md) | Modèle MVP H1 : Poisson par équipe sur G0 + G1 + G2, appris sur le top 5, même modèle en live ; liste du test scellé (`experiments/scelle_h1.yaml`) | acceptée | 2026-09-30 | I.7, E.1 (applique 0037, 0038 ; 0012 règle 5) |
 | [0040](ADR-0040-inference-api-interface.md) | Inférence, API et interface : même fonction que l'entraînement, modèle de rejeu par pli, disponibilité, traçabilité, API locale, interface par l'API seulement | acceptée | 2026-09-30 | F.5 à F.8, M10, M21 |
 | [0041](ADR-0041-tirs-football-data-en-live.md) | Tirs de football-data en live : écart de prédiction non significatif, pas de recalibration ; règle de lecture (IC poolé, Holm par championnat) | acceptée | 2026-10-01 | critère de révision de 0035 |
-| [0042](ADR-0042-live-football-data.md) | Live : football-data superposé en mémoire au calendrier API figé ; appariement sans la date (saison régulière), fraîcheur par championnat, conditions citées | acceptée | 2026-10-04 | C.3, G.11 ; ADR-0011 r. 3 et 5 |
+| [0042](ADR-0042-live-football-data.md) | Live : football-data superposé en mémoire au calendrier API figé ; appariement sans la date (saison régulière), fraîcheur par championnat, conditions citées | acceptée ; fraîcheur remplacée par l'ADR-0046 | 2026-10-04 | C.3, G.11 ; ADR-0011 r. 3 et 5 |
 | [0043](ADR-0043-relance-test-scelle-h1.md) | Test scellé H1 : relance unique après l'échec technique du premier lancement (E-059), code figé inchangé, contrôle par sha256 des prédictions | acceptée | 2026-10-22 | ADR-0012 r. 5, ADR-0039 |
 | [0044](ADR-0044-modele-final-h1.md) | Clôture de la partie 4 : modèle final H1 appris avec les matchs scellés par la procédure figée (demi-vie 240 jours), jalon J6, tag `v0.5.0` | acceptée | 2026-10-22 | F.4, J6 ; ADR-0012 r. 5, ADR-0039, ADR-0043 |
 | [0045](ADR-0045-ouverture-scelle-inference.md) | Ouverture du scellé à l'inférence seulement (historique du live), garde par le code sans journal ; rejeu des saisons scellées fermé jusqu'au test de H2 ; modèle final actif | acceptée | 2026-10-22 | ADR-0011 r. 2, ADR-0012 r. 4 et 5, ADR-0028 |
+| [0046](ADR-0046-fraicheur-par-equipe.md) | Live : fraîcheur par équipe, approchée (Elo exact, a priori μ des glissants sans les derniers résultats du championnat), tolérance : écarts de λ ≤ 0,005 et de P(T > 2,5) ≤ 0,002 | acceptée | 2026-10-22 | ADR-0011 r. 5, ADR-0040, ADR-0042 |
 
 **Décisions encore ouvertes** :
 

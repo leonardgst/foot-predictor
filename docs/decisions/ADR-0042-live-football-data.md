@@ -1,6 +1,6 @@
 # ADR-0042 — Live : football-data superposé en mémoire au calendrier API figé
 
-- **Statut** : acceptée
+- **Statut** : acceptée ; sa règle de fraîcheur (par championnat) est remplacée par l'ADR-0046 (par équipe, approchée)
 - **Date** : 2026-10-04
 - **Référence** : rapport de cadrage, C.3, F.5, G.11 ; ADR-0008 (règle 2), ADR-0011 (règles 3 et 5), ADR-0012, ADR-0023, ADR-0024, ADR-0036, ADR-0040, ADR-0041 ; décision 13 de la partie 5
 

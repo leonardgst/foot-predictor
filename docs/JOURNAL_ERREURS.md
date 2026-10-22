@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-063 — Fraîcheur par équipe : l'exactitude annoncée était fausse (a priori μ des glissants) (2026-10-22)
+
+- **Contexte** : partie 5, phase B, après 5.14. Brouillon de l'ADR-0046 (fraîcheur par équipe), présenté à l'utilisateur comme « variables exactes » si aucune des deux équipes n'a joué depuis la date de complétude du championnat.
+- **Message d'erreur** : deux tests rouges. Les lignes du match 3-4 du mardi diffèrent de l'historique complet sur `goals_for_ewm_h60` (2,016 contre 2,058, données synthétiques) alors que 3 et 4 n'ont pas joué le lundi. La répétition donnait aussi des lignes non identiques.
+- **Cause** : le raisonnement ne regardait que l'Elo (exact) et les matchs de l'équipe. Or les moyennes glissantes sont tirées vers un a priori μ, la moyenne de **tout le championnat** sur 730 jours (`features/rolling.py`, k = 3) : tout résultat du championnat les bouge un peu. Aucune règle par équipe n'est donc exacte.
+- **Solution** : le constat a été présenté à l'utilisateur avec une mesure sur 2023-24 (écart maximal 0,0011 sur λ et 0,0004 sur P(T > 2,5), 1 455 matchs de week-end prévisibles contre 1). Il a choisi la règle par équipe **approchée**, avec une tolérance fixée avant la vérification. L'ADR-0046 a été corrigée avant sa fusion ; les tests vérifient un Elo identique et des glissants proches ; la répétition compare à l'historique complété, dans la tolérance.
+- **Fichiers concernés** : `docs/decisions/ADR-0046-fraicheur-par-equipe.md`, `tests/inference/test_live_sources.py`, `src/foot_predictor/inference/check.py`.
+- **Prévention** : une affirmation d'exactitude se vérifie par un test avant d'être présentée comme argument d'une décision. Pour une variable, relire sa définition complète, a priori et normalisations comprises, et pas seulement ses entrées « évidentes ».
+- **Test de non-régression** : `test_team_freshness_predicts_a_match_whose_teams_did_not_play_since_elo_exact_and_g2_close` (écart G2 non nul, Elo identique), `test_rehearsal_checks_the_following_days_with_the_team_rule`, `test_following_day_verdict_applies_the_tolerance`.
+
 ## E-062 — Live : une réponse indisponible tracée aurait bloqué la prédiction écrite plus tard (2026-10-22)
 
 - **Contexte** : partie 5, phase B, 5.14, premier live réel. Le 2026-10-22, 51 des 56 matchs du top 5 des 7 jours suivants sont « périmés » : football-data n'a les résultats que jusqu'au 22 octobre (règle de fraîcheur, ADR-0011, règle 5).

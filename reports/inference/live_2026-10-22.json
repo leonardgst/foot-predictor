@@ -5,12 +5,12 @@
     "scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle"
   ],
   "matches": 56,
-  "available": 5,
-  "unavailable_share": 0.9107142857142857,
-  "over_limit": true,
+  "available": 48,
+  "unavailable_share": 0.14285714285714285,
+  "over_limit": false,
   "with_market_reference": 0,
   "reasons": {
-    "variables d'historique périmées": 51
+    "variables d'historique périmées": 8
   },
   "days": [
     {
@@ -31,7 +31,7 @@
       "day": "2026-10-24",
       "matches": 20,
       "statuses": {
-        "unavailable": 20
+        "available": 20
       },
       "out_of_scope": 69
     },
@@ -39,7 +39,7 @@
       "day": "2026-10-25",
       "matches": 22,
       "statuses": {
-        "unavailable": 22
+        "available": 22
       },
       "out_of_scope": 48
     },
@@ -47,7 +47,7 @@
       "day": "2026-10-26",
       "matches": 1,
       "statuses": {
-        "unavailable": 1
+        "available": 1
       },
       "out_of_scope": 13
     },
@@ -118,8 +118,8 @@
     "issues": []
   },
   "saved": {
-    "created": 5,
-    "kept": 0,
+    "created": 43,
+    "kept": 5,
     "refused": 0
   }
 }

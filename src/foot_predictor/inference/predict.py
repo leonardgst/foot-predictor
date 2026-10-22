@@ -30,7 +30,13 @@ import numpy as np
 import pandas as pd
 
 from foot_predictor.inference import models as model_store
-from foot_predictor.inference.availability import AVAILABLE, UNAVAILABLE, Freshness, match_availability
+from foot_predictor.inference.availability import (
+    AVAILABLE,
+    UNAVAILABLE,
+    Freshness,
+    match_availability,
+    teams_busy_between,
+)
 from foot_predictor.inference.rows import RowsCache, as_day
 from foot_predictor.modeling import metrics
 from foot_predictor.seal import SEAL_DATE
@@ -174,7 +180,14 @@ def predict_match(match: pd.Series, rows: pd.DataFrame, model, context: Inferenc
                   horizon: str = "H1") -> dict:  # fmt: skip
     """Réponse complète pour un match : informations, disponibilité, prédiction ou raisons."""
     freshness = context.freshness_for(match)
-    availability = match_availability(match, rows, tuple(model.features), freshness, horizon)
+    day = as_day(match["match_day"])
+    busy = None
+    if freshness is not None and freshness.is_stale_for(day):  # fraîcheur par équipe (ADR-0046)
+        found = teams_busy_between(
+            context.matches, (int(match["home_team_id"]), int(match["away_team_id"])), freshness.complete_until, day
+        )
+        busy = {context.team_names.get(team, str(team)): days for team, days in found.items()}
+    availability = match_availability(match, rows, tuple(model.features), freshness, horizon, busy=busy)
     blocked = context.live_blocked.get(int(match["match_id"]))
     if blocked and availability.status in (AVAILABLE, UNAVAILABLE):
         availability.status = UNAVAILABLE

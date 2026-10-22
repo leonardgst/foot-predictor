@@ -3,6 +3,7 @@
 - `save_prediction` écrit une réponse de `predict` dans `ops.prediction`. **Idempotente** : une
   prédiction existe déjà pour (match, version du modèle, horizon, mode) ⇒ elle est renvoyée telle
   quelle, sauf avec `force` (une nouvelle ligne s'ajoute, l'ancienne reste : rien ne s'efface).
+  L'identifiant API du match est recopié depuis la réponse (E-058).
 - **Live** : une prédiction n'est écrite qu'**avant le coup d'envoi** (heure connue) ou, sans heure,
   avant le début du jour du match (00:00 UTC) ; sinon, refus explicite. C'est ce qui fait du journal
   `live` une évaluation prospective honnête (ADR-0011, règle 6).
@@ -62,9 +63,13 @@ def save_prediction(
     *,
     force: bool = False,
     now: dt.datetime | None = None,
-    api_fixture_id: int | None = None,
 ) -> Saved:
-    """Écrit (ou renvoie) la prédiction d'une réponse de `predict_match` ; ne valide pas la transaction."""
+    """Écrit (ou renvoie) la prédiction d'une réponse de `predict_match` ; ne valide pas la transaction.
+
+    L'identifiant API du match vient de la réponse elle-même (`api_fixture_id`), jamais d'un
+    argument que l'appelant pourrait oublier (E-058) : `match_id` change quand le brut grandit,
+    l'identifiant API non.
+    """
     now = now or dt.datetime.now(dt.UTC)
     if answer["mode"] == "live" and now >= live_deadline(answer):
         raise LivePredictionTooLate(
@@ -80,7 +85,7 @@ def save_prediction(
     variables = answer.get("availability") or []
     row = Prediction(
         match_id=answer["match_id"],
-        api_fixture_id=api_fixture_id,
+        api_fixture_id=answer.get("api_fixture_id"),
         competition_id=answer.get("competition_id"),
         home_team_id=answer.get("home_team_id"),
         away_team_id=answer.get("away_team_id"),

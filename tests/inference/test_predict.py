@@ -30,6 +30,7 @@ from tests.features.test_dataset import COEF, PARAMS, synthetic_matches
 
 KW = {"elo_params": PARAMS, "coefficients": COEF, "periods": None}
 YEARS = 3  # 2019-2020 décalés en 2022-2023 : saisons de rejeu ouvertes
+FIXTURE_OFFSET = 1_000_000  # identifiant API synthétique d'un match : FIXTURE_OFFSET + match_id
 
 
 def shifted_matches(years: int = YEARS) -> pd.DataFrame:
@@ -38,6 +39,7 @@ def shifted_matches(years: int = YEARS) -> pd.DataFrame:
     matches["match_day"] = matches["match_date"].dt.date
     matches["season_year"] = matches["season_year"] + years
     matches["origin"] = "api"
+    matches["api_fixture_id"] = (FIXTURE_OFFSET + matches["match_id"]).astype("Int64")
     return matches
 
 
@@ -103,6 +105,18 @@ def test_available_match_gets_a_full_prediction_and_its_real_score(setup):
     assert 0 < p["interval"]["announced_coverage"] < 1
     assert answer["actual_score"] == {"home": int(target["home_goals_90"]), "away": int(target["away_goals_90"])}
     assert {v["status"] for v in answer["availability"]} == {"presente"}
+    assert answer["api_fixture_id"] == FIXTURE_OFFSET + int(target["match_id"])  # E-058
+
+
+def test_answer_carries_the_api_fixture_id_or_none_for_a_match_outside_the_api(setup):
+    matches, _, _ = setup
+    target = day_of(matches, lambda m: m["api_league_id"] == 39)
+    ctx = context(matches, LoadedModel("essai", FakeModel(), {"version": "essai"}, None))
+    assert P._match_info(target, ctx)["api_fixture_id"] == FIXTURE_OFFSET + int(target["match_id"])
+    outside = target.copy()
+    outside["api_fixture_id"], outside["origin"] = pd.NA, "hors_api"
+    assert P._match_info(outside, ctx)["api_fixture_id"] is None
+    assert P._match_info(target.drop(labels=["api_fixture_id"]), ctx)["api_fixture_id"] is None  # colonne absente
 
 
 def test_match_without_history_is_unavailable_with_reasons_and_no_prediction(setup):

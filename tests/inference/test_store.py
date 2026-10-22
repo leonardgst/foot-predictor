@@ -55,6 +55,14 @@ def test_saving_is_idempotent_and_force_adds_a_row(db_session):
     assert forced.created and count(db_session, match_id=900_001) == 2
 
 
+def test_the_api_fixture_id_of_the_answer_is_copied(db_session):
+    """E-058 : `match_id` change quand le brut grandit ; la trace garde l'identifiant API, pris dans la réponse."""
+    saved = save_prediction(db_session, answer(match_id=900_003) | {"api_fixture_id": 1_234_567}, dt.date(2026, 10, 24))
+    assert saved.prediction.api_fixture_id == 1_234_567
+    outside = save_prediction(db_session, answer(match_id=900_004) | {"api_fixture_id": None}, dt.date(2026, 10, 24))
+    assert outside.prediction.api_fixture_id is None  # match « hors API »
+
+
 def test_replay_and_live_are_separate(db_session):
     early = dt.datetime(2026, 10, 24, 14, 0, tzinfo=dt.UTC)
     save_prediction(db_session, answer("replay"), dt.date(2026, 10, 24))

@@ -1,5 +1,5 @@
 % Chapitre « Inférence et disponibilité » (partie 5, sous-étape 5.11, jalons J7 et J8).
-% Sources : ADR-0009, ADR-0010, ADR-0011, ADR-0040, ADR-0041, ADR-0042 ; code de
+% Sources : ADR-0009, ADR-0010, ADR-0011, ADR-0040 à ADR-0042, ADR-0044 à ADR-0046 ; code de
 % src/foot_predictor/inference/ (rows.py, models.py, availability.py, predict.py, live_sources.py)
 % et de src/foot_predictor/modeling/ (distributions.py, metrics.py). En cas d'écart, le code fait foi.
 
@@ -40,7 +40,13 @@ d'un match de \(J\) dans les variables de \(J'\) (l'Elo de fin de \(J\), la moye
 \paragraph{Modèle de rejeu.} Pour une date de la saison \(S\), le modèle est celui du pli \(S\) :
 \(\hat\theta_S\) appris sur les saisons 2015-16 à \(S - 1\) par la procédure de l'évaluation, jamais
 un modèle qui a vu la saison \(S\) (ADR-0011, règle 1). Ses prédictions reproduisent celles de
-l'évaluation à la précision machine (écart maximal de \(\lambda\) de l'ordre de \(10^{-15}\)).
+l'évaluation à la précision machine (écart maximal de \(\lambda\) de l'ordre de \(10^{-15}\)). Le rejeu
+couvre les saisons 2021-22 à 2024-25 ; les saisons du test scellé restent fermées au rejeu jusqu'au
+test de l'horizon H2, qui les réutilisera (ADR-0045).
+
+\paragraph{Modèle du live.} En live, le modèle est le modèle final (chapitre~\ref{chap:modeles},
+section~\ref{sec:test-scelle}), et \(\hist_J\) contient tout l'historique, matchs scellés compris : après le
+test, ils sont ouverts à l'inférence seulement, jamais au développement d'un modèle (ADR-0045).
 
 % ---------------------------------------------------------------------------------------------
 \section{Loi du total et quantités publiées}
@@ -131,11 +137,32 @@ championnat \(L\) :
   C_L = \min\{ d(m) : m \in L,\ m \text{ sans résultat} \} - 1 ,
 \]
 où \(d(m)\) est la date réelle si elle est connue, la date figée sinon ; une ligne de résultat
-inutilisable abaisse \(C_L\) à la veille de sa date. Un match de \(L\) au jour \(J\) a ses variables
-d'historique périmées dès que \(C_L < J - 1\). Une répétition sur 2023-24 (gel simulé au 15 février,
-\og aujourd'hui \fg{} le 9 mars) rétablit 335 résultats sur 335 sans écart de score, et redonne des
-variables de buts et d'Elo identiques à celles du jeu ; seules les variables de tirs changent, l'écart
-de log-loss correspondant n'étant pas significatif (ADR-0041).
+inutilisable abaisse \(C_L\) à la veille de sa date. Une répétition sur 2023-24 (gel simulé au
+15 février, \og aujourd'hui \fg{} le 9 mars) rétablit 335 résultats sur 335 sans écart de score, et
+redonne des variables de buts et d'Elo identiques à celles du jeu ; seules les variables de tirs
+changent, l'écart de log-loss correspondant n'étant pas significatif (ADR-0041).
+
+\paragraph{Fraîcheur par équipe (ADR-0046).} Exiger \(C_L \ge J - 1\) bloquait la plupart des matchs :
+football-data ne publie les résultats qu'environ deux fois par semaine. Pour un match \(A\)--\(B\) du
+jour \(J\), les variables d'historique sont désormais périmées si et seulement si
+\[
+  C_L < J - 1
+  \quad\text{et}\quad
+  \exists\, m \ni A \text{ ou } B,\ \ C_L < d(m) < J,
+\]
+où \(m\) parcourt les matchs (non annulés) des dix championnats des échelles nationales. Sous cette
+condition, l'Elo de \(A\) et de \(B\) est \emph{identique} à celui de l'historique complet : il ne dépend
+que des matchs des deux équipes et de la note de leurs adversaires au moment de ces matchs. Les moyennes
+glissantes, elles, sont \emph{approchées}. Une moyenne glissante est tirée vers un a priori \(\mu\),
+moyenne de tout le championnat sur 730 jours, avec un poids \(k = 3\) (chapitre~\ref{chap:donnees}) :
+\[
+  \hat{x} = \frac{\sum_i w_i\, x_i + k\, \mu}{W + k},
+\]
+et \(\mu\) ignore les résultats des autres matchs du championnat joués entre \(C_L\) et \(J\). Mesuré
+sur 2023-24 (1 455 matchs de week-end, collecte simulée le jeudi), l'écart reste sous \(0{,}0011\) pour
+\(\lambda\) et \(0{,}0004\) pour \(\hat P(T > 2{,}5)\) ; la tolérance contrôlée par la répétition est fixée à
+\(0{,}005\) et \(0{,}002\). Une prédiction faite ainsi se reconnaît à sa date de complétude, antérieure à
+\(J - 1\).
 
 % ---------------------------------------------------------------------------------------------
 \section{Traçabilité}

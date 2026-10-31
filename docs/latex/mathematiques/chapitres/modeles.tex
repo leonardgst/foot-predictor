@@ -300,6 +300,26 @@ la demi-vie choisie par validation interne. \(Y_{m,e} \sim \mathcal{P}(\lambda_{
 maximum de vraisemblance sur le top 5, et \(T \sim \mathcal{P}(\lambda_{\mathrm{dom}} +
 \lambda_{\mathrm{ext}})\). Sur les 4 plis, il bat B1 de \(0{,}0179\) (\([0{,}0133 ; 0{,}0226]\)), avec une
 pente de calibration poolée de \(0{,}95\) et une couverture de \([q_{10} ; q_{90}]\) à \(\pm 1{,}1\) point
-de la couverture annoncée. Le même modèle sert en rejeu et en live (G3 non retenu). Le test scellé,
-sur les matchs joués depuis le 1\textsuperscript{er} juillet 2025, dira s'il tient ses promesses ; son
-résultat sera publié tel quel.
+de la couverture annoncée. Le même modèle sert en rejeu et en live (G3 non retenu).
+
+% ---------------------------------------------------------------------------------------------
+\section{Test scellé et modèle final}
+\label{sec:test-scelle}
+
+\paragraph{Test scellé (ADR-0039, ADR-0043).} Les matchs de championnat du top 5 joués depuis le
+1\textsuperscript{er} juillet 2025 n'ont servi à aucun choix. Le modèle retenu, appris sur 2015-16 à
+2024-25 par la procédure des plis, les a prédits une seule fois : 2 092 matchs, jusqu'au 18 octobre
+2026. Il bat B1 de \(0{,}0189\) (\([0{,}0102 ; 0{,}0282]\)) sur le log-loss du total, un gain du même
+ordre qu'en validation glissante, avec un intervalle plus large (trois fois et demie moins de matchs).
+La pente de calibration vaut \(1{,}00\), la couverture observée de \([q_{10} ; q_{90}]\) est de
+\(87{,}3\,\%\) pour \(87{,}5\,\%\) annoncés. Par décile de \(\hat P(T > 2{,}5)\), l'écart absolu moyen
+est de \(2{,}5\) points ; avec environ 209 matchs par décile, l'erreur d'échantillonnage seule est de
+l'ordre de \(\sqrt{0{,}25 / 209} \approx 3{,}5\) points, d'où un critère \og \(\pm 3\) points par décile
+\fg{} traité en diagnostic (ADR-0037). Sur l'événement plus ou moins 2,5 buts, le marché avant clôture
+reste meilleur que le modèle (Brier \(0{,}2397\) contre \(0{,}2418\)).
+
+\paragraph{Modèle final (ADR-0044).} Après le test, le modèle est réappris sur toutes les données,
+matchs scellés compris : 40 180 lignes du 7 août 2015 au 18 octobre 2026, même structure et mêmes
+13 variables, demi-vie de 240 jours choisie par la même validation interne. Ses coefficients
+s'écartent de \(0{,}009\) au plus de ceux du modèle testé. Le test scellé mesure la \emph{procédure}
+(apprendre jusqu'à une date, prédire la suite) : c'est elle que le modèle final applique en live.

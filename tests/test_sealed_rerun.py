@@ -163,7 +163,8 @@ def test_rehearsal_of_the_real_sealed_file_end_to_end(first_launch, tmp_path):
     written = json.loads((tmp_path / "rapports" / f"{report['id']}.json").read_text(encoding="utf-8"))
     assert written["spec"]["test_from"] == "2025-07-01"
     assert [(c["a"], c["b"]) for c in written["comparisons"]] == [tuple(c) for c in written["spec"]["comparisons"]]
-    assert "règle de décision" in render(written)
+    text = render(written)  # E-060 : relire les tableaux comme on lira ceux du vrai test
+    assert "règle de décision | non applicable : 1 pli," in text and "remplace" not in text
     lines = sealed_rerun.usage_lines(first_launch["log_path"])
     assert len(lines) == sealed_rerun.FIRST_LAUNCH_LOG_LINES + 1  # données et cotes injectées : la ligne de résultat
     assert experiment.SEALED_DONE in lines[-1] and "B1 − M3_G0G2" in lines[-1]

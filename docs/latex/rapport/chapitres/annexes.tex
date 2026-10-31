@@ -1,0 +1,77 @@
+% Annexes : ADR, commandes, glossaire (docs/decisions/README.md, CLAUDE.md).
+
+\chapter{Annexes}
+\label{chap:annexes}
+
+\section{Décisions (ADR)}
+
+Titres abrégés ; texte complet dans \code{docs/decisions/}.
+
+{\small
+\begin{center}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+ADR & Décision \\
+\midrule
+0001--0007 & arrêt de l'ancienne collecte ; périmètre par paliers ; brut en fichiers et journal ; collecteur v2 ;
+             fin de l'abonnement et gel ; sauvegarde sur disque externe ; paquet \code{collect} \\
+0008 & API-FOOTBALL fait foi pour les identifiants ; \code{staging} reconstruit depuis le brut \\
+0009 & cible : buts par équipe ; sortie : loi du total ; métrique : log-loss du total \\
+0010--0011 & deux horizons (avant et avec composition) ; après l'abonnement, rejeu et live partiel \\
+0012 & validation glissante 2021-22 à 2024-25 ; matchs depuis le 1\textsuperscript{er} juillet 2025 sous scellés \\
+0013 & pas de masse salariale ; valeur marchande maison gelée \\
+0014 & restructuration de la documentation \\
+0015--0016, 0020 & collisions d'identifiants de joueurs ; profils ciblés \\
+0017--0019, 0021 & journal T-60 ; verrou de collecte et tâches planifiées ; palier P4 ; code du gel \\
+0022 & workflow Git : \code{main}, branches courtes, PR, tags, hooks \\
+0023--0024 & football-data retenu, Understat écarté ; bruts externes séparés \\
+0025--0026 & bases (travail, test, ancienne base intacte) ; environnement Windows \\
+0027 & périmètre des chargeurs du référentiel \\
+0028 & scellé technique : porte unique de lecture des matchs \\
+0029, 0035 & tirs de football-data ; source des tirs de l'\code{xg\_proxy} \\
+0030 & jeu de données versionné, registre des variables \\
+0031--0033 & Elo maison ; glissants et \code{xg\_proxy} ; calendrier et huis clos \\
+0034 & notebooks sans sorties ; LaTeX compilé sur Overleaf \\
+0036 & cotes : référence de marché, jamais une variable \\
+0037 & protocole d'évaluation et règle de décision, figés (\code{protocole-v1}) \\
+0038--0039 & structure : Poisson par équipe ; modèle MVP H1 et liste du test scellé \\
+0040 & inférence, API et interface : même fonction, disponibilité, traçabilité \\
+0041--0042 & tirs de football-data en live ; football-data superposé en mémoire \\
+0043--0044 & relance unique du test scellé ; modèle final H1 \\
+0045--0046 & ouverture du scellé à l'inférence ; fraîcheur par équipe \\
+\bottomrule
+\end{tabularx}
+\end{center}
+}
+
+\section{Commandes principales}
+
+{\small
+\begin{verbatim}
+uv sync --all-groups                                   # environnement
+docker compose up -d                                   # bases Postgres
+uv run alembic upgrade head                            # migrations
+uv run python -m foot_predictor.ingestion load ...     # référentiel depuis le brut
+uv run python -m foot_predictor.features build         # jeu de données versionné
+uv run python -m foot_predictor.modeling evaluate experiments/<nom>.yaml
+uv run python -m foot_predictor.inference live --days 7 --save
+uv run python -m foot_predictor.api serve              # API locale
+uv run streamlit run src/foot_predictor/ui/app.py      # interface
+uv run pytest -q                                       # tests
+\end{verbatim}
+}
+
+\section{Glossaire}
+
+\begin{description}
+  \item[ADR] fiche de décision : contexte, options, choix, conséquences ; jamais réécrite.
+  \item[B0, B1] références : même loi pour tous ; moyennes du championnat par terrain.
+  \item[Brut] réponses des sources gardées telles quelles, jamais modifiées.
+  \item[Couverture annoncée] probabilité, selon le modèle, que le total tombe dans l'intervalle publié.
+  \item[H1, H2] horizons de prédiction : avant et avec composition.
+  \item[Log-loss] \(-\log\) de la probabilité donnée au total observé ; plus petit est meilleur.
+  \item[Pli] découpage apprentissage puis test sur une saison future.
+  \item[Rejeu] prédiction d'un match passé par un modèle qui ne l'a jamais vu.
+  \item[Scellé] matchs tenus à l'écart du développement, pour un test unique.
+  \item[\code{staging}] référentiel en base, reconstruit depuis le brut.
+\end{description}

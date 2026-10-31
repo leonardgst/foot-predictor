@@ -1,0 +1,75 @@
+% Données : sources, collecte, gel, référentiel, qualité, scellé (parties 1 et 2 ; DATA_FREEZE.md).
+
+\chapter{Données}
+\label{chap:donnees}
+
+\section{Sources}
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lXl}
+\toprule
+Source & Contenu utilisé & Statut \\
+\midrule
+API-FOOTBALL & matchs, compositions, statistiques d'équipe et de joueurs, profils, entraîneurs,
+               classements, depuis 2015-16 & abonnement terminé le 22/10/2026 \\
+football-data & résultats depuis 2000, tirs, cotes plus ou moins 2,5 buts ; résultats et prochains
+                matchs en direct & gratuit, deux mises à jour par semaine \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Understat (xG) est écarté : son \code{robots.txt} interdit la collecte automatique (ADR-0023). Les xG
+d'API-FOOTBALL ne couvrant que les saisons récentes, le projet construit un \code{xg\_proxy} à partir
+des tirs cadrés (ADR-0032, ADR-0035).
+
+\section{Collecte et gel}
+
+\paragraph{Brut d'abord.} Chaque réponse de l'API est écrite telle quelle dans un fichier
+\code{.json.gz}, avec une ligne dans un journal de requêtes (ADR-0003) ; les CSV de football-data sont
+gardés octet pour octet (ADR-0024). Rien n'est jamais modifié dans ce dossier : tout le reste se
+reconstruit à partir de lui.
+
+\paragraph{Collecteur v2.} Le collecteur demande les matchs par lots de 20 (un seul appel rend
+compositions, événements et statistiques), lit le champ d'erreurs de l'API, reprend après une
+interruption et prend un verrou avant toute écriture (ADR-0004, ADR-0018). Le périmètre est collecté
+par paliers : top 5 et deuxièmes divisions de 2015-16 à 2026-27, coupes d'Europe et coupes nationales,
+autres championnats, classements et profils de joueurs (ADR-0002).
+
+\paragraph{Gel du 19 octobre 2026.} Avant la fin de l'abonnement, le brut est figé (tag
+\code{data-freeze-2026-10}) : \textbf{17\,336 fichiers}, 306~Mo compressés, \textbf{102\,554 matchs
+terminés}, tous avec leur détail. Le brut est sauvegardé sur un disque externe, puis restauré et
+recompté pour vérifier la sauvegarde (ADR-0006). Un journal \og T-60 \fg{} a aussi enregistré, du 9 au
+18 octobre, les compositions publiées une heure avant le coup d'envoi, pour la version
+intermédiaire (ADR-0017).
+
+\section{Référentiel}
+
+La commande \code{load} reconstruit entièrement le schéma \code{staging} de Postgres à partir du brut :
+compétitions, équipes, joueurs, matchs, compositions, tirs et cotes (ADR-0008). Les identifiants sont
+ceux d'API-FOOTBALL, jamais les noms : deux joueurs homonymes restent distincts. Les corrections
+(équipes de football-data à rapprocher, collisions d'identifiants) sont des fichiers YAML relus par
+\code{load}, jamais des modifications à la main dans la base. Sur le brut définitif, \code{load}
+produit 167\,980 matchs en un peu plus de 8 minutes. Deux chargements successifs donnent 15 empreintes
+de tables sur 15 identiques : la reconstruction est reproductible.
+
+\section{Qualité}
+
+Des contrôles chiffrés accompagnent chaque chargement (\code{check-referentiel}) :
+
+\begin{itemize}
+  \item appariement des matchs de football-data et d'API-FOOTBALL : 99,98~\% (seuil : 99,5~\%) ;
+  \item identité des joueurs : collisions d'identifiants exclues automatiquement et comptées
+        (ADR-0020) ; 0,14~\% des matchs du top 5 touchés par une exclusion (seuil : 1~\%) ;
+  \item ruptures de série signalées plutôt que corrigées : les tirs de football-data de la Serie A
+        de 2018-19 à 2020-21 ne se comparent pas aux autres saisons (ADR-0029), d'où une source de tirs
+        choisie saison par saison (ADR-0035).
+\end{itemize}
+
+\section{Le scellé}
+
+Tous les matchs joués à partir du 1\textsuperscript{er} juillet 2025 sont \emph{sous scellés}
+(ADR-0012) : aucune de leurs valeurs (score, tirs, cotes) n'a été lue pendant le développement. Ce
+n'est pas qu'une consigne : toute lecture des matchs passe par une seule fonction,
+\code{features/sources.py}, qui filtre la date en SQL, et des tests d'architecture vérifient
+qu'aucun autre module n'interroge la table des matchs (ADR-0028). Le scellé n'a été ouvert qu'une fois,
+pour le test final (chapitre~\ref{chap:resultats}), puis à l'inférence seulement (ADR-0045).

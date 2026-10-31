@@ -1,0 +1,86 @@
+% Bilan : critères E.1, limites, difficultés, perspectives, conclusion
+% (docs/retours/partie-5-lot4_2026-10-31.md ; JOURNAL_ERREURS.md).
+
+\chapter{Bilan}
+\label{chap:bilan}
+
+\section{Critères de réussite du MVP}
+
+Le rapport de cadrage (E.1) fixait six critères ; certains ont été reformulés par des ADR avant toute
+mesure.
+
+\begin{center}
+\begin{tabularx}{\textwidth}{Xll}
+\toprule
+Critère & État & Preuve \\
+\midrule
+1. Tout se reconstruit depuis le brut par des commandes documentées & rempli & 2 chargements identiques \\
+2. Le modèle bat B1, intervalle à 95~\% qui exclut 0 & rempli & validation et test scellé \\
+3. Calibration de \(P(T > 2{,}5)\) à \(\pm 3\) points par décile & diagnostic & ADR-0037 \\
+4. Couverture de l'intervalle à \(\pm 3\) points de l'annoncée & rempli & 0,2 point au test \\
+5. Base, API et interface démarrent ; une prédiction s'affiche & rempli & rejeu et live réels \\
+6. Documentation et chapitres mathématiques & rempli & ce rapport, docs/ \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Le critère 3 n'est pas tenu à la lettre au test scellé (5 déciles sur 10 au-delà de 3 points), alors que
+la pente vaut 1,00 : avec environ 209 matchs par décile, 3 points sont sous l'erreur d'échantillonnage.
+Le protocole l'avait classé en diagnostic avant toute évaluation ; il est publié tel quel.
+
+\section{Limites}
+
+\begin{itemize}
+  \item \textbf{Un horizon seulement.} Le modèle ignore les compositions : il ne sait pas qu'un titulaire
+        est absent. C'est la limite la plus coûteuse face au marché, qui reste meilleur sur plus ou moins
+        2,5 buts.
+  \item \textbf{Un seul pli scellé}, d'une saison et quart : l'intervalle du test est large, et le
+        résultat vaut pour cette période et ces cinq championnats.
+  \item \textbf{Approximations du live} : moyennes glissantes approchées quand le championnat n'est pas à
+        jour (dans une tolérance vérifiée), tirs de football-data à la place de ceux de l'API.
+  \item \textbf{Journal prospectif non évalué} : il le sera avec le test de l'horizon H2.
+  \item \textbf{Variables simples} : contexte, Elo et moyennes glissantes ; ni entraîneur, ni
+        composition, ni blessures, volontairement exclus du MVP.
+\end{itemize}
+
+\section{Difficultés}
+
+Le journal compte 64 erreurs résolues. Quelques-unes ont changé la méthode :
+
+\begin{itemize}
+  \item \textbf{Le premier lancement du test scellé a échoué} (E-059) : une date de l'expérience, lue
+        comme un objet date, a fait planter l'écriture du rapport. Aucun résultat n'avait été produit ;
+        la relance unique a été décidée par écrit, avec ses règles de lecture, avant d'être lancée.
+        Leçon : une commande qui ne s'exécute qu'une fois se répète d'abord de bout en bout, sur son
+        vrai fichier d'entrée, avec des données synthétiques.
+  \item \textbf{Une exactitude affirmée sans test} (E-063) : la première version de la fraîcheur par
+        équipe se disait exacte ; les tests ont montré que l'a priori des moyennes glissantes dépend de
+        tout le championnat. La décision a été reprise sur une mesure, avant la fusion.
+  \item \textbf{Des identifiants internes instables} (E-058) : ils changent quand le brut grandit. Hors du
+        référentiel, on rapproche par l'identifiant de l'API.
+  \item \textbf{L'outillage} : intégration continue fusionnée avant la fin de ses tests (E-047), échec de
+        test masqué par un tube (E-048), formatage des blocs de code des fichiers Markdown (E-049).
+        Chacun a laissé une règle écrite.
+\end{itemize}
+
+\section{Perspectives}
+
+\begin{itemize}
+  \item \textbf{Version intermédiaire (jalon J9)} : horizon H2 avec composition, à partir des données
+        sauvegardées (compositions, minutes, notes) et du journal T-60 ; variables d'entraîneur, de
+        qualité du onze et de stabilité ; comparaison avant et après composition.
+  \item \textbf{Évaluation prospective} du journal live, au test de l'horizon H2.
+  \item \textbf{Corrections reportées} avant ce test : la ligne \og règle de décision \fg{} sur un pli
+        unique (E-060), l'état Git lu trop tôt dans le journal du scellé (E-061).
+  \item \textbf{Exploitation} : collecte live planifiée, suivi de la calibration dans le temps.
+\end{itemize}
+
+\section{Conclusion}
+
+Le MVP est atteint : une chaîne complète, reproductible depuis le brut, qui prédit une loi du nombre de
+buts mieux que la référence par championnat et par terrain, sur des matchs jamais vus, avec une
+incertitude annoncée qui tient ses promesses. Le gain est petit en valeur absolue (0,019 nat par match),
+comme le laissait prévoir le bruit du problème, mais il est mesuré avec un intervalle et confirmé hors
+échantillon. Les choix qui ont le plus compté ne sont pas des modèles : sauvegarder le brut avant la fin
+de l'abonnement, figer le protocole avant de mesurer, tenir un ensemble de test sous scellés, et refuser
+de prédire plutôt que d'inventer une valeur.

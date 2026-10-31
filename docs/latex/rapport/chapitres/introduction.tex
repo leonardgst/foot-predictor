@@ -1,0 +1,65 @@
+% Contexte, objectifs, problématique, contraintes (rapport de cadrage, A et C).
+
+\chapter{Introduction}
+\label{chap:introduction}
+
+\section{Contexte}
+
+Le projet est né d'un dépôt existant : un modèle de Poisson qui fonctionnait, une collecte de données
+depuis l'API commerciale API-FOOTBALL, une première application. Le rapport de cadrage du 24 septembre
+2026 l'a analysé et a recommandé une \emph{refonte ciblée} du cœur de données plutôt qu'une réécriture :
+les joueurs étaient identifiés par leur nom, la collecte consommait vingt fois trop de requêtes, le brut
+n'était conservé nulle part en dehors d'un volume Docker, et aucun modèle n'était comparé à une
+référence naïve. Surtout, l'abonnement payant à l'API expirait trois semaines plus tard : il fallait
+d'abord sauvegarder ce qui ne pourrait plus être récupéré gratuitement.
+
+\section{Objectifs}
+
+Le besoin est double. Le produit est une application locale qui liste les matchs d'une date, dit pour
+chacun si les données nécessaires sont disponibles, et affiche alors la loi du nombre total de buts :
+probabilités de 0, 1, 2\dots{} buts, espérance, intervalle et probabilité de plus de 2,5 buts, avec les
+variables utilisées, la version du modèle et la date des données. L'apprentissage est l'autre moitié :
+Git, structuration d'un projet Python, bases de données, statistiques inférentielles, modélisation,
+tests, API, interface et documentation. Chaque technologie doit répondre à un besoin concret.
+
+\section{Problématique}
+
+Prédire un nombre de buts est un problème très bruité. Si le total \(T\) suit une loi de Poisson de
+paramètre \(\lambda \approx 2{,}8\), la variance irréductible vaut 2,8 alors que la variance de
+\(\lambda\) d'un match à l'autre n'est que de l'ordre de 0,3 à 0,5 : même un modèle parfait
+n'expliquerait qu'environ 10 à 15~\% de la variance. Juger le projet sur l'erreur d'une prédiction
+ponctuelle serait donc trompeur. La question devient : \emph{peut-on prédire une loi de probabilité
+mieux calibrée et plus informative qu'une référence simple, et mesurer honnêtement ce qu'apporte chaque
+information ?} \og Honnêtement \fg{} veut dire ici : variables disponibles avant le match seulement,
+protocole fixé avant les mesures, intervalles de confiance sur chaque comparaison, et un ensemble de
+test tenu à l'écart jusqu'à la fin.
+
+\section{Contraintes}
+
+\begin{itemize}
+  \item \textbf{Temps} : environ 10 heures par semaine, une personne.
+  \item \textbf{Argent} : aucun service payant, hormis l'abonnement API-FOOTBALL déjà payé, terminé le
+        22 octobre 2026 (ADR-0005).
+  \item \textbf{Matériel} : un portable Windows de 3 à 4 ans ; tout tourne en local.
+  \item \textbf{Légalité} : seulement des sources dont les conditions le permettent. Transfermarkt est
+        écarté par ses conditions d'utilisation, Understat par son \code{robots.txt} (ADR-0023).
+\end{itemize}
+
+\section{Démarche}
+
+Le travail est découpé en six parties (collecte, référentiel, variables, modèles, application,
+version intermédiaire), chacune en phase A (développement) puis phase B (exécution sur les données
+définitives). Chaque décision est consignée dans une \emph{ADR} (Architecture Decision Record) qui ne se
+réécrit pas : 46 ADR à ce jour, listées en annexe~\ref{chap:annexes}. Chaque erreur résolue a son entrée
+dans un journal (64 entrées). Le code est écrit avec un assistant de programmation (Claude Code), sous
+des règles stables (\code{CLAUDE.md}) : une tâche, une branche, une revue de code, une fusion après
+intégration continue verte. Le présent rapport résume ; le détail est dans le dépôt.
+
+\section{Plan du rapport}
+
+Le chapitre~\ref{chap:etat-art} situe les modèles et les métriques dans la littérature. Les
+chapitres~\ref{chap:donnees} et~\ref{chap:architecture} décrivent les données et l'architecture. Le
+chapitre~\ref{chap:methode} présente les variables, le protocole et les modèles, et le
+chapitre~\ref{chap:resultats} leurs résultats. Le chapitre~\ref{chap:application} décrit l'inférence,
+l'API et l'interface. Le chapitre~\ref{chap:bilan} fait le bilan : critères de réussite, limites,
+difficultés et perspectives.

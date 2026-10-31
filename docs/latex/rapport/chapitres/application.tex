@@ -1,0 +1,81 @@
+% Application : inférence, disponibilité, live, API, interface, traçabilité (partie 5 ; ADR-0040 à 0046).
+
+\chapter{Application}
+\label{chap:application}
+
+\section{Inférence : la même fonction qu'à l'entraînement}
+
+L'inférence n'a aucune formule de variable propre : pour prédire les matchs d'un jour \(J\), elle appelle
+la fonction qui construit le jeu d'entraînement sur l'historique arrêté à \(J\), un jour à la fois
+(ADR-0040). Sur 17 jours de contrôle, les 622 lignes produites ainsi sont identiques au bit près à celles
+du jeu d'entraînement. Deux modes existent :
+
+\begin{itemize}
+  \item \textbf{rejeu} : un match passé, prédit par le modèle du pli de sa saison, qui ne l'a jamais vu ;
+        les prédictions reproduisent celles de l'évaluation à la précision machine. Les saisons 2021-22 à
+        2024-25 sont ouvertes ; les saisons scellées restent fermées jusqu'au test de l'horizon H2
+        (ADR-0045) ;
+  \item \textbf{live} : un match à venir, prédit par le modèle final, et seulement avant son coup
+        d'envoi.
+\end{itemize}
+
+\section{Disponibilité}
+
+Pour chaque variable requise, l'inférence dit si elle est \emph{présente}, \emph{manquante} (avec la
+raison) ou \emph{périmée} (source en retard). Une seule variable non présente suffit : le match est
+\code{unavailable}, et aucune prédiction n'est faite. Aucune valeur de remplacement n'est jamais
+utilisée, car une moyenne mise à la place d'une variable absente donnerait une prédiction fausse
+présentée avec la même assurance qu'une vraie.
+
+\section{Le live sans abonnement}
+
+Après le gel, le calendrier d'API-FOOTBALL reste figé (dates souvent fausses, aucun résultat). Les
+résultats et les prochains matchs de football-data lui sont \emph{superposés en mémoire}, sans rien
+écrire dans le référentiel (ADR-0042). L'appariement se fait par championnat, saison et équipes, sans la
+date ; un nom inconnu ou une clé ambiguë n'est jamais deviné. Les tirs de football-data remplacent ceux
+d'API-FOOTBALL : l'écart de log-loss mesuré est négligeable (\(-0{,}00002\), \([-0{,}00021 ; 0{,}00018]\),
+ADR-0041).
+
+\paragraph{Fraîcheur.} football-data publie les résultats environ deux fois par semaine. Avec la règle
+d'origine (un championnat entièrement à jour), 91~\% des matchs des sept jours suivants étaient
+indisponibles lors du premier live, le 22 octobre. La règle a été révisée après mesure (ADR-0046) : un
+match n'attend plus que les résultats de ses deux équipes. L'Elo reste exact ; les moyennes glissantes
+deviennent approchées, à moins de 0,0011 près sur \(\lambda\) d'après une répétition sur 2023-24. La part
+d'indisponibles est tombée à 14~\%, puis à 10~\% le 31 octobre.
+
+\section{API et interface}
+
+L'API FastAPI (7 routes) liste les matchs d'une date avec leur disponibilité, calcule et trace une
+prédiction, décrit le modèle actif et la fraîcheur des données. Elle n'écoute que sur \code{127.0.0.1}
+et refuse toute date scellée (code 403). L'interface Streamlit a trois écrans :
+
+\begin{itemize}
+  \item \textbf{Matchs} : mode (rejeu ou live), date, championnats ; une pastille de disponibilité par
+        match, avec sa raison ; un bouton \og Prédiction \fg{} actif seulement si le match est
+        disponible ;
+  \item \textbf{Détail} : loi du total en barres, \(E[T]\), \(\lambda\) de chaque équipe, \(P(T > 2{,}5)\),
+        intervalle et couverture annoncée, variables utilisées, version du modèle et des données, score
+        réel en rejeu, référence de marché en live ;
+  \item \textbf{Modèle} : carte d'identité, métriques de validation, courbe d'apport, fraîcheur.
+\end{itemize}
+
+L'interface ne parle qu'à l'API, en HTTP : un test d'architecture lui interdit d'importer la logique
+métier ou la base.
+
+\section{Traçabilité et journal prospectif}
+
+Chaque prédiction créée est écrite dans \code{ops.prediction} avec tout ce qui a servi à la faire :
+modèle, version des données, variables, loi, intervalle, date de complétude des sources. L'écriture est
+idempotente : une seconde demande renvoie la ligne existante. En live, une prédiction n'est acceptée
+qu'avant le coup d'envoi, et une réponse indisponible n'est jamais écrite. Au 31 octobre 2026, 89
+prédictions live sont tracées. Ce journal prospectif servira à évaluer le modèle sur des matchs
+réellement futurs ; il n'est pas encore évalué, car lire leurs scores reviendrait à ouvrir le scellé au
+développement (ADR-0045).
+
+\section{Tests de bout en bout}
+
+Un test automatisé, en intégration continue, parcourt toute la chaîne sur une petite ligue synthétique :
+brut, \code{load}, porte des données, inférence, API, interface, ligne dans \code{ops.prediction}. Sur
+les vraies données, la même chaîne a été vérifiée en rejeu et en live le 31 octobre 2026 : l'écran
+\og Matchs \fg{} s'affiche en 12 à 17 secondes à froid et en moins d'une demi-seconde ensuite, une
+prédiction en 2 à 5 secondes.

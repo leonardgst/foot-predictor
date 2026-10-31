@@ -1,0 +1,59 @@
+% Rapport du projet foot-predictor, version 1 (sous-étape 5.16, jalon J8 ; rapport de cadrage, K.2).
+% Compilation : téléverser ce dossier sur Overleaf (pdfLaTeX, puis BibTeX) ; ADR-0034.
+% Les chiffres viennent des pages générées de docs/resultats/, des ADR et des retours de session ;
+% en cas d'écart, le dépôt fait foi. Équations détaillées : docs/latex/mathematiques/.
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[french]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{foot-predictor\\[0.5em]\large Prédire la loi du nombre de buts d'un match de football\\[0.3em]
+\normalsize Rapport, version 1}
+\author{Projet d'apprentissage}
+\date{31 octobre 2026 (tag \code{v0.6.0})}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Ce projet, mené seul à raison d'une dizaine d'heures par semaine, construit une chaîne complète pour
+prédire la \emph{loi} du nombre total de buts d'un match des cinq grands championnats européens :
+collecte et sauvegarde des données, référentiel reconstruit depuis le brut, variables calculées sans
+fuite, protocole d'évaluation figé avant toute mesure, modèles, inférence, API et interface locales.
+Le modèle retenu, une régression de Poisson par équipe sur le contexte, un Elo maison et des moyennes
+glissantes de buts et de tirs, bat la référence par championnat et par terrain en validation glissante
+(\(+0{,}0179\) nat par match, intervalle à 95~\% \([0{,}0133 ; 0{,}0226]\), 7\,156 matchs) et sur un
+test scellé de 2\,092 matchs jamais vus (\(+0{,}0189\), \([0{,}0102 ; 0{,}0282]\)), avec une couverture
+de son intervalle à 0,2 point de la couverture annoncée. Le marché des paris reste meilleur sur
+l'événement \og plus de 2,5 buts \fg{}. L'application prédit en direct les matchs à venir et explique
+chaque prédiction ; elle refuse de prédire quand une variable manque.
+\end{abstract}
+
+\tableofcontents
+
+\input{chapitres/introduction}
+\input{chapitres/etat_art}
+\input{chapitres/donnees}
+\input{chapitres/architecture}
+\input{chapitres/methode}
+\input{chapitres/resultats}
+\input{chapitres/application}
+\input{chapitres/bilan}
+
+\appendix
+\input{chapitres/annexes}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

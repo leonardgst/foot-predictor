@@ -49,6 +49,20 @@ uv run python -m foot_predictor.features.xg_proxy_estimation # estimation de l'x
 - Les lire exige `sealed_test=True` et le fichier d'expérience ; chaque usage ajoute une ligne à `reports/sealed_tests.md`, aujourd'hui vide. Réservé au test scellé de la partie 4, une fois par version.
 - Une requête écrite à la main (`psql`) n'est pas couverte : filtre `match_date < '2025-07-01'` explicite pour toute valeur ; après cette date, décomptes de présence seulement.
 
+## Partie 6 : horizon H2 (ADR-0047)
+
+### 6.1 — Porte des compositions et registre H2 (2026-10-31)
+
+- **Lectures** (`features/sources.py`), même filtre du scellé en SQL que `load_matches`, mêmes paramètres (`competition_ids`, `kinds`, `until`, `sealed_test`). Pas d'ouverture à l'inférence : H2 n'a pas de live.
+  - `load_lineups` : une ligne par joueur inscrit (titulaire ou remplaçant), avec ses statistiques du match (minutes, note, poste) et sa date de naissance, vides s'il n'en a pas. `api_player_id` est l'identifiant stable d'un chargement à l'autre (E-058).
+  - `load_team_sheets` : une ligne par (match, équipe), avec l'entraîneur (`api_coach_id`, vide en 2015-16), la formation, les titulaires sans identifiant et les collisions exclues (ADR-0020).
+  - Le journal du scellé compte des **matchs** (une date par match), pas des lignes de joueurs.
+- **Volume réel** (avant le scellé, tous championnats) : 3,3 millions de lignes, 31 s et 439 Mo pour `load_lineups(kinds=["league"])` ; 263 514 feuilles en 2 s. Les étapes suivantes filtrent par compétition (top 5 et D2 : environ 2 millions de lignes).
+- **Registre** : groupes G4 (entraîneur), G5 (qualité du XI) et G6 (stabilité), tous de l'horizon H2 ; G0 à G3 restent H1. Une fiche dont l'horizon ne suit pas son groupe est refusée.
+- **Garde H1** (ADR-0010) : `registry.check_model_horizon(colonnes, horizon)` refuse un modèle qui lit une variable d'un horizon plus tardif que le sien, ou une colonne hors du registre. `modeling/model_card.build_card` l'appelle : une carte H1 ne peut pas décrire un modèle qui lit une variable H2.
+- **Architecture** : aucun module de `features/` autre que la porte ne lit `staging.lineup`, `staging.player_match_stats`, `staging.player`, `staging.team_match` ou `staging.coach`, ni n'importe leurs modèles (test d'architecture) ; chaque requête de la porte porte le filtre de date.
+- **H1 inchangé** : `registry.yaml` et `build_frame` ne changent pas (jeu identique). Les 4 modèles de rejeu H1, réentraînés à neuf par `build_card` (donc par la garde), ont des coefficients et des hyperparamètres identiques aux modèles enregistrés. `inference check --only replay` : écart nul sur 7 156 matchs (`reports/inference/rejeu_2026-10-31.md`).
+
 ## Phase B : jeu sur le brut définitif (3.11)
 
 Après le gel et la partie 2 (`staging` = chargement n° 7, tag `v0.3.0`), le jeu est reconstruit puis comparé au jeu en vigueur. Les identifiants internes de `staging` ont changé au chargement n° 6 (E-058) : les lignes se rapprochent par **identifiants API**, jamais par `match_id` ni `team_id`.

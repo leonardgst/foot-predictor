@@ -1,7 +1,8 @@
 """Test d'architecture du scellé technique : une seule porte de lecture des matchs.
 
 Dans `features/`, seul `sources.py` peut importer le modèle `Match` ou écrire du SQL sur
-`staging.match`. Les notebooks n'importent du projet que `foot_predictor.features.sources`.
+`staging.match`. Même règle pour les feuilles de match (horizon H2, ADR-0047) : compositions,
+statistiques joueurs, profils, équipes du match et entraîneurs. Les notebooks n'importent du projet que `foot_predictor.features.sources`.
 Les anciens modules (`features/legacy/`, remplacés, retrait en partie 4) sont hors de cette règle.
 """
 
@@ -18,6 +19,8 @@ NOTEBOOKS = REPO / "notebooks"
 
 GATE = FEATURES / "sources.py"
 STAGING_MATCH = re.compile(r"staging\.match\b")
+STAGING_SHEETS = re.compile(r"staging\.(lineup|player_match_stats|player|team_match|coach)\b")
+GATED_MODELS = {"Match", "Lineup", "PlayerMatchStats", "Player", "TeamMatch", "Coach", "*"}
 SOURCE = REPO / "src" / "foot_predictor"
 INFERENCE = SOURCE / "inference"
 OPENING = re.compile(r"\bopened_for_inference\s*=")  # argument nommé (paramètre réservé aux mots-clés)
@@ -35,7 +38,7 @@ def _feature_modules() -> list[Path]:
 def _imports_match_model(tree: ast.AST) -> bool:
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module == "foot_predictor.db.models":
-            if any(alias.name in {"Match", "*"} for alias in node.names):
+            if any(alias.name in GATED_MODELS for alias in node.names):
                 return True
         if isinstance(node, ast.Import) and any(alias.name == "foot_predictor.db.models" for alias in node.names):
             return True
@@ -46,9 +49,11 @@ def test_only_the_gate_reads_matches():
     offenders = []
     for path in _feature_modules():
         source = path.read_text(encoding="utf-8")
-        if _imports_match_model(ast.parse(source)) or STAGING_MATCH.search(source):
+        if _imports_match_model(ast.parse(source)) or STAGING_MATCH.search(source) or STAGING_SHEETS.search(source):
             offenders.append(path.relative_to(REPO).as_posix())
     assert offenders == []
+    gate = GATE.read_text(encoding="utf-8")
+    assert STAGING_SHEETS.search(gate) and STAGING_MATCH.search(gate)  # témoin : la règle voit bien ces lectures
 
 
 def test_the_gate_really_filters_in_sql():
@@ -56,6 +61,11 @@ def test_the_gate_really_filters_in_sql():
     source = GATE.read_text(encoding="utf-8")
     assert "where m.match_date < :upper" in source
     assert "check_seal(" in source
+    from foot_predictor.features import sources
+
+    for query in (sources._MATCH_SQL, sources._ODDS_SQL, sources._LINEUP_SQL, sources._TEAM_SHEET_SQL):
+        assert "staging.match m" in query  # chaque requête porte la date du match…
+        assert "where m.match_date < :upper" in query  # …et le filtre du scellé
 
 
 def _notebook_code(path: Path) -> str:

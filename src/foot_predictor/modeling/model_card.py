@@ -15,6 +15,8 @@ import datetime as dt
 
 import pandas as pd
 
+from foot_predictor.features.registry import check_model_horizon
+
 KNOWN_LIMITS_H1 = [
     "Horizon H1 : aucune information de composition (ADR-0010).",
     "Indépendance conditionnelle des deux équipes (Dixon-Coles sans gain, ADR-0038) ; légère sous-dispersion "
@@ -78,7 +80,12 @@ def build_card(
     created_at: dt.datetime | None = None,
     limits: list[str] | None = None,
 ) -> dict:
-    """Carte d'identité (dictionnaire sérialisable en JSON)."""
+    """Carte d'identité (dictionnaire sérialisable en JSON).
+
+    Refuse (`RegistryError`) un modèle qui lit une variable d'un horizon plus tardif que celui
+    déclaré : un modèle H1 n'a aucune variable H2 (ADR-0010, ADR-0047).
+    """
+    check_model_horizon(list(fit.model.features), horizon)
     described = fit.model.describe()
     return {
         "version": version,

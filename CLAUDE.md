@@ -31,13 +31,13 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Corriger le référentiel en base : toute correction est un YAML de `ingestion/mappings/`, rejoué par `load` (ADR-0008, règle 4).
 - Lire une valeur (score, tirs, xG, cotes) d'un match joué à partir du **1er juillet 2025** (scellé, ADR-0012). Le code lit les matchs par la seule porte `features/sources.py` (ADR-0028) ; une requête à la main (`psql`) porte un filtre `match_date < '2025-07-01'` explicite, et après cette date on ne fait que des décomptes de présence.
 
-## Collecte : verrou et tâches planifiées (ADR-0018)
+## Collecte : verrou (ADR-0018)
 
-- **Avant tout `git pull` dans `C:/foot-predictor`** : `uv run python -m foot_predictor.collect.api_football lock-status` doit répondre « libre » (code 0). Sinon, une commande écrit dans le brut : attendre.
+- Collecte API-FOOTBALL **terminée** : abonnement fini le 2026-10-22 (ADR-0005), brut gelé (tag `data-freeze-2026-10`), tâches planifiées `FootPredictor_*` supprimées au gel. Une nouvelle tâche planifiée passe par une ADR (ADR-0047, D8).
+- **Avant tout `git pull` dans `C:/foot-predictor`** : `uv run python -m foot_predictor.collect.api_football lock-status` (depuis le worktree : `--raw-dir C:/foot-predictor/data/raw`) doit répondre « libre » (code 0). Sinon, une commande écrit dans le brut : attendre.
 - Toute commande qui écrit dans `data/raw/` prend le verrou `data/raw/_lock/collecte.lock` ; une nouvelle commande de ce type doit le prendre aussi. Ne jamais supprimer ce fichier à la main : un verrou périmé est remplacé automatiquement.
-- Des tâches planifiées Windows `FootPredictor_*` lancent `refresh`, `run` et `t60` (liste dans `docs/realisation/03_collecte/README.md`). Ne pas les modifier ni les supprimer hors de la session prévue ; voir leurs journaux dans `data/logs/`.
 - Toute commande qui consomme du quota porte `--max-requests`.
-- **Jamais de `load` pendant une tâche planifiée** (lundis de `refresh`, de 07:45 à 11:00) ni quand `lock-status` répond « occupé » : il lit tout le brut pendant environ 13 minutes (778 s depuis la migration 0007).
+- **Jamais de `load` quand `lock-status` répond « occupé »** : il lit tout le brut pendant 6 à 13 minutes.
 
 ## Architecture (résumé)
 
@@ -54,13 +54,14 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 - Une expérience = `experiments/<nom>.yaml` → `reports/experiments/<id>.json` ; **tous les essais sont conservés**, échecs compris (`INDEX.md` en donne le nombre). Mesurer d'abord avec peu de rééchantillonnages. Les chiffres de `docs/resultats/` sont générés (`modeling summary`), jamais recopiés à la main.
 - Tout modèle : `fit(lignes d'apprentissage)` puis `predict(lignes sans cible)` ; ajustements dans le pli ; lignes à valeur manquante exclues et comptées ; comparaisons sur l'intersection des matchs.
 - Les cotes sont une **référence**, jamais une variable ; la clôture n'est jamais une référence de l'horizon H1 (ADR-0036).
-- **Test scellé** (`--sealed-test`, `sealed_test=True`) : **une seule fois par version**, en phase B, sur la liste figée par le tag `pre-scelle-h1` (ADR-0039) ; résultat publié tel quel, aucun modèle modifié ensuite. La commande refuse elle-même un code changé depuis le tag ou un second test.
-- **Depuis le tag `pre-scelle-h1`** : aucun changement sous `src/foot_predictor/modeling/`, `src/foot_predictor/features/`, `experiments/` avant le test scellé H1.
+- **Test scellé** (`--sealed-test`, `sealed_test=True`) : **une seule fois par version**, en phase B, sur la liste figée par un tag `pre-scelle-<version>` ; résultat publié tel quel, aucun modèle modifié ensuite. La commande refuse elle-même un code changé depuis le tag ou un second test. H1 : fait (ADR-0043, ADR-0044) ; H2 : dernier test sur ces matchs (ADR-0047).
+- **Gel avant un test scellé** : du tag `pre-scelle-<version>` jusqu'au test, aucun changement sous `src/foot_predictor/modeling/`, `src/foot_predictor/features/`, `src/foot_predictor/seal.py`, `experiments/` (contrôle `git diff --stat <tag>..HEAD -- <ces chemins>` vide avant chaque fusion). Gel de H1 levé à `v0.5.0` ; gel de H2 à venir (6.9).
+- **Garde H1** : le modèle H1 ne se modifie jamais (ADR-0012). Une PR qui touche `modeling/models/` ou `features/` montre que les prédictions du modèle final H1 et les colonnes H1 du jeu sont inchangées (ADR-0044, ADR-0047).
 - **Un lot par session** : finir le lot, écrire son retour, mettre à jour la ligne « Reprise » d'`ETAT_PROJET.md` (dernière modification de chaque PR), puis s'arrêter.
 
 ## Inférence, API et interface (partie 5)
 
-- **Chemins figés par `pre-scelle-h1`** jusqu'à la fin du test scellé : `src/foot_predictor/modeling/`, `src/foot_predictor/features/`, `src/foot_predictor/seal.py`, `experiments/`, `tests/modeling`, `tests/features` : on les **importe**, jamais on ne les modifie (contrôle `git diff --stat pre-scelle-h1..HEAD -- <ces chemins>` vide avant chaque fusion). Le code de la partie 5 vit dans `inference/`, `api/`, `ui/` et de nouveaux fichiers de `collect/football_data/`.
+- Code de la partie 5 : `inference/`, `api/`, `ui/` et `collect/football_data/`.
 - **Même fonction** : l'inférence n'a aucune formule de variable propre ; elle appelle `features.dataset.build_frame` sur l'historique tronqué au jour du match, un jour à la fois (ADR-0040). Tout écart entre entraînement et inférence est un défaut.
 - **Disponibilité** : une variable requise est présente, manquante (raison) ou périmée (source en retard) ; une seule non présente ⇒ `unavailable`, aucune prédiction, jamais de valeur de remplacement.
 - **Rejeu** : modèle du pli de la saison, jamais un modèle qui a vu la saison ; saisons 2021-22 à 2024-25 jusqu'au test scellé de **H2** (ADR-0045). **Live** : prédiction écrite avant le coup d'envoi seulement ; historique scellé ouvert à `inference/` seulement (`opened_for_inference`, ADR-0045).

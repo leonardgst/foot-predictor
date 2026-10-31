@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-065 — `test_freeze` intermittent : le compteur `pytest-<n>` du dossier temporaire, vraie cause d'E-036 (2026-10-31)
+
+- **Contexte** : suite complète des tests pendant les corrections E-060 et E-061 (2026-10-31) ; un échec, puis 5 relances réussies.
+- **Message d'erreur** : `assert [531] == []` dans `tests/collect/api_football/test_freeze.py::test_freeze_checks_saves_restores_and_drafts_data_freeze`.
+- **Cause** : le brouillon `DATA_FREEZE.md` écrit trois chemins absolus (sauvegarde, restauration, résumé `raw_check`), sous le dossier temporaire de pytest pendant le test : `…/pytest-of-<utilisateur>/pytest-531/test_freeze_…/externe/raw`. Pytest augmente ce compteur à chaque exécution ; le `-` qui le précède n'arrête pas `mentions_number`, et quand le compteur égale l'un des 139 identifiants de joueurs de la fixture (106, 160 à 184, 409, 531, 626…), le test échoue. **Le diagnostic d'E-036 était faux** : les durées s'écrivent en secondes entières (`{seconds:.0f} s`) depuis la création de `freeze.py`, « 0.174 s » n'a jamais pu figurer dans le document ; c'était `pytest-174`. Cela explique « un échec sur trois » à l'époque (11 valeurs sur 25 entre 160 et 184) et les 12 réussites après la correction d'E-036 (compteur entre 185 et 408).
+- **Solution** : `leaked_players` retire la racine temporaire du test avant de chercher noms et identifiants ; le reste du document reste contrôlé. `freeze.py` est inchangé : des chemins absolus dans le brouillon sont voulus. Vérifié : ancien test en échec avec `--basetemp …/pytest-626`, nouveau test vert aux compteurs 174, 531, 626 et 667, et 20 exécutions de suite.
+- **Fichiers concernés** : `tests/collect/api_football/test_freeze.py`.
+- **Prévention** : un test qui cherche une valeur dans une sortie retire d'abord ce qu'il ne maîtrise pas (chemins temporaires, horodatages) ; devant un test intermittent, chercher ce qui change d'une exécution à l'autre et vérifier que la cause supposée peut réellement apparaître dans la sortie avant de la corriger.
+- **Test de non-régression** : `tests/collect/api_football/test_freeze.py::test_player_ids_in_temporary_paths_are_not_leaks` (`freeze` sous un dossier nommé `531`, déterministe).
+
 ## E-064 — `api serve` : port 8000 déjà pris par le relais de WSL (2026-10-31)
 
 - **Contexte** : partie 5, phase B, 5.15 (bout en bout réel). Lancement de l'API par la commande documentée `uv run python -m foot_predictor.api serve`.
@@ -306,6 +316,7 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 - **Fichiers concernés** : `tests/collect/api_football/test_freeze.py`, `docs/realisation/03_collecte/gel.md`.
 - **Prévention** : chercher un identifiant avec des délimiteurs qui excluent un chiffre voisin et un point décimal (`\b` ne suffit pas : un point est une limite de mot).
 - **Test de non-régression** : `tests/collect/api_football/test_freeze.py::test_mentions_number_ignores_decimals_longer_numbers_and_hashes`, dont le cas « 0.174 s ».
+- **Note du 2026-10-31** : diagnostic faux, le test a de nouveau échoué ; vraie cause et correction dans **E-065** (compteur `pytest-<n>` du dossier temporaire).
 
 ## E-035 — `could not resize shared memory segment` en lisant tous les matchs (2026-09-29)
 

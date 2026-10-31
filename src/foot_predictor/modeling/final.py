@@ -62,6 +62,9 @@ def train_final(
 
         if not already_evaluated(experiment_path.as_posix(), sealed_log):
             raise FinalTrainingError("Apprentissage avec les matchs scellés refusé : le test scellé n'est pas fait.")
+    # État du code lu AVANT la lecture des données : la lecture scellée ajoute une ligne au journal
+    # `reports/sealed_tests.md`, suivi par Git, qui ferait passer l'arbre pour modifié (E-061).
+    git = git_state()
     if data is None:
         from foot_predictor.features.sources import load_dataset
 
@@ -82,7 +85,6 @@ def train_final(
     fit = protocol.select_and_fit(make, grid, data, fold, population, features)
     train_rows, _ = protocol.usable(protocol.training_rows(data, fold.train_seasons, population), features)
 
-    git = git_state()
     today = today or dt.datetime.now(dt.UTC).date()
     version = f"{spec['name']}-{model_id}-{today:%Y%m%d}-{(git.get('commit') or 'inconnu')[:8]}".lower()
     if include_sealed:

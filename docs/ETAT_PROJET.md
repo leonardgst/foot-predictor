@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-31 (E-060 corrigé, PR #92 ; reprise à E-061)
+**Dernière mise à jour** : 2026-10-31 (E-060 et E-061 corrigés, PR #92 et #93 ; reprise au cadrage de H2)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2, 3 et 4 terminées** (tags `v0.3.0`, `v0.4.0` et `v0.5.0` ; `docs/retours/partie-2_2026-10-19.md`, `partie-3_2026-10-22.md`, `partie-4_2026-10-22.md`). **Partie 5 terminée** (tags `v0.6.0` et `v1.0.0` ; `docs/retours/partie-5_2026-10-31.md`) : **le MVP est terminé**.
 
-**Reprise : partie 6, version intermédiaire (J9), sur demande** : d'abord la correction d'E-061 (E-060 corrigé, PR #92), puis le cadrage de l'horizon H2. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
+**Reprise : partie 6, version intermédiaire (J9), sur demande** : cadrage de l'horizon H2 (E-060 et E-061 corrigés, PR #92 et #93). Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -37,7 +37,7 @@
 - **Partie 4, phase B, 4.17 : modèle final H1** (2026-10-22, PR #83, **ADR-0044**, `docs/retours/partie-4_2026-10-22.md`) :
   - `train --final --include-sealed` sur `94969da0` : **`scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle`**, 40 180 lignes jusqu'au 2026-10-18, demi-vie 240 jours ; carte dans `reports/model_cards/` ;
   - demi-vie validée par la procédure figée sur le début de 2026-27 (341 matchs), choix de l'utilisateur avant le lancement ; coefficients à 0,009 au plus de ceux du modèle sans scellé ;
-  - **E-061** : `dirty: true` à tort dans la carte et dans le manifeste de `94969da0` (journal écrit avant la lecture de l'état Git) ; jalon J6 atteint, **tag `v0.5.0`** sur la fusion de la PR #83.
+  - **E-061** : `dirty: true` à tort dans la carte et dans le manifeste de `94969da0` (journal écrit avant la lecture de l'état Git ; **corrigé dans le code le 2026-10-31**, PR #93) ; jalon J6 atteint, **tag `v0.5.0`** sur la fusion de la PR #83.
 - **Partie 5, phase B, 5.13 : ouverture du scellé** (2026-10-22, PR #84, **ADR-0045** ; « Ouverture du scellé » dans `docs/realisation/11_inference/README.md`) :
   - porte : `load_matches(opened_for_inference=True)`, refusée avant le test H1, sans ligne de journal, réservée à `inference/` (test d'architecture) ; développement et cotes fermés jusqu'au test de H2 ;
   - live : historique complet ; **rejeu des saisons scellées fermé jusqu'au test de H2** (choix de l'utilisateur) ; modèle final actif dans `ops.model_registry` (`models --activate`) ;
@@ -65,7 +65,7 @@
 - Points de vigilance :
   - `lock-status` (avec `--raw-dir C:/foot-predictor/data/raw` depuis le worktree) avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure de 6 à 13 minutes (377 s pour le chargement n° 7, 493 s pour le n° 6, 778 s pour le n° 5) ;
   - **identifiants internes non stables d'un brut à l'autre** (E-058, corrigé par la PR #85) : hors de `staging`, rapprocher par l'identifiant API ; les 78 premières lignes d'`ops.prediction` restent sans identifiant API ; un nouveau `load` sur un brut plus grand demanderait un nouveau jeu pour `check --only rows` ;
-  - **fin du gel de `pre-scelle-h1`** avec la fusion de la PR #83 (ADR-0044) : les chemins figés se modifient de nouveau par PR (E-060 fait, E-061 ensuite). Garde : une PR qui touche `modeling/models/` montre que les prédictions du modèle final H1 sont inchangées ;
+  - **fin du gel de `pre-scelle-h1`** avec la fusion de la PR #83 (ADR-0044) : les chemins figés se modifient de nouveau par PR (E-060 et E-061 faits). Garde : une PR qui touche `modeling/models/` montre que les prédictions du modèle final H1 sont inchangées ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ; ouvert à `inference/` seulement (ADR-0045), jamais au développement de H2 ;
   - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`). **Copies du 2026-10-31** (décision du 22 octobre) : jeu scellé `ds-2026-10-22-94969da0` et modèle final H1, 4 fichiers, sha256 identiques à `C:`, dans `D:/foot-predictor/copies-2026-10-22/` (`datasets_scelles/`, `models/`) ;
   - Docker Desktop doit tourner (bases arrêtées sinon, E-050) : `docker ps` en début de session ;
@@ -78,7 +78,7 @@
 
 ## Prochaines actions
 
-**Correction reportée** (une PR, avant le test de H2) : E-061 (état Git lu après le journal du scellé). E-060 corrigé (PR #92).
+**Corrections reportées faites** : E-060 (PR #92), E-061 (PR #93). **À signaler** : `test_freeze` a échoué une fois sur un identifiant synthétique (531) trouvé dans le brouillon `DATA_FREEZE.md`, même famille qu'E-036 ; 5 relances réussies ; correction à décider.
 
 **Reprise** (partie 6 ou live courant, sur demande) :
 ```bash

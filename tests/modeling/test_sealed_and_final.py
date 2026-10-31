@@ -114,3 +114,24 @@ def test_training_on_sealed_matches_requires_a_finished_sealed_test(spec, data, 
     (tmp_path / "journal.md").write_text(f"| x | y | {spec.as_posix()} | {experiment.SEALED_DONE} |\n", "utf-8")
     card = train_final(spec, "M3", include_sealed=True, **kwargs)
     assert card["training"]["last_season"] == 2026 and card["training"]["includes_sealed_matches"] is True
+
+
+def test_the_card_reads_the_git_state_before_the_journaled_sealed_read(spec, data, tmp_path, monkeypatch):
+    """E-061 : la lecture scellée écrit une ligne au journal suivi par Git ; la carte ne doit pas se dire modifiée."""
+    from foot_predictor.features import sources
+    from foot_predictor.modeling import final
+
+    log = tmp_path / "journal.md"
+    log.write_text(f"| x | y | {spec.as_posix()} | {experiment.SEALED_DONE} |\n", "utf-8")
+    written = []
+
+    def journaled_read(*args, **kwargs):  # comme la porte : la ligne du journal, puis les données
+        written.append(True)
+        return data, {"version": "ds-scelle"}
+
+    monkeypatch.setattr(sources, "load_dataset", journaled_read)
+    monkeypatch.setattr(final, "git_state", lambda: {"commit": "c6d9454", "dirty": bool(written)})
+    card = train_final(spec, "M3", include_sealed=True, models_root=tmp_path / "models", cards_dir=tmp_path / "cartes",
+                       sealed_log=log, today=dt.date(2026, 10, 22))  # fmt: skip
+    assert written  # la lecture a bien eu lieu
+    assert card["code"] == {"commit": "c6d9454", "dirty": False}

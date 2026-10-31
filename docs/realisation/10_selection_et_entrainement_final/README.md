@@ -66,7 +66,7 @@ uv run python -m foot_predictor.modeling train --final experiments/scelle_h1.yam
 | Journal du scellé | 7 lignes : une lecture du jeu (9 118 lignes scellées) ajoutée |
 
 - **Choix de la procédure** : la commande figée valide la demi-vie sur la dernière saison présente, ici incomplète (341 matchs). Ce point a été relevé avant le lancement. L'utilisateur a choisi d'appliquer la procédure telle quelle plutôt que de l'adapter après avoir vu le résultat scellé (ADR-0044, options).
-- **`code.dirty: true` dans la carte** : faux positif. La ligne du journal est écrite avant la lecture de l'état Git (E-061). La même cause explique `git_dirty: true` dans le manifeste du jeu `94969da0`.
+- **`code.dirty: true` dans la carte** : faux positif. La ligne du journal est écrite avant la lecture de l'état Git (E-061). La même cause explique `git_dirty: true` dans le manifeste du jeu `94969da0`. Corrigé dans le code le 2026-10-31 (PR #93) ; la carte et le manifeste déjà écrits restent tels quels.
 - **Pas encore en service** : le modèle actif de l'inférence reste celui du 2026-09-30 jusqu'à la sous-étape 5.13.
 
 ## Ce que fait chaque commande

@@ -90,13 +90,16 @@ def run_build(
         trace = database_trace(connection)
     if sealed_test and not experiment:
         raise ValueError("--sealed-test exige le fichier d'expérience (--experiment), pour le journal du scellé.")
+    # État du code lu AVANT la lecture des matchs : la lecture scellée ajoute une ligne au journal
+    # `reports/sealed_tests.md`, suivi par Git, qui ferait passer l'arbre pour modifié (E-061).
+    commit, dirty = git_commit(), git_dirty()
     # Toutes compétitions ; filtre du scellé en SQL, levé seulement avec sealed_test (journalisé).
     matches = load_matches(engine, sealed_test=sealed_test, experiment=experiment)
     frame = build_frame(matches, load_elo_params(), xg_proxy.load(), huis_clos.load_periods(), sealed_test=sealed_test)
     manifest_base = {
         **trace,
-        "git_commit": git_commit(),
-        "git_dirty": git_dirty(),  # vrai : construit avec du code non committé, à reconstruire
+        "git_commit": commit,
+        "git_dirty": dirty,  # vrai : construit avec du code non committé, à reconstruire
         "registry_sha256": registry.sha256(),
         "parameters": frozen_parameters(),
         "scope": scope() | ({"sealed_test": True, "experiment": experiment} if sealed_test else {}),

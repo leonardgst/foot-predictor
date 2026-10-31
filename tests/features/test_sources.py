@@ -161,3 +161,72 @@ def test_odds_are_read_only_before_the_seal(db_session, league):
     odds = odds[odds["match_id"].isin([m.id for m in matches])]
     assert sorted(odds["match_id"]) == sorted(m.id for m in matches[:2])  # les deux matchs d'avant le 1er juillet
     assert odds["odds_over_2_5"].tolist() == [1.9, 1.9]
+
+
+@pytest.fixture
+def sheets(db_session, league):
+    """Feuilles de match des quatre matchs : un titulaire et un remplaçant par équipe, un entraîneur à domicile."""
+    from foot_predictor.db.models import Coach, Lineup, Player, PlayerMatchStats
+
+    coach = Coach(api_coach_id=999_501, name="Entraîneur A")
+    starter = Player(full_name="Joueur 1", api_player_id=999_601, birth_date=dt.date(1995, 3, 1))
+    bench = Player(full_name="Joueur 2", api_player_id=999_602)  # sans date de naissance
+    db_session.add_all([coach, starter, bench])
+    db_session.flush()
+    matches = db_session.query(Match).filter(Match.competition_id == league.id).order_by(Match.match_date).all()
+    for match in matches:
+        home = db_session.query(TeamMatch).filter(TeamMatch.match_id == match.id, TeamMatch.is_home).one()
+        home.coach_id, home.formation = coach.id, "4-3-3"
+        db_session.add_all(
+            [
+                Lineup(match_id=match.id, team_id=match.home_team_id, player_id=starter.id, started=True, shirt_number=9),
+                Lineup(match_id=match.id, team_id=match.home_team_id, player_id=bench.id, started=False),
+                PlayerMatchStats(match_id=match.id, player_id=starter.id, team_id=match.home_team_id, minutes=90, rating=7.3),
+            ]
+        )  # fmt: skip
+    db_session.flush()
+    return matches
+
+
+def test_lineups_are_read_only_before_the_seal(db_session, league, sheets):
+    from foot_predictor.features.sources import load_lineups
+
+    frame = load_lineups(db_session, competition_ids=[league.id])
+    assert len(frame) == 4  # 2 joueurs × les 2 matchs d'avant le 1er juillet
+    assert frame["match_date"].max().date() == dt.date(2025, 6, 30)
+    assert set(frame["match_id"]) == {m.id for m in sheets[:2]}
+    assert frame["started"].tolist() == [True, False, True, False]  # titulaires d'abord
+    assert len(load_lineups(db_session, competition_ids=[league.id], until=dt.date(2025, 6, 30))) == 2
+
+
+def test_lineups_keep_missing_statistics_empty(db_session, league, sheets):
+    from foot_predictor.features.sources import load_lineups
+
+    frame = load_lineups(db_session, competition_ids=[league.id])
+    starters, bench = frame[frame["started"]], frame[~frame["started"]]
+    assert starters["rating"].tolist() == [7.3, 7.3] and starters["minutes"].tolist() == [90, 90]
+    assert starters["api_player_id"].tolist() == [999_601, 999_601]
+    assert bench["rating"].isna().all() and bench["minutes"].isna().all()  # pas de statistiques : vide, jamais 0
+    assert bench["birth_date"].isna().all() and starters["birth_date"].notna().all()
+
+
+def test_lineups_of_sealed_matches_need_the_sealed_test_and_are_logged(db_session, league, sheets, tmp_path):
+    from foot_predictor.features.sources import load_lineups
+
+    log = tmp_path / "journal.md"
+    frame = load_lineups(
+        db_session, competition_ids=[league.id], sealed_test=True, experiment="experiments/essai.yaml", sealed_log=log
+    )
+    assert len(frame) == 8
+    assert "2 match(s) scellé(s) lus" in log.read_text(encoding="utf-8")
+
+
+def test_team_sheets_give_the_coach_and_leave_unknowns_empty(db_session, league, sheets):
+    from foot_predictor.features.sources import load_team_sheets
+
+    frame = load_team_sheets(db_session, competition_ids=[league.id])
+    assert len(frame) == 4  # 2 équipes × 2 matchs d'avant le scellé
+    home, away = frame[frame["is_home"]], frame[~frame["is_home"]]
+    assert home["api_coach_id"].tolist() == [999_501, 999_501] and home["formation"].tolist() == ["4-3-3"] * 2
+    assert away["api_coach_id"].isna().all() and away["coach_id"].isna().all()
+    assert frame["match_date"].max().date() == dt.date(2025, 6, 30)

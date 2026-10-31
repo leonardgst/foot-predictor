@@ -9,6 +9,10 @@ Un test d'architecture (`tests/features/test_architecture.py`) vérifie qu'aucun
 de `features/` n'importe le modèle `Match` ni n'écrit de SQL sur `staging.match`, et que les
 notebooks n'importent que ce module.
 
+**Compositions** (horizon H2, ADR-0047) : `load_lineups` et `load_team_sheets` lisent les feuilles
+de match (joueurs, statistiques du match, profils, entraîneur) par la même porte, avec le même
+filtre en SQL. Aucun autre module de `features/` ne lit ces tables (même test d'architecture).
+
 **Ouverture à l'inférence** (ADR-0045) : une fois le test scellé H1 terminé, `inference/` (et lui
 seul, test d'architecture) lit aussi les matchs scellés, comme historique des variables
 (`load_matches(opened_for_inference=True)`). Le développement reste fermé jusqu'au test de H2,
@@ -266,6 +270,174 @@ join staging.match m on m.id = o.match_id
 where m.match_date < :upper and o.source = 'football_data'
 order by o.match_id, o.version
 """
+
+
+def _filters(competition_ids: Iterable[int] | None, kinds: Iterable[str] | None) -> tuple[str, dict, list]:
+    """Filtres facultatifs par compétition et par type (`league`, `cup`), en SQL (alias `m` et `c`)."""
+    extra, params, binds = [], {}, []
+    if competition_ids is not None:
+        extra.append("and m.competition_id in :competition_ids")
+        params["competition_ids"] = [int(c) for c in competition_ids]
+        binds.append(bindparam("competition_ids", expanding=True))
+    if kinds is not None:
+        extra.append("and c.kind in :kinds")
+        params["kinds"] = list(kinds)
+        binds.append(bindparam("kinds", expanding=True))
+    return "\n".join(extra), params, binds
+
+
+def _read_gated(connectable, sql: str, params: dict, binds: list, *, sealed_test, experiment, sealed_log):
+    """Lit une requête filtrée par `m.match_date < :upper`, puis contrôle le scellé (seconde barrière)."""
+    if connectable is None:
+        from foot_predictor.db.session import get_engine
+
+        connectable = get_engine()
+    if isinstance(connectable, Session):
+        connectable = connectable.connection()
+    if isinstance(connectable, Engine):
+        with connectable.connect() as connection:
+            return _read_gated(
+                connection, sql, params, binds, sealed_test=sealed_test, experiment=experiment, sealed_log=sealed_log
+            )
+    query = text(sql)
+    if binds:
+        query = query.bindparams(*binds)
+    connectable.execute(text("set max_parallel_workers_per_gather = 0"))  # /dev/shm du conteneur (E-035)
+    frame = pd.read_sql(query, connectable, params=params)
+    frame["match_date"] = pd.to_datetime(frame["match_date"], utc=True)
+    # Une date par match : le journal du scellé compte des matchs, pas des lignes de joueurs.
+    match_dates = frame.drop_duplicates("match_id")["match_date"]
+    check_seal(match_dates, sealed_test=sealed_test, experiment=experiment, log_path=sealed_log)
+    return frame
+
+
+# Une ligne par joueur inscrit sur une feuille de match (titulaire ou remplaçant), avec ses
+# statistiques du match (s'il en a) et son profil. Horizon H2 (ADR-0010, ADR-0047).
+_LINEUP_SQL = """
+select
+    l.match_id               as match_id,
+    m.match_date             as match_date,
+    l.team_id                as team_id,
+    l.player_id              as player_id,
+    p.api_player_id          as api_player_id,
+    l.started                as started,
+    l.position               as position,
+    l.position_bucket::text  as position_bucket,
+    l.grid                   as grid,
+    l.shirt_number           as shirt_number,
+    p.birth_date             as birth_date,
+    s.minutes                as minutes,
+    s.rating                 as rating,
+    s.position_bucket::text  as stats_position_bucket,
+    s.substitute             as substitute,
+    s.captain                as captain
+from staging.lineup l
+join staging.match m on m.id = l.match_id
+join staging.competition c on c.id = m.competition_id
+join staging.player p on p.id = l.player_id
+left join staging.player_match_stats s on s.match_id = l.match_id and s.player_id = l.player_id
+where m.match_date < :upper
+{extra}
+order by m.match_date, l.match_id, l.team_id, l.started desc, l.player_id
+"""
+
+# Une ligne par (match, équipe) : entraîneur et formation de la feuille de match, entrées
+# sans identifiant et collisions exclues (ADR-0008, ADR-0020).
+_TEAM_SHEET_SQL = """
+select
+    tm.match_id              as match_id,
+    m.match_date             as match_date,
+    tm.team_id               as team_id,
+    tm.is_home               as is_home,
+    tm.coach_id              as coach_id,
+    co.api_coach_id          as api_coach_id,
+    tm.formation             as formation,
+    tm.unknown_starters      as unknown_starters,
+    tm.collision_excluded    as collision_excluded
+from staging.team_match tm
+join staging.match m on m.id = tm.match_id
+join staging.competition c on c.id = m.competition_id
+left join staging.coach co on co.id = tm.coach_id
+where m.match_date < :upper
+{extra}
+order by m.match_date, tm.match_id, tm.is_home desc
+"""
+
+
+def load_lineups(
+    connectable=None,
+    *,
+    competition_ids: Iterable[int] | None = None,
+    kinds: Iterable[str] | None = None,
+    until: dt.date | None = None,
+    sealed_test: bool = False,
+    experiment: str | None = None,
+    sealed_log: Path | None = None,
+) -> pd.DataFrame:
+    """Compositions des matchs antérieurs au scellé, une ligne par joueur inscrit (horizon H2, ADR-0047).
+
+    Même porte que `load_matches` : filtre du scellé dans la requête SQL, puis `check_seal` ;
+    mêmes paramètres (`competition_ids`, `kinds`, `until`, `sealed_test`). Pas d'ouverture à
+    l'inférence : H2 n'a pas de live (ADR-0010).
+
+    Colonnes : `match_id`, `match_date` (UTC), `team_id`, `player_id`, `api_player_id` (stable d'un
+    chargement à l'autre, E-058), `started`, `position`, `position_bucket`, `grid`, `shirt_number`
+    (composition) ; `birth_date` (profil) ; `minutes`, `rating`, `stats_position_bucket`,
+    `substitute`, `captain` (statistiques du match, vides si le joueur n'en a pas). Aucune valeur
+    n'est remplie. Ordre : date, match, équipe, titulaires d'abord.
+    """
+    extra, params, binds = _filters(competition_ids, kinds)
+    params["upper"] = _upper_bound(until, sealed_test).to_pydatetime()
+    frame = _read_gated(
+        connectable,
+        _LINEUP_SQL.format(extra=extra),
+        params,
+        binds,
+        sealed_test=sealed_test,
+        experiment=experiment,
+        sealed_log=sealed_log,
+    )
+    for column in ("match_id", "team_id", "player_id", "api_player_id", "shirt_number", "minutes"):
+        frame[column] = frame[column].astype("Int64")
+    frame["started"] = frame["started"].astype(bool)
+    for column in ("substitute", "captain"):
+        frame[column] = frame[column].astype("boolean")
+    frame["rating"] = pd.to_numeric(frame["rating"]).astype("Float64")
+    frame["birth_date"] = pd.to_datetime(frame["birth_date"])
+    return frame
+
+
+def load_team_sheets(
+    connectable=None,
+    *,
+    competition_ids: Iterable[int] | None = None,
+    kinds: Iterable[str] | None = None,
+    until: dt.date | None = None,
+    sealed_test: bool = False,
+    experiment: str | None = None,
+    sealed_log: Path | None = None,
+) -> pd.DataFrame:
+    """Feuilles de match des matchs antérieurs au scellé, une ligne par (match, équipe) (horizon H2).
+
+    Même porte et mêmes paramètres que `load_lineups`. Colonnes : `match_id`, `match_date`,
+    `team_id`, `is_home`, `coach_id` et `api_coach_id` (vides si l'API ne donne pas
+    d'entraîneur, comme en 2015-16), `formation`, `unknown_starters`, `collision_excluded`.
+    """
+    extra, params, binds = _filters(competition_ids, kinds)
+    params["upper"] = _upper_bound(until, sealed_test).to_pydatetime()
+    frame = _read_gated(
+        connectable,
+        _TEAM_SHEET_SQL.format(extra=extra),
+        params,
+        binds,
+        sealed_test=sealed_test,
+        experiment=experiment,
+        sealed_log=sealed_log,
+    )
+    for column in ("match_id", "team_id", "coach_id", "api_coach_id", "unknown_starters", "collision_excluded"):
+        frame[column] = frame[column].astype("Int64")
+    frame["is_home"] = frame["is_home"].astype(bool)
+    return frame
 
 
 def load_odds(

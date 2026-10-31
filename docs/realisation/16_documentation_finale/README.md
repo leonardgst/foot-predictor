@@ -30,4 +30,4 @@ Pas de compilateur local (ADR-0034). Avant chaque PR qui touche `docs/latex/`, c
 
 - Document mathématique (PR #89) : section « Test scellé et modèle final » ; rejeu, modèle du live et fraîcheur par équipe (ADR-0044 à ADR-0046) ; une étiquette en double corrigée (`sec:scelle`).
 - Rapport (PR #90) : introduction, état de l'art, données, architecture, méthode, résultats, application, bilan (critères E.1, limites, difficultés, perspectives, conclusion), annexes (ADR, commandes, glossaire) ; environ 20 à 25 pages attendues.
-- Compilation sur Overleaf : **à faire par l'utilisateur** ; le résultat est noté ici.
+- Compilation sur Overleaf (pdfLaTeX, 2026-10-31, par l'utilisateur) : **sans erreur**.

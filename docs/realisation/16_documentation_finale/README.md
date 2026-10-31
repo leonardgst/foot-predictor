@@ -23,7 +23,7 @@ Pas de compilateur local (ADR-0034). Avant chaque PR qui touche `docs/latex/`, c
 - **Chiffres** : recopiés des pages générées de `docs/resultats/` (elles-mêmes produites par `modeling summary`), des ADR ou des retours, jamais recalculés ni arrondis autrement qu'à la source. Une phrase qui cite un chiffre cite aussi son ADR ou sa page.
 - **Formules** : relues avec le code qu'elles décrivent (fichier cité en commentaire en tête de chapitre) ; en cas d'écart, le code et les ADR font foi.
 - **Figures** : générées par le code, copiées dans `figures/` du document (aujourd'hui : `courbe_apport.png`, de `docs/resultats/figures/`).
-- **Bibliographie** : références classiques ; volumes et pages à vérifier avant toute diffusion hors du projet.
+- **Bibliographie** : références classiques ; volumes et pages vérifiés par l'utilisateur (2026-10-31). Toute nouvelle entrée se vérifie de même avant sa fusion.
 - **Scellé** : aucun chiffre tiré d'une lecture de match scellé hors des résultats publiés du test (`docs/resultats/test_scelle_h1.md`).
 
 ## Version 1 (5.16, 2026-10-31)

@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-31 (E-060, E-061 et E-065 corrigés ; reprise au cadrage de H2)
+**Dernière mise à jour** : 2026-10-31 (6.0 : cadrage de H2 et ADR-0047 proposée, décisions D1 à D10 en attente)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2, 3 et 4 terminées** (tags `v0.3.0`, `v0.4.0` et `v0.5.0` ; `docs/retours/partie-2_2026-10-19.md`, `partie-3_2026-10-22.md`, `partie-4_2026-10-22.md`). **Partie 5 terminée** (tags `v0.6.0` et `v1.0.0` ; `docs/retours/partie-5_2026-10-31.md`) : **le MVP est terminé**.
 
-**Reprise : partie 6, version intermédiaire (J9), sur demande** : cadrage de l'horizon H2 (E-060, E-061 et E-065 corrigés, PR #92, #93 et la PR de `test_freeze`). Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
+**Reprise : partie 6, version intermédiaire (J9)** : l'utilisateur tranche D1 à D10 (`docs/cadrage/cadrage_partie-6_h2_2026-10-31.md`, section 9) ; ADR-0047 passée en « acceptée » sur la branche de 6.0 avant fusion ; puis 6.1 (porte des compositions). Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -57,7 +57,7 @@
 
 ## En cours
 
-- Rien. Aucune tâche planifiée ni collecte automatique.
+- **6.0, cadrage de H2** (branche `docs/06-cadrage-h2`, PR ouverte) : en attente des décisions D1 à D10. Aucune tâche planifiée ni collecte automatique.
 
 ## Bloqué
 
@@ -74,11 +74,12 @@
 
 ## Décisions ouvertes
 
+- **Partie 6, D1 à D10** (cadrage de H2, section 9 ; ADR-0047 proposée) : ordre des groupes (G6 → G5 → G4 recommandé), variantes de stabilité, rodage, structures M6 et M7, référence du test scellé H2, modèle final H2, collisions, Compose et planification, notes hors périmètre, allègement de `CLAUDE.md`.
 - **Renouvellement automatique de l'abonnement : coupé par l'utilisateur le 2026-10-19** (déclaré, non vérifiable par l'assistant ; fin de l'abonnement le 22 octobre à 07:56 UTC, ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
 
 ## Prochaines actions
 
-**Corrections reportées faites** : E-060 (PR #92), E-061 (PR #93), **E-065** (`test_freeze` fiabilisé : le compteur `pytest-<n>` du dossier temporaire, vraie cause d'E-036, n'est plus pris pour un identifiant de joueur).
+**Corrections reportées faites** : E-060 (PR #92), E-061 (PR #93), E-065 (`test_freeze`, PR #94).
 
 **Reprise** (partie 6 ou live courant, sur demande) :
 ```bash
@@ -96,4 +97,4 @@ uv run python -m foot_predictor.api serve --port 8001
 FP_API_URL=http://127.0.0.1:8001 uv run streamlit run src/foot_predictor/ui/app.py
 ```
 
-**Long terme** : 6. version intermédiaire (J9) : horizon H2 avec composition.
+**Partie 6** (plan du cadrage, section 8, environ 118 heures) : 6.1 porte des compositions et registre H2 ; 6.2 à 6.4 variables G6, G5, G4 ; 6.5 jeu H2 (colonnes H1 identiques à `bf786ef1`) ; 6.6 à 6.8 exploration et expériences ; 6.9 modèle H2 et tag `pre-scelle-h2` ; 6.10 H2 en rejeu ; phase B : test scellé H2, ouverture du rejeu des saisons scellées, rapport v2 (jalon J9).

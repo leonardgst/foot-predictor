@@ -121,6 +121,6 @@ Petits totaux, calibration poolée sur les 4 plis :
 ## Limites
 
 - **Un seul pli, une saison et demie** : 2 092 matchs, contre 7 156 en validation glissante. L'intervalle est donc plus large. Le résultat vaut pour cette période et ces cinq championnats.
-- **Ligne « règle de décision »** : non applicable à un pli unique (voir plus haut). Pour le test de H2 : soit le fichier du test ne demande pas cette règle, soit le code écrit « non applicable » quand le nombre de plis est inférieur au seuil. Même chose pour l'intitulé « sur les 4 plis » des petits totaux.
+- **Ligne « règle de décision »** : non applicable à un pli unique (voir plus haut). Pour le test de H2 : soit le fichier du test ne demande pas cette règle, soit le code écrit « non applicable » quand le nombre de plis est inférieur au seuil. Même chose pour l'intitulé « sur les 4 plis » des petits totaux. *Ajout du 2026-10-31 : corrigé dans le code (E-060). Régénérés, ces tableaux écriraient « non applicable : 1 pli » et « calibration poolée sur le pli unique » ; ils restent ici tels que publiés le 2026-10-22.*
 - **Marché** : évalué sur l'événement plus/moins 2,5 seulement, sur 2 001 matchs ; 91 matchs sans cote en sont exclus.
 - **Après ce test** : aucun modèle H1 n'est modifié (ADR-0012, règle 5). La sous-étape 4.17 réentraîne le modèle retenu avec les matchs scellés (ADR-0039), sans changer sa structure ni ses variables.

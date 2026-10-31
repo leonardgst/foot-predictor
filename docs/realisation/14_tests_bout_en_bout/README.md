@@ -45,8 +45,49 @@ Pour échelle, la log-loss du total du modèle sur les 4 plis de validation est 
 
 **Temps mesurés** (même jour, portable) : écran « Matchs » à froid 8,0 s (construction du contexte de l'API), à chaud 0,14 s ; clic « Prédiction » 1,2 s ; écran « Modèle » 2,2 s (étape 13). Commande `predict` d'une journée, à froid : environ 9 s.
 
+## 3. Bout en bout réel, rejeu et live (5.15, 2026-10-31)
+
+Même chaîne qu'en section 2, sur la vraie base (chargement n° 7, `load_run-7+fd-bf1f933826`), avec le modèle final H1 actif (ADR-0044, ADR-0045) et football-data du jour. **Aucun `load`** : la reconstruction depuis le brut est prouvée par 2.12 et 3.11 (critère 1, ci-dessous).
+
+```bash
+# 0. collecte (accord de l'utilisateur ; 11 requêtes au plus)
+uv run python -m foot_predictor.collect.football_data.live fixtures --max-requests 1
+uv run python -m foot_predictor.collect.football_data.live season --season 2026 --max-requests 10
+# 1. live sans service : rapport et traçage des prédictions disponibles du top 5
+uv run python -m foot_predictor.inference live --days 7 --save
+# 2. rejeu sans service
+uv run python -m foot_predictor.inference predict --date 2025-05-18 --mode replay
+# 3. services (port 8000 occupé sur ce portable, E-064 : port 8001)
+uv run python -m foot_predictor.api serve --port 8001
+FP_API_URL=http://127.0.0.1:8001 uv run streamlit run src/foot_predictor/ui/app.py
+```
+
+L'interface a été pilotée par `AppTest` branché sur la vraie API, en HTTP (comme le 2026-10-22, étape 13). Le vrai serveur Streamlit a été lancé 75 s par la commande documentée : `/_stcore/health` répond `ok` au bout de 2 s, écoute sur `127.0.0.1:8501` seulement.
+
+| Volet | Résultat |
+|---|---|
+| Collecte | 11 requêtes (1 + 10), 11 fichiers stockés, 0 échec ; 0 requête API-FOOTBALL |
+| Live, 7 jours (`reports/inference/live_2026-10-31.md`) | 48 matchs du top 5, **43 disponibles, 10 % d'indisponibles** (sous le critère d'un sur cinq) ; les 5 indisponibles sont ceux du 6 novembre, « périmés » avec leur raison (une équipe joue ce week-end) ; 43 références de marché ; 0 ligne inutilisable |
+| Traçage live | **41 prédictions écrites** à 13:04 UTC, toutes avant leur coup d'envoi ; **2 refusées** (coups d'envoi de 12:30 et 13:00 UTC, déjà passés) ; `ops.prediction` : 89 lignes live, toutes avec leur identifiant API, aucune écrite après le coup d'envoi |
+| API | `/health` : `ok`, base `ok`, modèle final chargé ; `/data/freshness` : top 5 complet jusqu'au 29 ou 30 octobre selon le championnat ; **403** pour un jour passé en live (2026-10-30) et pour les saisons 2025-26 et 2026-27 en rejeu (ADR-0045) |
+| Interface, live (31/10/2026) | 85 matchs : 22 🟢 disponibles, 63 hors périmètre ; Bologna – Monza : E[T] 2,76, λ 1,86 et 0,90, P(T > 2,5) 52,2 %, [1 ; 5] à 87,5 %, marché 52,3 % ; **prédiction n° 132 renvoyée telle quelle** (tracée par la commande à 13:04 UTC : mêmes valeurs) |
+| Interface, rejeu (18/05/2025) | 88 matchs : 24 disponibles, 64 hors périmètre (comme le 2026-10-04) ; Everton – Southampton : E[T] 2,87, P(T > 2,5) 54,7 %, score réel 2 – 0, modèle du pli `rejeu-2024-m3_g0g2`, prédiction n° 78 renvoyée telle quelle |
+| Interface, écran « Modèle » | carte, validation, limites, courbe d'apport, fraîcheur ; `API : ok ; base : ok` |
+
+**Temps mesurés** (portable, `AppTest` sur la vraie API) :
+
+| Opération | Live | Rejeu |
+|---|---|---|
+| Écran « Matchs » à froid (contexte de l'API) | 11,8 s | 16,7 s |
+| Écran « Matchs » à chaud | 0,24 s | 0,27 s |
+| Clic « Prédiction » | 4,9 s | 2,1 s |
+| Écran « Modèle » | 10,3 s | — |
+| Commande sans service | `live --days 7 --save` : 76 s | `predict` d'une journée : 28 s |
+
+Les temps à froid sont deux à trois fois ceux du 2026-10-04 (8,0 s ; `predict` 9 s). Cause non mesurée ; hypothèse : la table des matchs contient maintenant l'historique ouvert (ADR-0045) et la superposition de football-data. Ils restent sous le délai de 60 s du client de l'interface.
+
 ## Limites connues
 
 - Le test automatisé n'utilise pas le vrai modèle de rejeu (lignes d'apprentissage synthétiques) : la reproduction exacte du rejeu est contrôlée sur données réelles par `inference check` (étape 11), pas en CI.
-- Le mode live de bout en bout attend la phase B (sous-étape 5.15, données réelles après le test scellé).
+- Le live de bout en bout est vérifié à la main (section 3), pas en CI : il dépend des fichiers du jour de football-data et de l'heure.
 - Le graphique de l'écran « Détail » n'est pas rendu par `AppTest` : ses données le sont (étape 13).

@@ -1,6 +1,6 @@
 # ADR-0047 — Horizon H2 : périmètre, protocole pré-enregistré et test scellé de la version intermédiaire
 
-- **Statut** : proposée (décisions D1 à D10 à valider par l'utilisateur)
+- **Statut** : acceptée
 - **Date** : 2026-10-31
 - **Référence** : `docs/cadrage/cadrage_partie-6_h2_2026-10-31.md` ; rapport de cadrage, E.2, H.3 à H.8, I.3, I.4, I.7, L (J9) ; ADR-0010, ADR-0012 (règle 5 b), ADR-0013, ADR-0020, ADR-0027, ADR-0028, ADR-0037, ADR-0038, ADR-0039, ADR-0040, ADR-0043, ADR-0044, ADR-0045
 
@@ -26,7 +26,7 @@ Le détail des options, décision par décision, est dans le cadrage (section 9)
 
 ## Décision
 
-Option 2. Rien de l'ADR-0037 ne change : plis, métriques, bootstrap par blocs, règle de décision à trois conditions, intersection des matchs, aucun remplissage silencieux. On ajoute :
+Option 2, avec les recommandations D1 à D10 du cadrage, toutes choisies par l'utilisateur le 2026-10-31. Rien de l'ADR-0037 ne change : plis, métriques, bootstrap par blocs, règle de décision à trois conditions, intersection des matchs, aucun remplissage silencieux. On ajoute :
 
 1. **Base** : le modèle H1 retenu (M3, G0 + G1 + G2, top 5, demi-vie de G2 par validation interne).
 2. **Groupes H2, au plus 3 variables par équipe chacun** :

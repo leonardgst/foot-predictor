@@ -1,7 +1,7 @@
 # Cadrage de la partie 6 — Version intermédiaire (J9) : horizon H2 « avec composition »
 
 - **Date** : 2026-10-31
-- **Statut** : proposition, à valider par l'utilisateur (section 9) ; les décisions retenues iront dans l'ADR-0047
+- **Statut** : décisions D1 à D10 (section 9) toutes retenues telles que recommandées par l'utilisateur le 2026-10-31 ; elles font foi dans l'ADR-0047
 - **Fait foi** : ADR-0010 (horizons), ADR-0012 (plis, scellé, test une fois par version), ADR-0013 (qualité du XI), ADR-0020 (collisions), ADR-0028 (porte unique), ADR-0037 (protocole figé), ADR-0039 et ADR-0044 (modèle H1), ADR-0040 (même fonction), ADR-0045 (scellé ouvert à l'inférence seulement)
 - **Rapport de cadrage** (instantané, non modifié) : E.2, H (stabilité), I.3 (groupes G4 à G7), I.4 (M6 à M8), I.7, L (jalon J9)
 

@@ -1,0 +1,98 @@
+% Méthode : cible, variables, protocole, modèles (parties 3 et 4 ; ADR-0009 à 0012, 0031 à 0039).
+% Équations détaillées : docs/latex/mathematiques/.
+
+\chapter{Méthode}
+\label{chap:methode}
+
+\section{Cible, sortie et horizon}
+
+La cible est le nombre de buts de \emph{chaque équipe} ; la sortie publiée est la loi du \emph{total}
+\(T\), repliée sur \(\{0, \dots, 9, \ge 10\}\) (ADR-0009). Modéliser par équipe donne la loi du total
+par convolution, et aussi le score exact et le 1N2. L'horizon du MVP, \og H1 \fg{}, est la veille du
+match, avant la publication des compositions : seules des informations connues à ce moment entrent dans
+les variables (ADR-0010). L'horizon \og H2 \fg{}, avec composition, relève de la version intermédiaire.
+
+\section{Variables}
+
+Les variables sont regroupées par information, pour mesurer l'apport de chaque groupe :
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+Groupe & Contenu \\
+\midrule
+G0, contexte & domicile, championnat, huis clos (périodes sourcées, ADR-0033) \\
+G1, force & Elo maison : une échelle par pays, mise à jour par jour, paramètres réglés sur 2005-06 à
+            2014-15 puis figés (ADR-0031) \\
+G2, production & moyennes glissantes des buts et de l'\code{xg\_proxy}, marqués et encaissés, de
+                 l'équipe et de l'adversaire, à décroissance exponentielle en jours et tirées vers la
+                 moyenne du championnat (ADR-0032) \\
+G3, calendrier & jours de repos, matchs des 14 derniers jours, match européen dans les 4 jours \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+L'\code{xg\_proxy} remplace l'xG, absent d'API-FOOTBALL avant 2022-23 : une combinaison des tirs cadrés
+et non cadrés, à coefficients positifs ou nuls, estimée une seule fois par moindres carrés sur 2015-16 à
+2020-21 (avant tous les plis) puis figée. Le coefficient des tirs non cadrés sort nul :
+\(\code{xg\_proxy} = 0{,}3076 \times\) tirs cadrés (ADR-0032, ADR-0035). Sur 2022-23 à 2024-25, sa
+corrélation avec l'xG d'API-FOOTBALL valait 0,685 par équipe et par match (première estimation,
+ADR-0032). Les moyennes
+glissantes ne repartent pas de zéro à chaque saison : l'historique compte sur 730 jours, avec une
+demi-vie choisie par validation interne (60, 120 ou 240 jours).
+
+\section{Protocole d'évaluation}
+
+Le protocole est écrit et figé avant toute évaluation (ADR-0037, tag \code{protocole-v1}).
+
+\begin{itemize}
+  \item \textbf{Plis} : quatre plis à fenêtre croissante. Pour chaque saison de test, de 2021-22 à
+        2024-25, apprentissage sur toutes les saisons antérieures depuis 2015-16, évaluation sur les
+        matchs de championnat du top 5 : 7\,156 matchs au total. Les réglages se choisissent par
+        validation interne, sur la dernière saison d'apprentissage.
+  \item \textbf{Métrique principale} : log-loss de la loi du total ; en complément RPS, Brier de
+        \(P(T > 2{,}5)\), calibration par décile, couverture de l'intervalle \([q_{10} ; q_{90}]\).
+  \item \textbf{Comparaisons} : sur les mêmes matchs, par différence de log-loss ; intervalle à 95~\%
+        par bootstrap par blocs (championnat, saison, journée), 10\,000 rééchantillonnages, graine
+        fixe ; test de Diebold-Mariano.
+  \item \textbf{Règle de décision} : un modèle plus complexe remplace le plus simple si (i) son gain
+        poolé est positif avec un intervalle qui exclut 0, (ii) il gagne dans au moins 3 plis sur 4,
+        (iii) sa calibration ne se dégrade pas. Sinon, on garde le plus simple.
+  \item \textbf{Essais comptés} : chaque expérience, échecs compris, laisse un rapport ; l'index en
+        donne le nombre (10 essais, 0 échec).
+\end{itemize}
+
+L'intervalle \([q_{10} ; q_{90}]\) d'une loi discrète ne couvre pas exactement 80~\% des matchs : chaque
+prédiction publie donc sa \emph{couverture annoncée}, et le critère compare la couverture observée à la
+moyenne des couvertures annoncées, à \(\pm 3\) points (ADR-0009).
+
+\section{Modèles}
+
+Les modèles suivent une progression où chaque étape répond à une question (rapport de cadrage, I.4) :
+
+\begin{center}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+Modèle & Question \\
+\midrule
+B0 & référence : même loi de Poisson pour tous les matchs \\
+B1 & référence : moyennes de buts à domicile et à l'extérieur du championnat \\
+M1 & une régression linéaire sur le total suffit-elle ? \\
+M2 & une loi de comptage (Poisson sur le total) fait-elle mieux ? \\
+M3 & faut-il décomposer par équipe (Poisson par équipe) ? \\
+M4 & la loi de Poisson est-elle adéquate, ou faut-il une binomiale négative ? \\
+M5 & la dépendance entre les deux équipes (Dixon-Coles) change-t-elle la loi du total ? \\
+M6 & plus de variables sous régularisation (ridge, élastique net) ? \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Le marché des paris (probabilité implicite de plus de 2,5 buts, marge retirée) sert de troisième
+référence, sur cet événement seulement ; la cote de clôture, qui intègre les compositions, n'est
+qu'une borne haute, jamais une référence de l'horizon H1 (ADR-0036).
+
+\section{Test scellé}
+
+La liste du test est figée avant son lancement, avec le code (tag \code{pre-scelle-h1}, ADR-0039) : le
+modèle retenu, B0, B1 et le marché, appris sur 2015-16 à 2024-25, évalués une seule fois sur les matchs
+scellés. La commande refuse elle-même un second test et tout code modifié depuis le tag.

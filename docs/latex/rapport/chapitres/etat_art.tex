@@ -1,0 +1,44 @@
+% État de l'art, limité à ce qui éclaire les choix du projet.
+
+\chapter{État de l'art}
+\label{chap:etat-art}
+
+\section{Modèles de buts}
+
+\paragraph{Poisson par équipe.} Depuis Maher~\cite{maher1982}, on modélise les buts de chaque équipe
+par une loi de Poisson dont le logarithme de la moyenne combine l'attaque de l'équipe, la défense de
+l'adversaire et l'avantage du terrain. Les deux comptages sont supposés indépendants sachant ces
+forces ; le total suit alors une loi de Poisson de paramètre \(\lambda_{\mathrm{dom}} +
+\lambda_{\mathrm{ext}}\).
+
+\paragraph{Dépendance entre équipes.} Dixon et Coles~\cite{dixon1997} corrigent les quatre scores les
+plus faibles (0-0, 1-0, 0-1, 1-1) par un paramètre \(\rho\), et pondèrent les matchs anciens par une
+décroissance exponentielle. Karlis et Ntzoufras~\cite{karlis2003} proposent un Poisson bivarié, avec
+une composante commune aux deux équipes. Ces raffinements visent surtout le score exact ; le projet
+mesure s'ils changent la loi du \emph{total} (section~\ref{sec:resultats-modeles}).
+
+\paragraph{Force des équipes.} Le classement Elo~\cite{elo1978}, conçu pour les échecs, met à jour une
+note après chaque match selon l'écart entre résultat et attente. Hvattum et Arntzen~\cite{hvattum2010}
+montrent qu'une note Elo est une variable efficace pour prédire les résultats en football. Faute de
+source gratuite (le service ClubElo est passé derrière une authentification), le projet calcule son
+propre Elo.
+
+\paragraph{Dispersion.} La loi de Poisson impose une variance égale à la moyenne. Le test de Cameron
+et Trivedi~\cite{cameron1990} détecte une surdispersion, qui justifierait une binomiale négative.
+
+\section{Évaluer une prédiction probabiliste}
+
+Une règle de score \emph{strictement propre} n'est minimisée en espérance que par la vraie loi
+\cite{gneiting2007} : elle récompense l'honnêteté de la probabilité annoncée. Le log-loss en est une,
+sensible à toute la loi. Le RPS (\emph{ranked probability score}) tient compte de l'ordre des
+catégories, ce qui convient aux résultats sportifs~\cite{constantinou2012}. Pour une loi discrète, le
+PIT randomisé~\cite{czado2009} vérifie la calibration d'ensemble. Comparer deux modèles sur les mêmes
+matchs se fait par la différence de leurs pertes ; le test de Diebold et Mariano~\cite{diebold1995}
+en donne la significativité, et le bootstrap par blocs~\cite{kunsch1989} un intervalle de confiance
+qui respecte la dépendance entre matchs d'une même journée.
+
+\section{Le marché des paris}
+
+Les cotes agrègent l'information des bookmakers et des parieurs ; Dixon et Coles s'en servaient déjà
+pour tester leur modèle~\cite{dixon1997}. Le projet les utilise comme \emph{référence}, jamais comme
+variable : un modèle qui lirait les cotes ne prédirait plus le football, mais le marché (ADR-0036).

@@ -1,0 +1,65 @@
+% Architecture : couches, dépôt, outils, garde-fous (rapport de cadrage, F ; ADR-0022, 0025, 0028, 0030, 0040).
+
+\chapter{Architecture}
+\label{chap:architecture}
+
+\section{Couches de données}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Couche & Support & Produite par \\
+\midrule
+brut & fichiers \code{.json.gz} et CSV, journal & collecteurs \\
+référentiel & Postgres, schéma \code{staging} & \code{load} (reconstruit) \\
+variables & instantané Parquet versionné, \code{features.dataset\_version} & \code{features build} \\
+modèles & fichiers \code{joblib}, cartes d'identité JSON & \code{modeling evaluate}, \code{train} \\
+prédictions & Postgres, \code{ops.prediction} & inférence (API, commandes) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Chaque couche se reconstruit depuis la précédente par une commande documentée. Le jeu de données est
+un instantané : son identifiant (par exemple \code{ds-2026-10-22-bf786ef1}) porte la date et l'empreinte
+de son manifeste (chargement lu, commit, paramètres, empreinte de chaque fichier), et une évaluation
+cite toujours le jeu qu'elle a lu (ADR-0030).
+
+\section{Code}
+
+Le code Python est un paquet (\code{src/foot\_predictor/}) organisé par étape : \code{collect},
+\code{ingestion}, \code{features}, \code{modeling}, \code{inference}, \code{api}, \code{ui}. Les
+dépendances sont gérées par \code{uv} ; les migrations de la base par Alembic (8 révisions) ; les deux
+bases (travail et test) tournent dans Docker. Les variables sont des \emph{fonctions pures} : elles
+reçoivent un historique et rendent des valeurs, sans accès à la base, ce qui les rend testables sur
+des données synthétiques. Chaque variable a sa fiche dans un registre (\code{features/registry.yaml}) :
+définition, horizon, source.
+
+\section{Garde-fous}
+
+\begin{itemize}
+  \item \textbf{Porte unique des données} : toute lecture des matchs passe par
+        \code{features/sources.py} ; des tests d'architecture refusent tout autre accès (ADR-0028).
+  \item \textbf{Règle temporelle} : une variable d'un match n'utilise que des données strictement
+        antérieures au jour du match ; des tests d'\emph{invariance} modifient les matchs postérieurs et
+        vérifient que rien ne bouge.
+  \item \textbf{Aucun remplissage silencieux} : une valeur incalculable reste vide, et la ligne est
+        exclue et comptée, jamais remplie par une moyenne.
+  \item \textbf{Protocole figé} : le protocole d'évaluation est écrit et marqué d'un tag Git
+        (\code{protocole-v1}) avant toute évaluation de modèle (ADR-0037).
+  \item \textbf{Secrets et données hors Git} : clés dans des fichiers \code{.env} ignorés, hooks de
+        détection de secrets ; aucune donnée ni aucun modèle n'est versionné.
+\end{itemize}
+
+\section{Flux de travail}
+
+Git suit un modèle simple (ADR-0022) : une seule branche longue, \code{main}, des branches courtes, une
+demande de fusion (PR) par tâche, fusionnée après intégration continue verte (GitHub Actions : ruff et
+750 tests), et des tags aux jalons (\code{v0.3.0} à \code{v0.6.0}). La documentation suit la même
+discipline : un état du projet mis à jour à chaque session, un mode d'emploi par étape, un retour écrit
+à la fin de chaque lot de travail.
+
+\section{Application}
+
+L'inférence calcule les variables d'un match par la même fonction que l'entraînement. Une API FastAPI
+l'expose en local (\code{127.0.0.1} seulement), et une interface Streamlit l'appelle en HTTP, sans jamais
+importer la logique métier ni lire la base (ADR-0040). Le chapitre~\ref{chap:application} la décrit.

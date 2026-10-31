@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-31 (5.15, bout en bout réel en rejeu et en live, critères E.1, tag `v0.6.0` ; lot 4 clos ; reprise à 5.16)
+**Dernière mise à jour** : 2026-10-31 (5.16 faite : document mathématique à jour et rapport LaTeX v1, compilés sans erreur sur Overleaf ; reprise à 5.17)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2, 3 et 4 terminées** (tags `v0.3.0`, `v0.4.0` et `v0.5.0` ; `docs/retours/partie-2_2026-10-19.md`, `partie-3_2026-10-22.md`, `partie-4_2026-10-22.md`). La phase B de la partie 5 se fait sur demande.
 
-**Reprise de la partie 5 à la phase B, lot 5, sous-étape 5.16 : rapport LaTeX v1** (critère 6 d'E.1), puis 5.17, clôture et `v1.0.0`. Retour du lot 4 : `docs/retours/partie-5-lot4_2026-10-31.md`. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
+**Reprise de la partie 5 à la phase B, lot 5, sous-étape 5.17** : retour du lot 5, clôture de la partie 5 et tag `v1.0.0`. Retour du lot 4 : `docs/retours/partie-5-lot4_2026-10-31.md`. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -51,6 +51,9 @@
   - collecte football-data : 11 requêtes (accord de l'utilisateur) ; live sur 7 jours : 48 matchs du top 5, **43 disponibles, 10 % d'indisponibles** ; **41 prédictions live tracées** avant le coup d'envoi, 2 refusées (matchs commencés) ; `ops.prediction` : 89 lignes live, 83 de rejeu ;
   - API et interface sur la vraie base, en rejeu (18/05/2025) et en live (31/10/2026) : une prédiction s'affiche, 403 pour un jour passé en live et pour les saisons scellées en rejeu ; API sur le port 8001 (**E-064** : 8000 tenu par le relais de WSL) ;
   - **critères E.1** : 1, 2, 4 et 5 remplis ; 3 en diagnostic publié tel quel (scellé : 5 déciles sur 10 sous 3 points, pente 1,00, ADR-0037) ; 6 rempli pour la documentation, rapport LaTeX v1 en 5.16. Aucun `load` (choix de l'utilisateur : preuves de 2.12 et 3.11). **Tag `v0.6.0`** sur la fusion de la PR #88.
+- **Partie 5, phase B, 5.16 : documents LaTeX** (2026-10-31, PR #89 et #90 ; mode d'emploi `docs/realisation/16_documentation_finale/README.md`) :
+  - document mathématique : test scellé et modèle final, modèle du live, fraîcheur par équipe (ADR-0044 à ADR-0046) ;
+  - **rapport v1** (`docs/latex/rapport/`) : 8 chapitres et annexes, bibliographie de 11 références (volumes et pages à vérifier avant diffusion), courbe d'apport ; choix de l'utilisateur : Overleaf (ADR-0034 inchangée), rapport complet et concis ; contrôle structurel sans compilateur ; **compilés sans erreur sur Overleaf** (utilisateur).
 - **Partie 5, phase B, E-058 corrigé** (2026-10-22, PR #85) : `api_fixture_id` porté par la réponse et recopié par `save_prediction` (API et commande) ; `check --only rows` sur `ds-2026-10-22-bf786ef1`, même chargement n° 7 vérifié : 622 lignes identiques au bit près ; 5 prédictions de rejeu réelles tracées avec leur identifiant API (`ops.prediction` : 83 lignes).
 
 ## En cours
@@ -78,7 +81,7 @@
 
 **Corrections reportées** (une PR chacune, avant le test de H2) : E-060 (verdict sur un pli unique), E-061 (état Git lu après le journal du scellé).
 
-**Reprise de la partie 5 à la phase B** (lot 5 : 5.16 rapport LaTeX v1, 5.17 clôture ; sur demande) :
+**Reprise de la partie 5 à la phase B** (lot 5 : 5.17 clôture ; sur demande) :
 ```bash
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
 docker ps ; uv run alembic current        # deux conteneurs « Up » (E-050) ; 0008

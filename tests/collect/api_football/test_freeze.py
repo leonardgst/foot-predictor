@@ -31,7 +31,7 @@ def setup(tmp_path, real):
     return raw, config
 
 
-def freeze(tmp_path, raw, config, *extra):
+def freeze(base, raw, config, *extra):
     return cli.main(
         [
             "--raw-dir",
@@ -40,25 +40,27 @@ def freeze(tmp_path, raw, config, *extra):
             str(config),
             "freeze",
             "--dest",
-            str(tmp_path / "externe" / "raw"),
+            str(base / "externe" / "raw"),
             "--restore-to",
-            str(tmp_path / "restauration" / "raw"),
+            str(base / "restauration" / "raw"),
             "--report-dir",
-            str(tmp_path / "rapports"),
+            str(base / "rapports"),
             "--doc",
-            str(tmp_path / "docs" / "DATA_FREEZE.md"),
+            str(base / "docs" / "DATA_FREEZE.md"),
             *extra,
         ]
     )
 
 
 def mentions_number(text: str, number: int) -> bool:
-    """Le nombre figure-t-il tel quel dans le texte (E-036) ?
+    """Le nombre figure-t-il tel quel dans le texte (E-036, E-065) ?
 
-    `\\b` ne suffit pas : un point décimal est une limite de mot, et « 0.174 s » contenait
-    alors l'identifiant 174. Ici, le nombre ne doit toucher ni lettre ni chiffre, ni suivre
-    un séparateur décimal, ni en précéder un suivi d'un chiffre : « (174) » et « joueur 174. »
-    le contiennent ; « 0.174 s », « 174,5 », « 1174 » et un sha256 « …e174f… » non.
+    `\\b` ne suffit pas : un point décimal est une limite de mot, et « 0.174 s » contiendrait
+    l'identifiant 174 (cas théorique : le brouillon écrit les durées en secondes entières ; la
+    vraie cause d'E-036 était le chemin temporaire, voir `leaked_players`). Ici, le nombre ne
+    doit toucher ni lettre ni chiffre, ni suivre un séparateur décimal, ni en précéder un suivi
+    d'un chiffre : « (174) » et « joueur 174. » le contiennent ; « 0.174 s », « 174,5 »,
+    « 1174 » et un sha256 « …e174f… » non.
     """
     return re.search(rf"(?<![\w.,]){number}(?!\w|[.,]\d)", text) is not None
 
@@ -109,11 +111,38 @@ def test_freeze_checks_saves_restores_and_drafts_data_freeze(tmp_path, setup, re
         assert section in doc
     assert "Brouillon généré le" in doc and "sha256 `" in doc
     assert "Matchs terminés avec détail : **5 / 5**" in doc
-    # Aucun nom ni identifiant de joueur dans le document versionné.
-    names = {e["player"]["name"] for item in real for team in item["players"] for e in team["players"]}
-    assert [n for n in names if n in doc] == []
-    ids = {e["player"]["id"] for item in real for team in item["players"] for e in team["players"]}
-    assert [i for i in ids if mentions_number(doc, i)] == []
+    assert leaked_players(doc, real, tmp_path) == []
+
+
+def leaked_players(doc: str, real: list[dict], temp_root) -> list:
+    """Noms et identifiants de joueurs présents dans le brouillon, hors chemins du test.
+
+    Le brouillon écrit des chemins absolus (sauvegarde, restauration, résumé `raw_check`),
+    ici sous le dossier temporaire de pytest, dont le compteur `pytest-<n>` change à chaque
+    exécution : il valait parfois un identifiant de joueur (E-065). On retire donc ce dossier
+    (`temp_root`) avant de chercher ; le reste du document est contrôlé tel quel.
+    """
+    doc = doc.replace(temp_root.as_posix(), "<tmp>")
+    players = [e["player"] for item in real for team in item["players"] for e in team["players"]]
+    names = sorted({p["name"] for p in players if p["name"] in doc})
+    ids = sorted({p["id"] for p in players if mentions_number(doc, p["id"])})
+    return names + ids
+
+
+def test_player_ids_in_temporary_paths_are_not_leaks(tmp_path, setup, real, capsys):
+    """E-065 : un dossier temporaire `…/pytest-531` n'est pas un identifiant de joueur publié.
+
+    `base` joue le dossier temporaire du test, dont le nom contient l'identifiant 531 d'un joueur
+    de la fixture (nom court : limite de 260 caractères des chemins sous Windows).
+    """
+    raw, config = setup
+    base = tmp_path / "531"
+    assert 531 in {e["player"]["id"] for item in real for team in item["players"] for e in team["players"]}
+
+    assert freeze(base, raw, config) == 0, capsys.readouterr().err
+    doc = (base / "docs" / "DATA_FREEZE.md").read_text(encoding="utf-8")
+    assert mentions_number(doc, 531)  # le cas est bien exercé : le chemin contient l'identifiant
+    assert leaked_players(doc, real, base) == []
 
 
 @pytest.mark.parametrize(

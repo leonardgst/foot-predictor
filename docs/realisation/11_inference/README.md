@@ -153,6 +153,14 @@ uv run python -m foot_predictor.inference live --days 7 --save
 - live : **48 matchs du top 5 sur 56 disponibles, 14 % d'indisponibles** (sous le critère d'un sur cinq) : toute la journée du 23 au 26 octobre ; les 8 matchs des 27 et 28 octobre restent périmés, leurs équipes jouant le week-end (raison nommée) ;
 - **48 prédictions live tracées** (43 nouvelles, les 5 de vendredi gardées), toutes avant le coup d'envoi, avec leur identifiant API ; `data_complete_until` = 2026-10-22 pour toutes.
 
+**Deuxième live, 2026-10-31** (samedi, 5.15 ; rapport `reports/inference/live_2026-10-31.md`, détail dans l'étape 14, section 3) :
+
+- collecte à 13:03 UTC : 11 requêtes (1 + 10), 11 fichiers ; 127 résultats superposés depuis le gel, 101 dates réelles ; 0 ligne inutilisable ;
+- championnats du top 5 complets jusqu'au 29 ou 30 octobre ;
+- **48 matchs du top 5 sur 7 jours, 43 disponibles, 10 % d'indisponibles** : tout le week-end du 31 octobre au 2 novembre est prévisible ; les 5 matchs du 6 novembre restent « périmés » (leurs équipes jouent ce week-end) ;
+- **41 prédictions live tracées**, toutes avant le coup d'envoi ; 2 refusées, leurs matchs ayant commencé à 12:30 et 13:00 UTC : collecter plus tôt le samedi (le fichier des prochains matchs paraît le vendredi après-midi) ;
+- `ops.prediction` : 89 lignes live au total.
+
 ## Temps mesurés (portable, 2026-09-30)
 
 | Opération | Temps |

@@ -1,0 +1,121 @@
+{
+  "today": "2026-10-31",
+  "data_version": "load_run-7+fd-bf1f933826",
+  "model_versions": [
+    "scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle"
+  ],
+  "matches": 48,
+  "available": 43,
+  "unavailable_share": 0.10416666666666667,
+  "over_limit": false,
+  "with_market_reference": 43,
+  "reasons": {
+    "variables d'historique périmées": 5
+  },
+  "days": [
+    {
+      "day": "2026-10-31",
+      "matches": 22,
+      "statuses": {
+        "available": 22
+      },
+      "out_of_scope": 63
+    },
+    {
+      "day": "2026-11-01",
+      "matches": 16,
+      "statuses": {
+        "available": 16
+      },
+      "out_of_scope": 47
+    },
+    {
+      "day": "2026-11-02",
+      "matches": 5,
+      "statuses": {
+        "available": 5
+      },
+      "out_of_scope": 15
+    },
+    {
+      "day": "2026-11-03",
+      "matches": 0,
+      "statuses": {},
+      "out_of_scope": 21
+    },
+    {
+      "day": "2026-11-04",
+      "matches": 0,
+      "statuses": {},
+      "out_of_scope": 15
+    },
+    {
+      "day": "2026-11-05",
+      "matches": 0,
+      "statuses": {},
+      "out_of_scope": 39
+    },
+    {
+      "day": "2026-11-06",
+      "matches": 5,
+      "statuses": {
+        "unavailable": 5
+      },
+      "out_of_scope": 21
+    }
+  ],
+  "freshness": {
+    "39": {
+      "complete_until": "2026-10-30",
+      "file": "2026-10-31T13:03:08.148219+00:00"
+    },
+    "40": {
+      "complete_until": "2026-10-29",
+      "file": "2026-10-31T13:03:13.151140+00:00"
+    },
+    "61": {
+      "complete_until": "2026-10-29",
+      "file": "2026-10-31T13:03:12.147772+00:00"
+    },
+    "62": {
+      "complete_until": "2026-10-29",
+      "file": "2026-10-31T13:03:17.370256+00:00"
+    },
+    "78": {
+      "complete_until": "2026-10-29",
+      "file": "2026-10-31T13:03:10.138486+00:00"
+    },
+    "79": {
+      "complete_until": "2026-10-29",
+      "file": "2026-10-31T13:03:15.376657+00:00"
+    },
+    "135": {
+      "complete_until": "2026-10-30",
+      "file": "2026-10-31T13:03:11.145767+00:00"
+    },
+    "136": {
+      "complete_until": "2026-10-30",
+      "file": "2026-10-31T13:03:16.379391+00:00"
+    },
+    "140": {
+      "complete_until": "2026-10-29",
+      "file": "2026-10-31T13:03:09.144871+00:00"
+    },
+    "141": {
+      "complete_until": "2026-10-30",
+      "file": "2026-10-31T13:03:14.381876+00:00"
+    }
+  },
+  "overlay": {
+    "counts": {
+      "dates_reelles": 101,
+      "resultats_superposes": 127
+    },
+    "issues": []
+  },
+  "saved": {
+    "created": 41,
+    "kept": 0,
+    "refused": 2
+  }
+}

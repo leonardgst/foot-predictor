@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-064 — `api serve` : port 8000 déjà pris par le relais de WSL (2026-10-31)
+
+- **Contexte** : partie 5, phase B, 5.15 (bout en bout réel). Lancement de l'API par la commande documentée `uv run python -m foot_predictor.api serve`.
+- **Message d'erreur** : `[Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000)` (« une seule utilisation de chaque adresse de socket… »), code de sortie 3.
+- **Cause** : `127.0.0.1:8000` est tenu par `wslrelay.exe` (lancé le 2026-10-15), qui relaie vers Windows un service d'une distribution WSL sans lien avec le projet. Un client qui appellerait `127.0.0.1:8000` parlerait à ce service, pas à l'API.
+- **Solution** : rien n'est arrêté (processus étranger au projet). L'API est lancée sur un autre port, et l'interface pointée dessus, deux options déjà documentées (étapes 12 et 13) : `serve --port 8001` et `FP_API_URL=http://127.0.0.1:8001`.
+- **Fichiers concernés** : `docs/realisation/14_tests_bout_en_bout/README.md` (section 3).
+- **Prévention** : avant de lancer l'API, vérifier le port : `Get-NetTCPConnection -LocalPort 8000 -State Listen` (PowerShell) ne doit rien renvoyer ; sinon, port 8001.
+- **Test de non-régression** : aucun (environnement de la machine) ; `/health` sur le port choisi répond `ok` avec le modèle chargé.
+
 ## E-063 — Fraîcheur par équipe : l'exactitude annoncée était fausse (a priori μ des glissants) (2026-10-22)
 
 - **Contexte** : partie 5, phase B, après 5.14. Brouillon de l'ADR-0046 (fraîcheur par équipe), présenté à l'utilisateur comme « variables exactes » si aucune des deux équipes n'a joué depuis la date de complétude du championnat.

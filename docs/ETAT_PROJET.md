@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-10-22 (fraîcheur par équipe, ADR-0046 : 14 % d'indisponibles, 48 prédictions live tracées ; reprise à 5.15)
+**Dernière mise à jour** : 2026-10-31 (5.15, bout en bout réel en rejeu et en live, critères E.1, tag `v0.6.0` ; lot 4 clos ; reprise à 5.16)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2, 3 et 4 terminées** (tags `v0.3.0`, `v0.4.0` et `v0.5.0` ; `docs/retours/partie-2_2026-10-19.md`, `partie-3_2026-10-22.md`, `partie-4_2026-10-22.md`). La phase B de la partie 5 se fait sur demande.
 
-**Reprise de la partie 5 à la phase B, lot 4, sous-étape 5.15 : bout en bout réel** (critères E.1, tag `v0.6.0`), puis le retour du lot 4 (5.13 à 5.15). Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
+**Reprise de la partie 5 à la phase B, lot 5, sous-étape 5.16 : rapport LaTeX v1** (critère 6 d'E.1), puis 5.17, clôture et `v1.0.0`. Retour du lot 4 : `docs/retours/partie-5-lot4_2026-10-31.md`. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -47,6 +47,10 @@
   - collecte : 11 requêtes (accord de l'utilisateur, plafonds 1 + 10), 0 ligne inutilisable (promus dans le YAML) ; **56 matchs du top 5 sur 7 jours, 91 % « périmés »** ;
   - **5 prédictions live tracées** (23 octobre, avant le coup d'envoi) : début du journal prospectif ; **E-062** : une réponse live indisponible n'est plus jamais écrite.
 - **Partie 5, phase B, fraîcheur par équipe** (2026-10-22, PR #87, **ADR-0046**) : règle **approchée** choisie par l'utilisateur après mesure (E-063 : l'exactitude d'abord annoncée était fausse, à cause de l'a priori μ des glissants) ; tolérance 0,005 sur λ et 0,002 sur P(T > 2,5) ; répétition conforme (Elo identique, écart maximal 0,0005 sur λ) ; live : **14 % d'indisponibles**, **48 prédictions live tracées** (journée du 23 au 26 octobre, `ops.prediction` : 131 lignes).
+- **Partie 5, phase B, 5.15 : bout en bout réel** (2026-10-31, PR #88, `docs/retours/partie-5-lot4_2026-10-31.md` ; chiffres dans `docs/realisation/14_tests_bout_en_bout/README.md`, section 3) :
+  - collecte football-data : 11 requêtes (accord de l'utilisateur) ; live sur 7 jours : 48 matchs du top 5, **43 disponibles, 10 % d'indisponibles** ; **41 prédictions live tracées** avant le coup d'envoi, 2 refusées (matchs commencés) ; `ops.prediction` : 89 lignes live, 83 de rejeu ;
+  - API et interface sur la vraie base, en rejeu (18/05/2025) et en live (31/10/2026) : une prédiction s'affiche, 403 pour un jour passé en live et pour les saisons scellées en rejeu ; API sur le port 8001 (**E-064** : 8000 tenu par le relais de WSL) ;
+  - **critères E.1** : 1, 2, 4 et 5 remplis ; 3 en diagnostic publié tel quel (scellé : 5 déciles sur 10 sous 3 points, pente 1,00, ADR-0037) ; 6 rempli pour la documentation, rapport LaTeX v1 en 5.16. Aucun `load` (choix de l'utilisateur : preuves de 2.12 et 3.11). **Tag `v0.6.0`** sur la fusion de la PR #88.
 - **Partie 5, phase B, E-058 corrigé** (2026-10-22, PR #85) : `api_fixture_id` porté par la réponse et recopié par `save_prediction` (API et commande) ; `check --only rows` sur `ds-2026-10-22-bf786ef1`, même chargement n° 7 vérifié : 622 lignes identiques au bit près ; 5 prédictions de rejeu réelles tracées avec leur identifiant API (`ops.prediction` : 83 lignes).
 
 ## En cours
@@ -62,7 +66,9 @@
   - **fin du gel de `pre-scelle-h1`** avec la fusion de la PR #83 (ADR-0044) : les chemins figés se modifient de nouveau par PR (E-060 et E-061 d'abord). Garde : une PR qui touche `modeling/models/` montre que les prédictions du modèle final H1 sont inchangées ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ; ouvert à `inference/` seulement (ADR-0045), jamais au développement de H2 ;
   - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`) ;
-  - Docker Desktop doit tourner (bases arrêtées sinon, E-050) : `docker ps` en début de session.
+  - Docker Desktop doit tourner (bases arrêtées sinon, E-050) : `docker ps` en début de session ;
+  - **port 8000 tenu par le relais de WSL** (E-064) : API sur `--port 8001`, interface avec `FP_API_URL=http://127.0.0.1:8001` ;
+  - live : collecter le vendredi soir ou le samedi matin ; le 2026-10-31 à 13:03 UTC, 2 matchs étaient déjà commencés.
 
 ## Décisions ouvertes
 
@@ -73,17 +79,20 @@
 
 **Corrections reportées** (une PR chacune, avant le test de H2) : E-060 (verdict sur un pli unique), E-061 (état Git lu après le journal du scellé).
 
-**Reprise de la partie 5 à la phase B** (lots 4 et 5, sur demande) :
+**Reprise de la partie 5 à la phase B** (lot 5 : 5.16 rapport LaTeX v1, 5.17 clôture ; sur demande) :
 ```bash
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
 docker ps ; uv run alembic current        # deux conteneurs « Up » (E-050) ; 0008
-git tag -l data-freeze-2026-10 v0.3.0 v0.4.0 v0.5.0     # les quatre tags, sinon s'arrêter
+git tag -l data-freeze-2026-10 v0.3.0 v0.4.0 v0.5.0 v0.6.0     # les cinq tags, sinon s'arrêter
 uv run python -m foot_predictor.inference models     # actif : scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle (5.13)
 uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw lock-status   # libre
 # live courant (accord de l'utilisateur pour chaque collecte ; fichier des prochains matchs : vendredi après-midi et mardi)
 uv run python -m foot_predictor.collect.football_data.live fixtures --max-requests 1
 uv run python -m foot_predictor.collect.football_data.live season --season 2026 --max-requests 10
 uv run python -m foot_predictor.inference live --days 7 --save     # rapport + prédictions disponibles tracées
+# services (E-064 : port 8000 pris par WSL)
+uv run python -m foot_predictor.api serve --port 8001
+FP_API_URL=http://127.0.0.1:8001 uv run streamlit run src/foot_predictor/ui/app.py
 ```
 
 **Long terme** : fin de la partie 5, `v1.0.0` (J7, J8) ; 6. version intermédiaire (J9).

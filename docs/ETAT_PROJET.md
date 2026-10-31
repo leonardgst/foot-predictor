@@ -65,14 +65,13 @@
   - **identifiants internes non stables d'un brut à l'autre** (E-058, corrigé par la PR #85) : hors de `staging`, rapprocher par l'identifiant API ; les 78 premières lignes d'`ops.prediction` restent sans identifiant API ; un nouveau `load` sur un brut plus grand demanderait un nouveau jeu pour `check --only rows` ;
   - **fin du gel de `pre-scelle-h1`** avec la fusion de la PR #83 (ADR-0044) : les chemins figés se modifient de nouveau par PR (E-060 et E-061 d'abord). Garde : une PR qui touche `modeling/models/` montre que les prédictions du modèle final H1 sont inchangées ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ; ouvert à `inference/` seulement (ADR-0045), jamais au développement de H2 ;
-  - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`) ;
+  - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`). **Copies du 2026-10-31** (décision du 22 octobre) : jeu scellé `ds-2026-10-22-94969da0` et modèle final H1, 4 fichiers, sha256 identiques à `C:`, dans `D:/foot-predictor/copies-2026-10-22/` (`datasets_scelles/`, `models/`) ;
   - Docker Desktop doit tourner (bases arrêtées sinon, E-050) : `docker ps` en début de session ;
   - **port 8000 tenu par le relais de WSL** (E-064) : API sur `--port 8001`, interface avec `FP_API_URL=http://127.0.0.1:8001` ;
   - live : collecter le vendredi soir ou le samedi matin ; le 2026-10-31 à 13:03 UTC, 2 matchs étaient déjà commencés.
 
 ## Décisions ouvertes
 
-- **Copies sur `D:`** du jeu scellé `94969da0` (64 Mo) et du modèle final (29 Mo), seuls sur `C:` et non reconstructibles pour H1 : **acceptées par l'utilisateur le 2026-10-22**, pas faites : `D:` n'était pas monté. À faire dès qu'il est visible, avec contrôle par sha256, dans `D:/foot-predictor/copies-2026-10-22/`.
 - **Renouvellement automatique de l'abonnement : coupé par l'utilisateur le 2026-10-19** (déclaré, non vérifiable par l'assistant ; fin de l'abonnement le 22 octobre à 07:56 UTC, ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.
 
 ## Prochaines actions

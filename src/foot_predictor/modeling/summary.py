@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from foot_predictor.modeling.experiment import MIN_POSITIVE_FOLDS, decision_applies
+
 
 def _f(value, digits: int = 4, sign: bool = False) -> str:
     if value is None or value != value:  # NaN
@@ -70,9 +72,10 @@ def render(report: dict) -> str:
         )
     small = [(m, p["small_totals"]) for m, p in report["pooled"].items() if "small_totals" in p]
     if small:
+        n_folds = len(report["folds"])
         lines += [
             "",
-            "Petits totaux, calibration poolée sur les 4 plis :",
+            f"Petits totaux, calibration poolée sur {'les ' + str(n_folds) + ' plis' if n_folds > 1 else 'le pli unique'} :",
             "",
             "| Modèle | k | P(T = k) prédite | observée | Brier | Écart moyen par décile | Pente |",
             "|---|---|---|---|---|---|---|",
@@ -126,6 +129,16 @@ def render(report: dict) -> str:
             )
         if "decision" in item:
             d = item["decision"]
+            # Recalculé depuis le nombre de plis : un rapport écrit avant la correction d'E-060 n'a pas
+            # la clé `applicable`, et son verdict à un pli n'a pas de sens.
+            n_folds = len(item["log_loss"]["per_fold"])
+            if not decision_applies(n_folds):
+                lines.append(
+                    f"| | | règle de décision | non applicable : {n_folds} pli{'s' if n_folds > 1 else ''}, "
+                    "la règle de sélection en demande "
+                    f"au moins {MIN_POSITIVE_FOLDS} (ADR-0037, E-060) | | | | |"
+                )
+                continue
             lines.append(
                 f"| | | règle de décision | (i) {'oui' if d['i_gain_significant'] else 'non'}, (ii) "
                 f"{'oui' if d['ii_positive_folds'] else 'non'}, (iii) {'oui' if d['iii_calibration'] else 'non'} "

@@ -56,7 +56,11 @@ def test_report_contains_folds_metrics_comparisons_and_decision(run):
     assert fold["intersection"] == fold["eval_matches"] == 60
     comparison = report["comparisons"][0]
     assert set(comparison["log_loss"]["per_fold"]) == {"2021", "2022"}
-    assert set(comparison["decision"]) == {"i_gain_significant", "ii_positive_folds", "iii_calibration", "b_replaces_a"}
+    assert set(comparison["decision"]) == {
+        "applicable", "i_gain_significant", "ii_positive_folds", "iii_calibration", "b_replaces_a",
+    }  # fmt: skip
+    assert comparison["decision"]["applicable"] is False  # 2 plis : sous le seuil de la règle (E-060)
+    assert comparison["decision"]["b_replaces_a"] is None
     assert report["pooled"]["L"]["matches"] == 120
     assert "slope" in report["pooled"]["L"]["calibration_over_2_5"]
     assert set(report["pooled"]["L"]["small_totals"]) == {"0", "1", "2"}  # question de M5
@@ -105,13 +109,33 @@ def test_sealed_fold_ends_as_a_failed_run(tmp_path):
     assert report["status"] == "échec" and "scellés" in report["error"]
 
 
+FOUR_FOLDS = {"2021": {}, "2022": {}, "2023": {}, "2024": {}}
+
+
+def loss_item(mean: float, positive_folds: int, per_fold: dict = FOUR_FOLDS) -> dict:
+    return {"log_loss": {"pooled": {"mean": mean, "excludes_zero": True}, "positive_folds": positive_folds,
+                         "per_fold": per_fold}}  # fmt: skip
+
+
+def cal(gap: float, slope: float) -> dict:
+    return {"calibration_over_2_5": {"mean_abs_gap": gap, "slope": slope}}
+
+
 def test_decision_rule_is_mechanical():
-    item = {"log_loss": {"pooled": {"mean": 0.01, "excludes_zero": True}, "positive_folds": 3}}
-    cal = lambda gap, slope: {"calibration_over_2_5": {"mean_abs_gap": gap, "slope": slope}}  # noqa: E731
+    item = loss_item(0.01, 3)
     assert experiment.decision(item, cal(0.010, 1.0), cal(0.014, 1.05))["b_replaces_a"]
     assert not experiment.decision(item, cal(0.010, 1.0), cal(0.016, 1.0))["b_replaces_a"]  # +0,6 point
     assert not experiment.decision(item, cal(0.010, 1.0), cal(0.010, 1.12))["b_replaces_a"]  # pente
-    two_folds = {"log_loss": {"pooled": {"mean": 0.01, "excludes_zero": True}, "positive_folds": 2}}
-    assert not experiment.decision(two_folds, cal(0.01, 1), cal(0.01, 1))["b_replaces_a"]
-    worse = {"log_loss": {"pooled": {"mean": -0.01, "excludes_zero": True}, "positive_folds": 0}}
-    assert not experiment.decision(worse, cal(0.01, 1), cal(0.01, 1))["b_replaces_a"]
+    assert not experiment.decision(loss_item(0.01, 2), cal(0.01, 1), cal(0.01, 1))["b_replaces_a"]  # 2 plis sur 4
+    assert not experiment.decision(loss_item(-0.01, 0), cal(0.01, 1), cal(0.01, 1))["b_replaces_a"]
+    assert experiment.decision(item, cal(0.01, 1), cal(0.01, 1))["applicable"] is True
+
+
+def test_decision_rule_does_not_apply_to_a_single_fold():
+    """E-060 : un test scellé à un pli gagné ne doit pas écrire « ne remplace pas »."""
+    single = loss_item(0.0189, 1, per_fold={"2025": {}})
+    d = experiment.decision(single, cal(0.0286, 0.93), cal(0.0254, 1.00))
+    assert d["applicable"] is False
+    assert d["ii_positive_folds"] is None and d["b_replaces_a"] is None  # aucun verdict
+    assert d["i_gain_significant"] is True and d["iii_calibration"] is True  # calculés pour information
+    assert not experiment.decision_applies(2) and experiment.decision_applies(experiment.MIN_POSITIVE_FOLDS)

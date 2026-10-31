@@ -387,7 +387,7 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
             "rps": float(np.concatenate([rps_losses[model_id][s] for s in seasons]).mean()),
             "brier_over_2_5": float(metrics.brier_binary_by_match(p_over, outcome).mean()),
             "matches": int(sum(len(by_season[s]) for s in seasons)),
-            # Critère (iii) de la règle de décision : calibration poolée sur les 4 plis (ADR-0037).
+            # Critère (iii) de la règle de décision : calibration poolée sur tous les plis (ADR-0037).
             "calibration_over_2_5": {
                 "table": table.round(6).to_dict(orient="records"),
                 "mean_abs_gap": metrics.calibration_mean_abs_gap(table),
@@ -466,6 +466,16 @@ SLOPE_RANGE = (0.9, 1.1)
 MIN_POSITIVE_FOLDS = 3
 
 
+def decision_applies(n_folds: int) -> bool:
+    """La règle de sélection ne s'applique qu'à partir de `MIN_POSITIVE_FOLDS` plis (E-060).
+
+    Sous ce seuil, son critère (ii) est faux par construction : un test scellé à un pli gagné
+    écrirait « ne remplace pas ». Ce test ne choisit rien ; son critère de lecture est celui de
+    son ADR (ADR-0039 pour H1).
+    """
+    return n_folds >= MIN_POSITIVE_FOLDS
+
+
 def decision(item: dict, pooled_a: dict, pooled_b: dict) -> dict:
     """Règle de décision pré-enregistrée (ADR-0037) : B remplace A si (i), (ii) et (iii) sont vrais.
 
@@ -473,8 +483,12 @@ def decision(item: dict, pooled_a: dict, pooled_b: dict) -> dict:
     le gain est positif ; (ii) le gain est positif dans au moins 3 plis sur 4 ; (iii) la
     calibration poolée de P(T ≥ 3) ne se dégrade pas (écart absolu moyen par décile + 0,5 point
     au plus, pente de B dans [0,9 ; 1,1]). Sinon, on garde A (le plus simple).
+
+    Avec moins de `MIN_POSITIVE_FOLDS` plis, la règle ne s'applique pas : (i) et (iii) restent
+    calculés pour information, (ii) et le verdict valent `None` (E-060).
     """
     loss = item["log_loss"]
+    applicable = decision_applies(len(loss["per_fold"]))
     gain_significant = loss["pooled"]["excludes_zero"] and loss["pooled"]["mean"] > 0
     folds_ok = loss["positive_folds"] >= MIN_POSITIVE_FOLDS
     gap_a = pooled_a["calibration_over_2_5"]["mean_abs_gap"]
@@ -482,10 +496,11 @@ def decision(item: dict, pooled_a: dict, pooled_b: dict) -> dict:
     slope_b = pooled_b["calibration_over_2_5"]["slope"]
     calibration_ok = gap_b - gap_a <= MAX_CALIBRATION_GAP_INCREASE and SLOPE_RANGE[0] <= slope_b <= SLOPE_RANGE[1]
     return {
+        "applicable": applicable,
         "i_gain_significant": bool(gain_significant),
-        "ii_positive_folds": bool(folds_ok),
+        "ii_positive_folds": bool(folds_ok) if applicable else None,
         "iii_calibration": bool(calibration_ok),
-        "b_replaces_a": bool(gain_significant and folds_ok and calibration_ok),
+        "b_replaces_a": bool(gain_significant and folds_ok and calibration_ok) if applicable else None,
     }
 
 

@@ -135,3 +135,18 @@ def test_the_card_reads_the_git_state_before_the_journaled_sealed_read(spec, dat
                        sealed_log=log, today=dt.date(2026, 10, 22))  # fmt: skip
     assert written  # la lecture a bien eu lieu
     assert card["code"] == {"commit": "c6d9454", "dirty": False}
+
+
+def test_a_card_refuses_a_variable_beyond_its_horizon():
+    """Garde ADR-0010 et ADR-0047 : `build_card` refuse une colonne d'un horizon plus tardif, ou hors du registre."""
+    from types import SimpleNamespace
+
+    from foot_predictor.features.registry import RegistryError
+    from foot_predictor.modeling.model_card import build_card
+
+    fit = SimpleNamespace(model=SimpleNamespace(features=["is_home", "xi_overlap_prev"], describe=dict))
+    with pytest.raises(RegistryError, match="xi_overlap_prev"):
+        build_card(
+            version="v", horizon="H1", model_spec={"id": "M"}, fit=fit, train_rows=None, population="top5",
+            manifest={}, git={}, experiment_file="e.yaml", includes_sealed=False, validation=None,
+        )  # fmt: skip

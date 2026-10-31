@@ -33,9 +33,13 @@ REQUIRED_FIELDS = (
     "risque_fuite",
     "parade",
 )
-GROUPS = ("ID", "CIBLE", "G0", "G1", "G2", "G3")
-FEATURE_GROUPS = ("G0", "G1", "G2", "G3")
+GROUPS = ("ID", "CIBLE", "G0", "G1", "G2", "G3", "G4", "G5", "G6")
+FEATURE_GROUPS = ("G0", "G1", "G2", "G3", "G4", "G5", "G6")
 HORIZONS = ("H1", "H2")
+# Horizon de chaque groupe (ADR-0010, ADR-0047) : G0 à G3 avant composition ; G4 (entraîneur de la
+# feuille de match), G5 (qualité du XI) et G6 (stabilité) avec la composition officielle.
+GROUP_HORIZON = {"G0": "H1", "G1": "H1", "G2": "H1", "G3": "H1", "G4": "H2", "G5": "H2", "G6": "H2"}
+HORIZON_RANK = {"H1": 1, "H2": 2}
 OPPONENT_PREFIX = "opp_"
 
 
@@ -80,8 +84,11 @@ def validate_entries(entries: list[dict]) -> None:
             raise RegistryError(f"{entry['nom']} : groupe inconnu {entry['groupe']}")
         if entry["groupe"] in FEATURE_GROUPS and entry["horizon"] not in HORIZONS:
             raise RegistryError(f"{entry['nom']} : une variable doit déclarer son horizon (H1 ou H2)")
-        if entry["groupe"] in FEATURE_GROUPS and entry["horizon"] != "H1":
-            raise RegistryError(f"{entry['nom']} : le MVP n'utilise que des variables H1 (ADR-0010)")
+        if entry["groupe"] in FEATURE_GROUPS and entry["horizon"] != GROUP_HORIZON[entry["groupe"]]:
+            raise RegistryError(
+                f"{entry['nom']} : le groupe {entry['groupe']} est de l'horizon "
+                f"{GROUP_HORIZON[entry['groupe']]}, pas {entry['horizon']} (ADR-0010, ADR-0047)"
+            )
         if not set(entry["portee"]) <= {"equipe", "adversaire"} or "equipe" not in entry["portee"]:
             raise RegistryError(f"{entry['nom']} : portée invalide {entry['portee']}")
         if "{h}" in entry["nom"] and not (entry.get("parametres") or {}).get("demi_vie_jours"):
@@ -135,8 +142,29 @@ def columns(path: Path = PATH) -> list[str]:
 
 
 def feature_columns(path: Path = PATH) -> list[str]:
-    """Colonnes des groupes G0 à G3 (les variables proprement dites)."""
+    """Colonnes des groupes de variables (G0 à G6), sans identifiants ni cible."""
     return [v.name for v in variables(path) if v.group in FEATURE_GROUPS]
+
+
+def check_model_horizon(model_columns, horizon: str, path: Path = PATH) -> None:
+    """Refuse un modèle qui lit une variable d'un horizon plus tardif que le sien (ADR-0010).
+
+    Un modèle H1 ne lit aucune variable H2 ; un modèle H2 lit les deux. Une colonne absente
+    du registre est refusée aussi : on ne sait pas de quel horizon elle relève.
+    """
+    if horizon not in HORIZONS:
+        raise RegistryError(f"Horizon inconnu : {horizon} (attendu : {', '.join(HORIZONS)})")
+    known = {v.name: v for v in variables(path)}
+    unknown = [c for c in model_columns if c not in known]
+    if unknown:
+        raise RegistryError(f"Colonnes absentes du registre, horizon inconnu : {unknown}")
+    later = [
+        c
+        for c in model_columns
+        if known[c].group in FEATURE_GROUPS and HORIZON_RANK[known[c].horizon] > HORIZON_RANK[horizon]
+    ]
+    if later:
+        raise RegistryError(f"Modèle d'horizon {horizon} : variables d'un horizon plus tardif {later} (ADR-0010)")
 
 
 def sha256(path: Path = PATH) -> str:

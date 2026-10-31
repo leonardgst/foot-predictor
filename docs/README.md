@@ -17,6 +17,7 @@ Index de la documentation de `foot-predictor`. En cas de désaccord entre deux d
 | Où en est le projet ? Que faire ensuite ? | [`ETAT_PROJET.md`](ETAT_PROJET.md) |
 | Pourquoi tel choix ? | [`decisions/`](decisions/README.md) (ADR) |
 | But, périmètre, architecture cible, stratégie de données et de modélisation, feuille de route | [`cadrage/rapport_cadrage_2026-09-24.md`](cadrage/rapport_cadrage_2026-09-24.md) |
+| Partie 6 (version intermédiaire, J9) : horizon H2, couverture des compositions, protocole, test scellé H2, plan et décisions | [`cadrage/cadrage_partie-6_h2_2026-10-31.md`](cadrage/cadrage_partie-6_h2_2026-10-31.md) (instantané), ADR-0047 |
 | Cette erreur a-t-elle déjà été vue ? | [`JOURNAL_ERREURS.md`](JOURNAL_ERREURS.md) (chercher le message d'erreur) |
 | Collecter API-FOOTBALL : commandes, `refresh`, profils ciblés, verrou, journal T-60, tâches planifiées, sauvegarde | [`realisation/03_collecte/README.md`](realisation/03_collecte/README.md) |
 | Gel des données du 19 octobre : procédure pas à pas | [`realisation/03_collecte/gel.md`](realisation/03_collecte/gel.md) |

@@ -20,7 +20,8 @@ La configuration `.streamlit/config.toml` (lue quand `streamlit run` est lancé 
 | Écran | Contenu | Routes appelées |
 |---|---|---|
 | **Matchs** | mode (rejeu ou live), date, championnats ; une ligne par match : heure UTC, championnat, équipes, **pastille** de disponibilité (raison au survol, et tableau des matchs bloqués dans la légende), bouton **Prédiction** actif seulement si le match est disponible, bouton **Variables** (matrice de disponibilité seule) | `/competitions`, `/matches` |
-| **Détail** | E[T], λ domicile et extérieur, P(T > 2,5) ; **intervalle [q10 ; q90] avec sa couverture annoncée** ; diagramme en barres de P(T = k), cases de l'intervalle colorées ; score réel en rejeu (et la probabilité que le modèle donnait à ce total) ; référence de marché avant clôture, si elle existe (jamais une variable, ADR-0036) ; tableau des variables présentes, manquantes ou périmées ; version du modèle, des données, ligne de `ops.prediction` | `POST /matches/{id}/predictions`, `/matches/{id}/availability` |
+| **Détail** | **H1 (à gauche) et H2 (à droite, rejeu)** côte à côte : E[T], λ domicile et extérieur, P(T > 2,5) ; **intervalle [q10 ; q90] avec sa couverture annoncée** ; diagramme en barres de P(T = k), cases de l'intervalle colorées ; score réel en rejeu (et la probabilité que le modèle donnait à ce total) ; référence de marché avant clôture, si elle existe (jamais une variable, ADR-0036) ; tableau des variables présentes, manquantes ou périmées ; version du modèle, des données, ligne de `ops.prediction` | `POST /matches/{id}/predictions`, `/matches/{id}/availability` |
+| **Apport des variables** (6.10) | gain de chaque groupe de variables H2 (G6, G5, G4) avec son intervalle, plis gagnés et verdict ; diagnostics (G5 à fenêtre égale…) ; structures (M6, M7) ; où se concentre le gain de G5 (début de saison) ; mises en garde. Tout est lu dans les rapports d'expériences, par l'API | `/models/h2/contribution` |
 | **Modèle** | carte d'identité du modèle actif, variables requises, métriques de validation (4 plis), comparaisons avec leurs IC, limites connues, courbe d'apport (`docs/resultats/figures/courbe_apport.png`), fraîcheur des sources, état de l'API | `/models/active`, `/data/freshness`, `/health` |
 
 | Pastille | Sens |
@@ -29,11 +30,11 @@ La configuration `.streamlit/config.toml` (lue quand `streamlit run` est lancé 
 | 🔴 indisponible | au moins une variable manquante ou périmée : aucune prédiction |
 | ⚪ hors périmètre | D2, coupe, barrage, autre championnat que le top 5 |
 | ⚫ exclu | match annulé, abandonné ou sur tapis vert (ADR-0009) |
-| 🟣 H2 non disponible | horizon avec composition : partie 6 |
+| 🟣 H2 non disponible | horizon avec composition demandé en live : les compositions ne sont plus fournies (ADR-0010) |
 
 **Le bouton « Prédiction » écrit dans `ops.prediction`** (mode `replay` ou `live`) : la création est idempotente, un second clic relit la prédiction déjà tracée (« déjà tracée, renvoyée telle quelle »).
 
-**Erreurs** : chaque erreur de l'API s'affiche avec un titre selon son code (403 date refusée : saison scellée ou non ouverte au rejeu ; 404 ; 409 indisponible avec les raisons ; 501 H2 ; 503 modèle absent) et le message de l'API. Une API arrêtée donne « API injoignable » et la commande pour la lancer. En phase A, le mode **live** répond toujours 403 (aujourd'hui est sous scellés jusqu'au test scellé).
+**Erreurs** : chaque erreur de l'API s'affiche avec un titre selon son code (403 date refusée : saison scellée ou non ouverte au rejeu ; 404 ; 409 indisponible avec les raisons ; 503 modèle absent) et le message de l'API. Une API arrêtée donne « API injoignable » et la commande pour la lancer. En phase A, le mode **live** répond toujours 403 (aujourd'hui est sous scellés jusqu'au test scellé).
 
 ## Temps mesurés (2026-10-04, base de travail, vraie API, interface pilotée par `AppTest`)
 

@@ -75,3 +75,40 @@ def test_competition_label_flags_what_the_model_does_not_cover():
     assert views.competition_label({"id": 2, "name": None, "in_model_scope": False}) == (
         "championnat 2 · hors périmètre"
     )
+
+
+def test_h2_difference_is_h2_minus_h1_and_percent_points():
+    from tests.ui.fake_api import PREDICTION, PREDICTION_H2
+
+    frame = views.h2_difference_frame({"prediction": PREDICTION}, {"prediction": PREDICTION_H2})
+    assert list(frame["Grandeur"]) == ["E[T] (buts attendus)", "λ domicile", "λ extérieur", "P(T > 2,5)"]
+    assert list(frame["H1"]) == ["2,73", "1,62", "1,11", "55,0 %"] and list(frame["H2"])[3] == "57,0 %"
+    assert list(frame["Écart H2 − H1"]) == ["+0,02", "+0,08", "-0,06", "+2,0 points"]
+
+
+def test_composition_frame_keeps_a_missing_value_labelled():
+    from tests.ui.fake_api import VARIABLES_H2
+
+    frame = views.composition_frame(VARIABLES_H2)
+    assert list(frame["Variable"]) == list(views.XI_VARIABLES.values())
+    assert frame.iloc[0]["Domicile"] == "7,125" and frame.iloc[1]["Extérieur"] == "manquante"
+    assert views.composition_frame([]).to_dict("records")[0] == {"Variable": "Qualité du onze (note rétrécie)",
+                                                                  "Domicile": "", "Extérieur": ""}  # fmt: skip
+
+
+def test_gain_text_uses_signs_and_the_interval():
+    assert views.gain_text({"gain": 0.00078, "low": 0.00003, "high": 0.00151}) == "+0,00078 [+0,00003 ; +0,00151]"
+    assert views.gain_text({"gain": -0.0009, "low": -0.00158, "high": -0.00022}).startswith("−0,00090 [−0,00158")
+
+
+def test_contribution_tables_follow_the_api_contract():
+    from tests.ui.fake_api import CONTRIBUTION
+
+    steps = views.contribution_steps_frame(CONTRIBUTION)
+    assert (
+        list(steps["Verdict"]) == ["non retenu", "retenu", "non retenu"] and list(steps["Plis gagnés"])[0] == "3 sur 4"
+    )
+    structures = views.contribution_other_frame(CONTRIBUTION["structures"], decisions=True)
+    assert list(structures["Remplace M3"]) == ["non"]
+    rounds = views.contribution_rounds_frame(CONTRIBUTION["g5_by_round"])
+    assert rounds.iloc[0]["Intervalle sans 0"] == "oui" and rounds.iloc[0]["Matchs"] == 967

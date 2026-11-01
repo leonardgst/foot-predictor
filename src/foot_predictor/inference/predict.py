@@ -15,6 +15,11 @@
    en rejeu, celle de `staging` ; en live, celle du fichier des prochains matchs de football-data,
    pour un match à venir seulement (ADR-0042).
 
+**Horizon H2** (6.10) : en rejeu seulement. Le modèle est celui du pli de la saison selon la procédure de
+`M3_H2` (`inference/models.py`), les variables viennent de `build_frame_h2` sur l'historique tronqué
+(`inference/rows.py`). En live, aucune composition n'arrive après la fin de l'abonnement (ADR-0010) :
+la réponse est `h2_unavailable`, avec la raison, sans modèle ni variable.
+
 **Scellé** : toute date de référence à partir du 1er juillet 2025 est refusée tant que le test
 scellé H1 n'est pas terminé. Ensuite (ADR-0045), le live lit les matchs scellés comme historique ;
 le rejeu reste limité à 2021-22 à 2024-25 jusqu'au test scellé de H2, et le score réel comme la
@@ -24,6 +29,7 @@ cote d'un match scellé ne sont jamais servis.
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -32,6 +38,10 @@ import pandas as pd
 from foot_predictor.inference import models as model_store
 from foot_predictor.inference.availability import (
     AVAILABLE,
+    EXCLUDED,
+    H2_LIVE_REASON,
+    H2_UNAVAILABLE,
+    OUT_OF_SCOPE,
     UNAVAILABLE,
     Freshness,
     match_availability,
@@ -43,6 +53,10 @@ from foot_predictor.seal import SEAL_DATE
 
 MODES = ("replay", "live")
 K_LABELS = [str(k) for k in range(10)] + ["10+"]
+
+
+class H2SourcesMissing(RuntimeError):
+    """Horizon H2 demandé dans un contexte sans lecture des compositions (défaut de configuration)."""
 
 
 class ReferenceDateRefused(RuntimeError):
@@ -60,6 +74,8 @@ class InferenceContext:
     competition_names: dict[int, str] = field(default_factory=dict)
     odds: pd.DataFrame | None = None
     dataset: pd.DataFrame | None = None
+    dataset_h2: pd.DataFrame | None = None
+    """Jeu H2 qui entraîne les modèles de rejeu H2 ; None : lu à la demande (`REPLAY_DATASET_VERSION`)."""
     today: dt.date | None = None
     """« Aujourd'hui » : la date du jour, ou une date simulée (tests du live)."""
     sealed_log: object = None
@@ -73,6 +89,9 @@ class InferenceContext:
     """Live : matchs indisponibles faute d'appariement sûr (nom d'équipe absent des YAML), avec la raison."""
     live_summary: dict | None = None
     """Live : version des fichiers de football-data lus, décomptes et lignes inutilisables de la superposition."""
+    h2_loader: Callable[[], tuple[pd.DataFrame, pd.DataFrame]] | None = None
+    """Lecture des compositions et feuilles de match par la porte (`load_lineups`, `load_team_sheets`) : appelée
+    à la première demande H2 seulement (tables lourdes). Sans elle, l'horizon H2 est impossible."""
     _rows: RowsCache | None = None
     _models: dict = field(default_factory=dict)
 
@@ -82,19 +101,38 @@ class InferenceContext:
             self._rows = RowsCache(self.matches, self.data_version, history_opened=self.history_opened)
         return self._rows
 
+    def rows(self, day: dt.date, horizon: str = "H1") -> pd.DataFrame:
+        """Lignes d'inférence du jour pour l'horizon ; H2 charge les compositions au premier appel."""
+        cache = self.rows_cache
+        if horizon == "H2" and cache.lineups is None:
+            if self.h2_loader is None:
+                raise H2SourcesMissing(
+                    "Horizon H2 : aucune lecture des compositions n'est configurée dans ce contexte."
+                )
+            lineups, team_sheets = self.h2_loader()
+            if lineups.empty:  # base sans aucune composition : H2 est impossible, ce n'est pas un match indisponible
+                raise H2SourcesMissing("Horizon H2 : aucune composition lue par la porte des données.")
+            cache.lineups, cache.team_sheets = lineups, team_sheets
+        return cache.rows(day, horizon)
+
     def freshness_for(self, match: pd.Series) -> Freshness:
         if self.league_freshness:
             return self.league_freshness.get(int(match["api_league_id"]), self.freshness)
         return self.freshness
 
-    def model(self, day: dt.date, mode: str) -> model_store.LoadedModel:
-        key = (mode, model_store.season_of(day) if mode == "replay" else "actif")
+    def model(self, day: dt.date, mode: str, horizon: str = "H1") -> model_store.LoadedModel:
+        key = (mode, model_store.season_of(day) if mode == "replay" else "actif", horizon)
         if key not in self._models:
             if mode == "replay":
                 kwargs = {}
                 if self.replay_root is not None:
                     kwargs["replay_root"] = self.replay_root
-                self._models[key] = model_store.replay_model(model_store.season_of(day), self.dataset, **kwargs)
+                data = self.dataset if horizon == "H1" else self.dataset_h2  # H2 : None = lu à la demande
+                self._models[key] = model_store.replay_model(
+                    model_store.season_of(day), data, horizon=horizon, **kwargs
+                )
+            elif horizon != "H1":
+                raise model_store.ModelUnavailable("Aucun modèle H2 en live (ADR-0010, ADR-0047).")
             else:
                 self._models[key] = model_store.load_active(self.active_version)
         return self._models[key]
@@ -227,6 +265,33 @@ def _int(value):
     return None if pd.isna(value) else int(value)
 
 
+def h2_live_answer(match: pd.Series, context: InferenceContext) -> dict:
+    """Réponse H2 en live : aucune composition après la fin de l'abonnement, donc ni modèle ni variable (ADR-0010).
+
+    Un match hors périmètre (D2, coupe, autre championnat) ou exclu garde son statut : ce n'est pas la
+    composition qui lui manque, c'est le modèle."""
+    freshness = context.freshness_for(match)
+    scope = match_availability(match, pd.DataFrame(), (), None, "H2")
+    if scope.status in (EXCLUDED, OUT_OF_SCOPE):
+        status, reasons = scope.status, scope.reasons
+    else:
+        status, reasons = H2_UNAVAILABLE, [H2_LIVE_REASON]
+    return {
+        **_match_info(match, context),
+        "mode": "live",
+        "horizon": "H2",
+        "status": status,
+        "reasons": reasons,
+        "availability": [],
+        "model_version": None,
+        "data_version": context.data_version,
+        "data_complete_until": freshness.complete_until.isoformat(),
+        "prediction": None,
+        "actual_score": None,
+        "market_reference": None,
+    }
+
+
 def predict_day(
     day,
     mode: str,
@@ -236,6 +301,7 @@ def predict_day(
     horizon: str = "H1",
 ) -> list[dict]:
     """Toutes les réponses d'un jour (ou d'une sélection), dans l'ordre du coup d'envoi."""
+    model_store.check_horizon(horizon)
     day = as_day(day)
     check_reference_date(day, mode, context)
     matches = context.matches[context.matches["match_day"] == day]
@@ -245,8 +311,10 @@ def predict_day(
         matches = matches[matches["match_id"].isin(list(match_ids))]
     if matches.empty:
         return []
-    model = context.model(day, mode)
-    day_rows = context.rows_cache.rows(day)
+    if horizon == "H2" and mode == "live":
+        return [h2_live_answer(m, context) for _, m in matches.sort_values(["match_date", "match_id"]).iterrows()]
+    model = context.model(day, mode, horizon)
+    day_rows = context.rows(day, horizon)
     results = []
     for _, match in matches.sort_values(["match_date", "match_id"]).iterrows():
         rows = day_rows[day_rows["match_id"] == match["match_id"]] if len(day_rows) else day_rows

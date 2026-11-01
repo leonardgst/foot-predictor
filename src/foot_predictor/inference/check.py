@@ -12,6 +12,10 @@ rapprochent par (`match_id`, `team_id`), identifiants internes qui changent quan
 (E-058) : le jeu comparé doit venir du **même chargement** de `staging` que la table lue, ce que le
 rapport vérifie.
 
+**Horizon H2** (6.10, ADR-0050) : les trois contrôles `rows`, `replay` et `predictions` existent aussi pour
+H2 (`--only rows-h2`, `replay-h2`, `predictions-h2`), contre le jeu H2 `ds-2026-11-01-e0defb32` et l'expérience
+`structures-h2` (modèle `M3_H2`). Ils ne lisent que la période de développement.
+
 Contrôle des lignes sur la période scellée (`rows-scelle`, 5.13, ADR-0045), seulement sur demande :
 la même comparaison, sur des jours de 2025-26 et du début de 2026-27, entre l'inférence (table
 ouverte à l'inférence) et le jeu scellé `ds-2026-10-22-94969da0`, celui du test scellé et du
@@ -38,6 +42,8 @@ DATASET_VERSION = "ds-2026-09-30-ba2b91f7"
 """Jeu de l'évaluation (expérience d'ablation) : celui que reproduisent les contrôles `replay` et `predictions`."""
 ROWS_DATASET_VERSION = "ds-2026-10-22-bf786ef1"
 """Jeu du contrôle `rows` : construit sur le chargement n° 7 de `staging`, celui en vigueur (3.11, E-058)."""
+ROWS_DATASET_VERSION_H2 = "ds-2026-11-01-e0defb32"
+"""Jeu H2 du contrôle `rows-h2` et du rejeu H2 : celui de l'évaluation qui a retenu le modèle (ADR-0050)."""
 SEALED_DATASET_VERSION = "ds-2026-10-22-94969da0"
 """Jeu construit avec `--sealed-test` (4.16) : celui du test scellé H1 et du modèle final (ADR-0044)."""
 
@@ -120,11 +126,17 @@ def run_rows_check(
     dataset: pd.DataFrame | None = None,
     manifest: dict | None = None,
     staging_load_run: int | None = None,
+    horizon: str = "H1",
+    lineups: pd.DataFrame | None = None,
+    team_sheets: pd.DataFrame | None = None,
 ) -> dict:
     """Lignes de l'inférence contre le jeu du chargement en vigueur ; `same_load_run` dit si le rapprochement
-    par identifiants internes a un sens (None : chargement inconnu, données fournies par l'appelant)."""
+    par identifiants internes a un sens (None : chargement inconnu, données fournies par l'appelant).
+
+    H2 : les compositions viennent de la porte (`read_h2_inputs`), le jeu est le jeu H2 de l'évaluation."""
     from foot_predictor.features.sources import load_dataset, load_matches
 
+    version = ROWS_DATASET_VERSION if horizon == "H1" else ROWS_DATASET_VERSION_H2
     if matches is None:
         from foot_predictor.db.session import get_engine
         from foot_predictor.inference.context import last_load_run
@@ -133,16 +145,24 @@ def run_rows_check(
         matches = load_matches(engine)
         staging_load_run = last_load_run(engine)[0]
     if dataset is None:
-        dataset, manifest = load_dataset(ROWS_DATASET_VERSION)
+        dataset, manifest = load_dataset(version)
+    params: dict = {}
+    if horizon == "H2":
+        if lineups is None or team_sheets is None:
+            from foot_predictor.features.build import read_h2_inputs
+
+            lineups, team_sheets = read_h2_inputs(None, matches)
+        params = {"horizon": "H2", "lineups": lineups, "team_sheets": team_sheets}
     dataset_load_run = (manifest or {}).get("load_run_id")
     same = None if dataset_load_run is None or staging_load_run is None else dataset_load_run == staging_load_run
     results = []
     for day, reason in sample_days(dataset):
-        result = compare_day(matches, dataset, day)
+        result = compare_day(matches, dataset, day, **params)
         result["reason"] = reason
         results.append(result)
     return {
-        "dataset": (manifest or {}).get("version", ROWS_DATASET_VERSION),
+        "horizon": horizon,
+        "dataset": (manifest or {}).get("version", version),
         "load_runs": {"dataset": dataset_load_run, "staging": staging_load_run},
         "same_load_run": same,
         "days": results,
@@ -186,11 +206,17 @@ def render_sealed_rows(report: dict) -> str:
 
 def render_rows(report: dict) -> str:
     lines = [
-        f"# Contrôle des lignes d'inférence contre le jeu {report['dataset']} — {report['date']}",
+        f"# Contrôle des lignes d'inférence ({report.get('horizon', 'H1')}) contre le jeu {report['dataset']} — "
+        f"{report['date']}",
         "",
         "Produit par `python -m foot_predictor.inference check` (ADR-0040, décision 2). Lignes d'inférence d'un jour "
         "(historique tronqué au jour J, cibles à 0-0 sans statistiques) contre lignes du jeu d'entraînement pour les "
-        "mêmes matchs ; toutes colonnes sauf `goals_for`, `goals_against`, `shots_source`.",
+        "mêmes matchs ; toutes colonnes sauf `goals_for`, `goals_against`, `shots_source`."
+        + (
+            " H2 : compositions tronquées à l'historique, minutes et notes du match cible retirées."
+            if report.get("horizon") == "H2"
+            else ""
+        ),
         "",
         f"**Verdict : {'identiques au bit près' if report['all_identical'] else 'ÉCART'}** sur {len(report['days'])} "
         f"jours et {report['rows_compared']} lignes.",
@@ -230,9 +256,14 @@ def write_report(report: dict, name: str, markdown: str, reports_dir: Path = REP
 
 ABLATION_REPORT = "ablations-20260930T110352"
 ABLATION_MODEL = "A2_G0G2"
+EVALUATION = {
+    "H1": (ABLATION_REPORT, ABLATION_MODEL),
+    "H2": ("structures-h2-20261101T134102", "M3_H2"),
+}
+"""Expérience et modèle dont le rejeu doit reproduire les prédictions, par horizon."""
 
 
-def run_replay_check(dataset: pd.DataFrame | None = None, manifest: dict | None = None) -> dict:
+def run_replay_check(dataset: pd.DataFrame | None = None, manifest: dict | None = None, horizon: str = "H1") -> dict:
     """Décision 3 : les modèles de rejeu reproduisent les prédictions de l'évaluation (ablation A2_G0G2).
 
     Pour chaque saison de validation S : modèle de rejeu du pli S (entraîné ou lu dans le cache),
@@ -244,14 +275,15 @@ def run_replay_check(dataset: pd.DataFrame | None = None, manifest: dict | None 
     from foot_predictor.inference.models import replay_model
     from foot_predictor.modeling import protocol
 
+    report_name, model_name = EVALUATION[horizon]
     if dataset is None:
-        dataset, manifest = load_dataset(DATASET_VERSION)
-    reference = pd.read_parquet(REPO_ROOT / "data" / "experiments" / ABLATION_REPORT / "predictions.parquet")
-    reference = reference[reference["model"] == ABLATION_MODEL]
+        dataset, manifest = load_dataset(DATASET_VERSION if horizon == "H1" else ROWS_DATASET_VERSION_H2)
+    reference = pd.read_parquet(REPO_ROOT / "data" / "experiments" / report_name / "predictions.parquet")
+    reference = reference[reference["model"] == model_name]
     seasons = []
     for season in (2021, 2022, 2023, 2024):
         started = time.perf_counter()
-        loaded = replay_model(season, dataset, manifest)
+        loaded = replay_model(season, dataset, manifest, horizon=horizon)
         seconds = time.perf_counter() - started
         rows = protocol.test_rows(dataset, season)
         rows, _ = protocol.usable(rows, loaded.features)
@@ -278,7 +310,8 @@ def run_replay_check(dataset: pd.DataFrame | None = None, manifest: dict | None 
         )
     tolerance = 1e-9
     return {
-        "reference": f"{ABLATION_REPORT} ({ABLATION_MODEL})",
+        "horizon": horizon,
+        "reference": f"{report_name} ({model_name})",
         "tolerance": tolerance,
         "seasons": seasons,
         "all_reproduced": all(
@@ -292,7 +325,7 @@ def run_replay_check(dataset: pd.DataFrame | None = None, manifest: dict | None 
 
 def render_replay(report: dict) -> str:
     lines = [
-        f"# Reproduction du rejeu — {report['date']}",
+        f"# Reproduction du rejeu ({report.get('horizon', 'H1')}) — {report['date']}",
         "",
         "Produit par `python -m foot_predictor.inference check` (ADR-0040, décision 3). Modèle de rejeu de chaque saison "
         f"(pli S, appris sur 2015-16 à S − 1) contre les prédictions de l'expérience {report['reference']}, match par "
@@ -315,7 +348,7 @@ def render_replay(report: dict) -> str:
 # ------------------------------------------------------------------------------ prédictions de journées
 
 
-def run_predictions_check(context=None) -> dict:
+def run_predictions_check(context=None, horizon: str = "H1") -> dict:
     """Décision 3 (suite) : `predict_day` en rejeu reproduit l'évaluation sur des journées réelles.
 
     Pour les jours les plus chargés et les premières journées des quatre saisons de validation :
@@ -331,9 +364,10 @@ def run_predictions_check(context=None) -> dict:
 
     if context is None:
         context = build_context()
+    report_name, model_name = EVALUATION[horizon]
     dataset = context.dataset if context.dataset is not None else load_dataset(DATASET_VERSION)[0]
-    reference = pd.read_parquet(REPO_ROOT / "data" / "experiments" / ABLATION_REPORT / "predictions.parquet")
-    reference = reference[reference["model"] == ABLATION_MODEL].set_index("match_id")
+    reference = pd.read_parquet(REPO_ROOT / "data" / "experiments" / report_name / "predictions.parquet")
+    reference = reference[reference["model"] == model_name].set_index("match_id")
     top5 = dataset[dataset["eval_population"]]
     days = []
     for season in (2021, 2022, 2023, 2024):
@@ -342,7 +376,7 @@ def run_predictions_check(context=None) -> dict:
     results = []
     for day in days:
         started = time.perf_counter()
-        answers = predict_day(day, "replay", context)
+        answers = predict_day(day, "replay", context, horizon=horizon)
         seconds = time.perf_counter() - started
         predicted = [a for a in answers if a["prediction"] is not None]
         statuses = pd.Series([a["status"] for a in answers]).value_counts().to_dict()
@@ -377,7 +411,8 @@ def run_predictions_check(context=None) -> dict:
             }
         )
     return {
-        "reference": f"{ABLATION_REPORT} ({ABLATION_MODEL})",
+        "horizon": horizon,
+        "reference": f"{report_name} ({model_name})",
         "days": results,
         "all_reproduced": all(
             r["in_reference"]
@@ -390,7 +425,7 @@ def run_predictions_check(context=None) -> dict:
 
 def render_predictions(report: dict) -> str:
     lines = [
-        f"# Prédictions de rejeu sur des journées réelles — {report['date']}",
+        f"# Prédictions de rejeu ({report.get('horizon', 'H1')}) sur des journées réelles — {report['date']}",
         "",
         "Produit par `python -m foot_predictor.inference check` (ADR-0040). `predict_day` en rejeu (lignes d'inférence, "
         f"matrice de disponibilité, modèle du pli) contre l'expérience {report['reference']} pour les mêmes matchs.",

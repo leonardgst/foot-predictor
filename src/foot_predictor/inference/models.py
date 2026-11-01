@@ -11,6 +11,11 @@ modèle du **pli S**, appris sur 2015-16 à S − 1 selon la procédure du fichi
 exactement comme l'évaluation l'a fait. Jamais le modèle appris jusqu'en 2024-25. Entraîné à la
 demande (quelques secondes), mis en cache dans `models/rejeu/<S>/` avec sa carte.
 
+**Modèle de rejeu H2** (6.10, ADR-0050) : même mécanique, avec la procédure de `M3_H2` du fichier du
+test scellé H2 (`experiments/scelle_h2.yaml` : G0 + G1 + G2 + G5, apprentissage de G5 dès 2016-17) sur le
+jeu H2. Il n'existe qu'en rejeu : sans abonnement, aucune composition n'arrive en live (ADR-0010), et
+aucun modèle H2 n'est appris avec les matchs scellés (ADR-0047, D6).
+
 **Saisons ouvertes au rejeu** : 2021-22 à 2024-25. Les saisons scellées (2025-26 et suivantes)
 restent fermées au rejeu **jusqu'au test scellé de H2**, même après celui de H1 : ce second test
 réutilisera les mêmes matchs (ADR-0012, règle 5 ; ADR-0045, qui précise la règle 2 de
@@ -38,9 +43,24 @@ MODELS_ROOT = REPO_ROOT / "models"
 REPLAY_ROOT = MODELS_ROOT / "rejeu"
 EXPERIMENT_FILE = REPO_ROOT / "experiments" / "scelle_h1.yaml"
 MODEL_ID = "M3_G0G2"
+EXPERIMENT_FILE_H2 = REPO_ROOT / "experiments" / "scelle_h2.yaml"
+MODEL_ID_H2 = "M3_H2"
+HORIZONS = ("H1", "H2")
+REPLAY_DATASET_VERSION = {"H1": "ds-2026-09-30-ba2b91f7", "H2": "ds-2026-11-01-e0defb32"}
+"""Jeu qui entraîne le modèle de rejeu de chaque horizon : celui de l'évaluation qui l'a retenu (ADR-0039, ADR-0050)."""
 DEFAULT_ACTIVE_VERSION = "scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle"
 """Modèle actif tant que `ops.model_registry` n'en désigne pas un autre : le modèle final H1, appris
 avec les matchs scellés (ADR-0044 ; rendu actif en 5.13, ADR-0045)."""
+LIMITS_H2 = [
+    "Horizon H2 : la composition annoncée (onze et entraîneur de la feuille de match) n'existe qu'en rejeu ; "
+    "aucune prédiction H2 en live après la fin de l'abonnement (ADR-0010, ADR-0047).",
+    "Gain mesuré sur la base H1 : +0,00078 de log-loss du total [+0,00003 ; +0,00151] (ADR-0048) ; à fenêtre "
+    "d'apprentissage égale, l'intervalle contient 0. Le test scellé H2 ne pourra presque sûrement pas le distinguer de zéro.",
+    "Notes de joueurs calculées après le match par le fournisseur, selon une formule inconnue ; seuls les matchs "
+    "antérieurs servent (ADR-0013).",
+    "Même structure et mêmes limites que H1 pour le reste : indépendance conditionnelle des deux équipes, "
+    "championnats du top 5 seulement.",
+]
 FIRST_REPLAY_SEASON = 2021
 SEALED_FIRST_SEASON = SEAL_DATE.year  # 2025-26
 
@@ -104,26 +124,45 @@ def season_of(day: dt.date) -> int:
     return day.year if day.month >= 7 else day.year - 1
 
 
+def check_horizon(horizon: str) -> None:
+    if horizon not in HORIZONS:
+        raise ValueError(f"Horizon inconnu : {horizon} (attendu : {HORIZONS})")
+
+
 def train_replay_model(
-    season: int, data: pd.DataFrame, manifest: dict | None = None, spec_path: Path = EXPERIMENT_FILE
+    season: int,
+    data: pd.DataFrame,
+    manifest: dict | None = None,
+    spec_path: Path | None = None,
+    horizon: str = "H1",
 ):
-    """(modèle, carte) du pli `season` : même procédure que l'évaluation, apprentissage 2015-16 à S − 1."""
+    """(modèle, carte) du pli `season` : même procédure que l'évaluation, apprentissage 2015-16 à S − 1.
+
+    H2 : le début d'apprentissage des groupes à historique court (G5 : 2016-17, rodage D3) est passé à
+    `select_and_fit`, comme le fait l'évaluation ; les lignes de rodage ne servent ni au choix ni à
+    l'ajustement. Pour H1, `first_training_season` est vide : comportement inchangé.
+    """
+    check_horizon(horizon)
+    spec_path = spec_path or (EXPERIMENT_FILE if horizon == "H1" else EXPERIMENT_FILE_H2)
+    model_id = MODEL_ID if horizon == "H1" else MODEL_ID_H2
     spec = load_spec(spec_path)
-    model_spec = next(m for m in spec["models"] if m["id"] == MODEL_ID)
+    model_spec = next(m for m in spec["models"] if m["id"] == model_id)
     make = MODELS[model_spec["model"]]
     grid = [(model_spec.get("params") or {}) | g for g in expand_grid(model_spec.get("grid"))]
-    features = make(**grid[0]).features
+    first = make(**grid[0])
+    features, first_season = first.features, first.first_training_season
     population = model_spec.get("population", spec.get("population", "top5"))
     fold = protocol.Fold(season)
-    fit = protocol.select_and_fit(make, grid, data, fold, population, features)
-    train_rows, _ = protocol.usable(protocol.training_rows(data, fold.train_seasons, population), features)
-    version = f"rejeu-{season}-{MODEL_ID.lower()}"
+    fit = protocol.select_and_fit(make, grid, data, fold, population, features, first_season)
+    seasons = [s for s in fold.train_seasons if first_season is None or s >= first_season]
+    train_rows, _ = protocol.usable(protocol.training_rows(data, seasons, population), features)
+    version = f"rejeu-{season}-{model_id.lower()}"
     card = build_card(
-        version=version, horizon="H1", model_spec=model_spec, fit=fit, train_rows=train_rows,
+        version=version, horizon=horizon, model_spec=model_spec, fit=fit, train_rows=train_rows,
         population=population, manifest=manifest or {}, git=git_state(),
         experiment_file=Path(spec_path).relative_to(REPO_ROOT).as_posix() if Path(spec_path).is_relative_to(REPO_ROOT)
         else Path(spec_path).as_posix(),
-        includes_sealed=False, validation=None,
+        includes_sealed=False, validation=None, limits=LIMITS_H2 if horizon == "H2" else None,
     )  # fmt: skip
     card["replay_season"] = season
     return fit.model, card
@@ -134,17 +173,22 @@ def replay_model(
     data: pd.DataFrame | None = None,
     manifest: dict | None = None,
     replay_root: Path = REPLAY_ROOT,
+    horizon: str = "H1",
 ) -> LoadedModel:
-    """Modèle de rejeu de la saison : lu dans le cache, sinon entraîné puis mis en cache."""
+    """Modèle de rejeu de la saison : lu dans le cache, sinon entraîné puis mis en cache.
+
+    Le cache de H2 est le sous-dossier `h2/` de celui de H1 : les deux horizons ne se mélangent pas.
+    """
+    check_horizon(horizon)
     check_replay_season(season)
-    folder = replay_root / str(season)
+    folder = replay_root / str(season) if horizon == "H1" else replay_root / "h2" / str(season)
     if (folder / "model.joblib").exists():
         return load_model(folder)
     if data is None:
         from foot_predictor.features.sources import load_dataset
 
-        data, manifest = load_dataset("ds-2026-09-30-ba2b91f7")
-    model, card = train_replay_model(season, data, manifest)
+        data, manifest = load_dataset(REPLAY_DATASET_VERSION[horizon])
+    model, card = train_replay_model(season, data, manifest, horizon=horizon)
     slim(model)
     folder.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, folder / "model.joblib")
@@ -153,10 +197,10 @@ def replay_model(
     return LoadedModel(card["version"], model, card, folder)
 
 
-def model_for_day(day: dt.date, mode: str, data=None, **kwargs) -> LoadedModel:
-    """Modèle à employer : celui du pli de la saison en rejeu, le modèle actif en live."""
+def model_for_day(day: dt.date, mode: str, data=None, horizon: str = "H1", **kwargs) -> LoadedModel:
+    """Modèle à employer : celui du pli de la saison en rejeu, le modèle actif en live (H1 seulement)."""
     if mode == "replay":
-        return replay_model(season_of(day), data, **kwargs)
+        return replay_model(season_of(day), data, horizon=horizon, **kwargs)
     if mode == "live":
         return load_active(kwargs.get("version"))
     raise ValueError(f"Mode inconnu : {mode} (replay ou live)")

@@ -9,6 +9,9 @@
 - **Noms** des équipes et des championnats : modèles ORM `Team` et `Competition` (aucune lecture
   de la table des matchs hors de la porte).
 - **Cotes de référence** : `modeling.models.market` (porte `load_odds`, scellé filtré).
+- **Compositions** (horizon H2, rejeu) : `load_lineups` et `load_team_sheets` de la porte, lues à la
+  première demande H2 seulement (tables lourdes) ; le scellé reste filtré en SQL, sans ouverture à
+  l'inférence : H2 n'a pas de live (ADR-0010) et le rejeu des saisons scellées reste fermé (ADR-0045).
 - **Jeu de données** versionné : pour entraîner à la demande les modèles de rejeu.
 - **Live** (5.14, ADR-0042) : une fois la table ouverte, football-data (dossier des bruts externes,
   ADR-0024) est superposé **en mémoire** à la saison du jour : résultats depuis le gel, dates réelles,
@@ -103,6 +106,12 @@ def build_context(
 
         odds = load_market_probabilities()
     dataset, _ = load_dataset(DATASET_VERSION)
+
+    def h2_inputs():
+        from foot_predictor.features.build import read_h2_inputs
+
+        return read_h2_inputs(engine, matches)
+
     context = InferenceContext(
         matches=matches,
         data_version=f"load_run-{run_id}",
@@ -114,6 +123,7 @@ def build_context(
         today=today or dt.datetime.now(dt.UTC).date(),
         active_version=registry_active_version(engine),
         history_opened=opened,
+        h2_loader=h2_inputs,
     )
     if not opened:  # avant le test scellé H1 : pas de saison courante, donc rien à superposer
         return context

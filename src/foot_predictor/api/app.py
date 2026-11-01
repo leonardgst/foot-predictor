@@ -4,10 +4,11 @@
 |---|---|---|
 | `GET /health` | vivacité, base, modèle actif | — |
 | `GET /competitions` | championnats présents, avec le périmètre du modèle | — |
-| `GET /matches?date=&competition=&mode=` | matchs d'une date, statut de disponibilité résumé | 403 date refusée |
-| `GET /matches/{id}/availability?horizon=&mode=` | détail par variable | 404, 403, 501 (H2) |
-| `POST /matches/{id}/predictions?horizon=&mode=&force=` | calcule et trace (ou renvoie l'existante) | 404, 403, 409, 501 |
+| `GET /matches?date=&competition=&mode=&horizon=` | matchs d'une date, statut de disponibilité résumé | 403 date refusée |
+| `GET /matches/{id}/availability?horizon=&mode=` | détail par variable | 404, 403 |
+| `POST /matches/{id}/predictions?horizon=&mode=&force=` | calcule et trace (ou renvoie l'existante) | 404, 403, 409 |
 | `GET /models/active` | carte d'identité du modèle actif | 503 |
+| `GET /models/h2/contribution` | apport mesuré des groupes de variables H2 et décision | 503 |
 | `GET /data/freshness` | dernière mise à jour de chaque source | — |
 
 Usage local seulement : liaison 127.0.0.1, ni authentification ni CORS ; aucune réponse ne contient
@@ -31,9 +32,10 @@ from fastapi.responses import JSONResponse
 
 from foot_predictor.api import schemas
 from foot_predictor.features.leagues import TOP5
+from foot_predictor.inference import h2_contribution
 from foot_predictor.inference import models as model_store
-from foot_predictor.inference.availability import AVAILABLE, H2_UNAVAILABLE
-from foot_predictor.inference.predict import InferenceContext, ReferenceDateRefused, predict_day
+from foot_predictor.inference.availability import AVAILABLE
+from foot_predictor.inference.predict import H2SourcesMissing, InferenceContext, ReferenceDateRefused, predict_day
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FOOTBALL_DATA_MANIFEST = REPO_ROOT / "data" / "raw" / "_manifest" / "football_data.jsonl"
@@ -101,8 +103,8 @@ def _answer(context: InferenceContext, match_id: int, mode: str, horizon: str) -
         (answer,) = predict_day(match["match_day"], mode, context, match_ids=[match_id], horizon=horizon)
     except ReferenceDateRefused as error:
         raise ApiError(403, str(error)) from error
-    if answer["status"] == H2_UNAVAILABLE:
-        raise ApiError(501, "Horizon H2 (avec composition) : non disponible avant la partie 6.", answer["reasons"])
+    except H2SourcesMissing as error:
+        raise ApiError(503, str(error)) from error
     return answer
 
 
@@ -166,10 +168,11 @@ def create_app(
         date: dt.date,
         mode: schemas.Mode = "replay",
         competition: Annotated[list[int] | None, Query()] = None,
+        horizon: schemas.Horizon = "H1",
     ) -> list[dict]:
         ctx = context()
         try:
-            answers = predict_day(date, mode, ctx, competition_ids=competition)
+            answers = predict_day(date, mode, ctx, competition_ids=competition, horizon=horizon)
         except ReferenceDateRefused as error:
             raise ApiError(403, str(error)) from error
         return [_summary(a) for a in answers]
@@ -177,7 +180,7 @@ def create_app(
     @app.get(
         "/matches/{match_id}/availability",
         response_model=schemas.AvailabilityOut,
-        responses={403: {"model": schemas.Problem}, 404: {"model": schemas.Problem}, 501: {"model": schemas.Problem}},
+        responses={403: {"model": schemas.Problem}, 404: {"model": schemas.Problem}},
     )
     def availability(match_id: int, horizon: schemas.Horizon = "H1", mode: schemas.Mode = "replay") -> dict:
         answer = _answer(context(), match_id, mode, horizon)
@@ -190,7 +193,7 @@ def create_app(
         responses={
             200: {"model": schemas.PredictionOut, "description": "prédiction déjà tracée, renvoyée telle quelle"},
             403: {"model": schemas.Problem}, 404: {"model": schemas.Problem},
-            409: {"model": schemas.Problem}, 501: {"model": schemas.Problem},
+            409: {"model": schemas.Problem},
         },
     )  # fmt: skip
     def create_prediction(
@@ -231,6 +234,17 @@ def create_app(
         card = dict(loaded.card)
         card.pop("experiment_file", None)  # aucun chemin de fichier dans une réponse
         return card
+
+    @app.get(
+        "/models/h2/contribution",
+        response_model=schemas.Contribution,
+        responses={503: {"model": schemas.Problem}},
+    )
+    def h2_contribution_route() -> dict:
+        try:
+            return h2_contribution.load_contribution()
+        except h2_contribution.ContributionUnavailable as error:
+            raise ApiError(503, str(error)) from error
 
     @app.get("/data/freshness", response_model=schemas.Freshness)
     def freshness() -> dict:

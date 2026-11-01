@@ -8,7 +8,8 @@ Lancement (l'API doit tourner) :
 | Écran | Contenu | Routes appelées |
 |---|---|---|
 | Matchs | mode, date, championnats ; pastille de disponibilité et raisons ; bouton « Prédiction » | `/competitions`, `/matches` |
-| Détail | loi du total (barres), E[T], λ, intervalle et couverture annoncée, P(T > 2,5), variables, score réel | `POST /matches/{id}/predictions`, `/matches/{id}/availability` |
+| Détail | H1 (sans composition) et H2 (avec composition, rejeu) côte à côte : loi du total (barres), E[T], λ, intervalle et couverture annoncée, P(T > 2,5), variables, ce que la composition change, score réel | `POST /matches/{id}/predictions`, `/matches/{id}/availability` (`horizon=H1` et `H2`) |
+| Apport des variables | gain mesuré de chaque groupe de variables H2 (G6, G5, G4), décision, structures, où se concentre le gain | `/models/h2/contribution` |
 | Modèle | carte d'identité, métriques de validation, courbe d'apport, fraîcheur des données | `/models/active`, `/data/freshness`, `/health` |
 
 L'interface ne lit **jamais** la base et n'importe aucune logique métier : tout passe par
@@ -26,7 +27,7 @@ import streamlit as st
 from foot_predictor.ui import views
 from foot_predictor.ui.client import ApiClient, ApiProblem
 
-SCREENS = ("Matchs", "Détail", "Modèle")
+SCREENS = ("Matchs", "Détail", "Apport des variables", "Modèle")
 MODES = {"Rejeu": "replay", "Live": "live"}
 DEFAULT_REPLAY_DATE = dt.date(2025, 5, 18)  # journée de 2024-25, dernière saison ouverte au rejeu (ADR-0045)
 FIGURE = Path(__file__).resolve().parents[3] / "docs" / "resultats" / "figures" / "courbe_apport.png"
@@ -51,8 +52,19 @@ def cached(key: tuple, fetch):
     return memo[key]
 
 
+def fetch_h2(client: ApiClient, match: dict, mode: str, predict: bool) -> dict:
+    """Réponse H2 d'un match : `{"answer": ...}` ou `{"problem": ApiProblem}`. En live, l'API répond « H2 non
+    disponible » (200 pour les variables, 409 pour une prédiction) : la raison s'affiche, rien n'est calculé."""
+    try:
+        if predict:
+            return {"answer": client.predict(match["match_id"], mode, "H2")}
+        return {"answer": client.availability(match["match_id"], mode, "H2")}
+    except ApiProblem as problem:
+        return {"problem": problem}
+
+
 def open_detail(client: ApiClient, match: dict, mode: str, predict: bool) -> None:
-    """Rappel d'un bouton : appelle l'API, garde la réponse ou l'erreur, puis passe à l'écran « Détail »."""
+    """Rappel d'un bouton : appelle l'API pour H1 et H2, garde les réponses ou les erreurs, puis passe à « Détail »."""
     state = st.session_state
     try:
         if predict:
@@ -62,6 +74,10 @@ def open_detail(client: ApiClient, match: dict, mode: str, predict: bool) -> Non
         state.detail_error = None
     except ApiProblem as problem:
         state.detail, state.detail_error = None, problem
+    if state.detail_error is not None and state.detail_error.status in (None, 403, 404):
+        state.detail_h2 = None  # la même erreur vaudrait pour H2 (API injoignable, date scellée, match inconnu)
+    else:
+        state.detail_h2 = fetch_h2(client, match, mode, predict)
     state.detail_match = match
     state.screen = "Détail"
 
@@ -138,42 +154,83 @@ def matches_screen(client: ApiClient) -> None:
             st.dataframe(views.matches_frame(blocked), hide_index=True)
 
 
-def detail_screen() -> None:
-    state = st.session_state
-    st.header("Détail")
-    problem: ApiProblem | None = state.get("detail_error")
-    answer: dict | None = state.get("detail")
+def prediction_block(answer: dict | None, problem: ApiProblem | None, title: str, subtitle: str) -> None:
+    """Une colonne de l'écran « Détail » : disponibilité, puis loi du total si le modèle a prédit."""
+    st.subheader(title)
+    st.caption(subtitle)
     if problem is not None:
-        match = state.get("detail_match") or {}
-        if match:
-            st.subheader(f"{match.get('home_team')} – {match.get('away_team')}")
         show_problem(problem)
         return
-    if not answer:
-        st.info("Choisir un match dans l'écran « Matchs » (bouton « Prédiction » ou « Variables »).")
+    if answer is None:
+        st.info("Aucune réponse.")
         return
-
-    st.subheader(f"{answer.get('home_team')} – {answer.get('away_team')}")
-    mode = "rejeu" if answer["mode"] == "replay" else "live"
-    st.caption(
-        f"{answer.get('competition')} · {answer['date']} · {views.kickoff_label(answer)} · "
-        f"saison {answer['season']}-{str(answer['season'] + 1)[-2:]} · mode {mode} · horizon {answer['horizon']}"
-    )
     st.markdown(f"Disponibilité : {views.badge(answer['status'])}" + (
         f" — {views.reasons_text(answer)}" if answer.get("reasons") else ""))  # fmt: skip
-
     prediction = answer.get("prediction")
     if prediction:
-        cols = st.columns(4)
-        cols[0].metric("E[T] (buts attendus)", views.number(prediction["expected_total"]))
-        cols[1].metric("λ domicile", views.number(prediction["lambda_home"]))
-        cols[2].metric("λ extérieur", views.number(prediction["lambda_away"]))
-        cols[3].metric("P(T > 2,5)", views.percent(prediction["p_over_2_5"]))
+        top = st.columns(2)
+        top[0].metric("E[T] (buts attendus)", views.number(prediction["expected_total"]))
+        top[1].metric("P(T > 2,5)", views.percent(prediction["p_over_2_5"]))
+        bottom = st.columns(2)
+        bottom[0].metric("λ domicile", views.number(prediction["lambda_home"]))
+        bottom[1].metric("λ extérieur", views.number(prediction["lambda_away"]))
         st.markdown(f"**Intervalle [q10 ; q90]** : {views.interval_text(prediction)}")
         st.bar_chart(
             views.distribution_frame(prediction), x="Buts", y="Probabilité", color="Intervalle", sort=False,
             x_label="nombre total de buts T", y_label="P(T = k)",
         )  # fmt: skip
+    elif answer["status"] == "available":
+        st.info("Toutes les variables sont présentes : le bouton « Prédiction » de l'écran « Matchs » calcule la loi.")
+
+
+def variables_block(answer: dict | None, empty: str) -> None:
+    variables = (answer or {}).get("variables") or []
+    if variables:
+        missing = sum(v["status"] != "presente" for v in variables)
+        st.caption(f"{len(variables) - missing} présentes, {missing} manquantes ou périmées (aucune valeur remplacée).")
+        st.dataframe(views.variables_frame(variables), hide_index=True)
+    else:
+        st.caption(empty)
+
+
+def detail_screen() -> None:
+    state = st.session_state
+    st.header("Détail")
+    problem: ApiProblem | None = state.get("detail_error")
+    answer: dict | None = state.get("detail")
+    h2: dict = state.get("detail_h2") or {}
+    if problem is not None and state.get("detail_h2") is None:
+        match = state.get("detail_match") or {}
+        if match:
+            st.subheader(f"{match.get('home_team')} – {match.get('away_team')}")
+        show_problem(problem)
+        return
+    if not answer and problem is None:
+        st.info("Choisir un match dans l'écran « Matchs » (bouton « Prédiction » ou « Variables »).")
+        return
+
+    header = answer or h2.get("answer") or state.get("detail_match") or {}
+    st.subheader(f"{header.get('home_team')} – {header.get('away_team')}")
+    if answer:
+        mode = "rejeu" if answer["mode"] == "replay" else "live"
+        st.caption(
+            f"{answer.get('competition')} · {answer['date']} · {views.kickoff_label(answer)} · "
+            f"saison {answer['season']}-{str(answer['season'] + 1)[-2:]} · mode {mode}"
+        )
+    left, right = st.columns(2)
+    with left:
+        prediction_block(
+            answer, problem, "H1 · sans composition", "Modèle figé du MVP (ADR-0039) : Elo, forme, calendrier."
+        )
+    with right:
+        prediction_block(
+            h2.get("answer"), h2.get("problem"), "H2 · avec composition",
+            "Rejeu seulement : ajoute la qualité du onze annoncé (G5). Jamais en live, faute de compositions (ADR-0010).",
+        )  # fmt: skip
+
+    h1_prediction = (answer or {}).get("prediction")
+    h2_prediction = (h2.get("answer") or {}).get("prediction")
+    if h1_prediction:
         actual = views.actual_score_text(answer)
         if actual:
             st.info(f"Score réel (rejeu) : {actual}")
@@ -183,27 +240,79 @@ def detail_screen() -> None:
                 f"Référence de marché (cotes avant clôture, jamais une variable du modèle, ADR-0036) : "
                 f"P(T > 2,5) implicite = {views.percent(market['p_over_2_5'])}"
             )
-    elif answer["status"] == "available":
-        st.info("Toutes les variables sont présentes : le bouton « Prédiction » de l'écran « Matchs » calcule la loi.")
+    if h1_prediction and h2_prediction:
+        st.subheader("Ce que la composition change")
+        st.dataframe(views.h2_difference_frame(answer, h2["answer"]), hide_index=True)
+        st.markdown("**Qualité du onze annoncé** (variables G5 lues par H2)")
+        st.dataframe(views.composition_frame(h2["answer"].get("variables") or []), hide_index=True)
+        st.caption(
+            "Sur l'ensemble des matchs, G5 améliore le log-loss de moins de 0,1 % (écran « Apport des variables ») : "
+            "l'écart d'un match ne dit pas lequel des deux modèles avait raison."
+        )
 
     st.subheader("Variables utilisées et manquantes")
-    variables = answer.get("variables") or []
-    if variables:
-        missing = sum(v["status"] != "presente" for v in variables)
-        st.caption(f"{len(variables) - missing} présentes, {missing} manquantes ou périmées (aucune valeur remplacée).")
-        st.dataframe(views.variables_frame(variables), hide_index=True)
-    else:
-        st.caption("Aucune variable évaluée pour ce match (hors périmètre, exclu ou H2).")
+    variables_block(answer, "Aucune variable évaluée pour ce match (hors périmètre ou exclu).")
+    if h2.get("answer") and h2["answer"].get("variables"):
+        with st.expander("Variables de l'horizon H2 (H1 plus la composition)"):
+            variables_block(h2["answer"], "")
 
-    saved = answer.get("saved")
-    lines = [
-        f"Modèle : `{answer['model_version']}`",
-        f"Version des données : `{answer['data_version']}` ; données complètes jusqu'au {answer['data_complete_until']}",
-    ]
-    if saved:
-        origin = "créée maintenant" if saved.get("created") else "déjà tracée, renvoyée telle quelle"
-        lines.append(f"Prédiction n° {saved.get('id')} de `ops.prediction` ({origin}, {saved.get('created_at')})")
+    lines = []
+    for label, item in (("H1", answer), ("H2", h2.get("answer"))):
+        if item and item.get("model_version"):
+            lines.append(f"Modèle {label} : `{item['model_version']}`")
+    reference = answer or h2.get("answer")
+    if reference:
+        lines.append(
+            f"Version des données : `{reference['data_version']}` ; données complètes jusqu'au "
+            f"{reference['data_complete_until']}"
+        )
+    for label, item in (("H1", answer), ("H2", h2.get("answer"))):
+        saved = (item or {}).get("saved")
+        if saved:
+            origin = "créée maintenant" if saved.get("created") else "déjà tracée, renvoyée telle quelle"
+            lines.append(
+                f"Prédiction {label} n° {saved.get('id')} de `ops.prediction` ({origin}, {saved.get('created_at')})"
+            )
     st.caption("  \n".join(lines))
+
+
+def contribution_screen(client: ApiClient) -> None:
+    st.header("Apport des variables")
+    st.caption(
+        "Que rapporte la composition officielle (onze et entraîneur) au-delà du modèle H1 ? Les chiffres viennent des "
+        "rapports d'expériences par l'API, sur les 4 plis de validation (2021-22 à 2024-25, protocole figé de l'ADR-0037). "
+        "Un gain positif veut dire que le modèle avec le groupe prédit mieux le total de buts."
+    )
+    try:
+        contribution = cached(("h2_contribution", client.base_url), client.h2_contribution)
+    except ApiProblem as problem:
+        show_problem(problem)
+        return
+    st.markdown(
+        f"**Modèle H2 retenu** : {contribution['model']}. Jeu `{contribution['dataset']}` ; {contribution['folds']}. "
+        f"Unité : {contribution['unit']}."
+    )
+    st.subheader("Chemin de décision (ADR-0048)")
+    st.caption("Groupes ajoutés dans l'ordre fixé d'avance, la règle de l'ADR-0037 décidant à chaque étape.")
+    st.dataframe(views.contribution_steps_frame(contribution), hide_index=True)
+    steps = contribution["steps"]
+    st.bar_chart(
+        {"Groupe": [f"{x['group']} · {x['label']}" for x in steps], "Gain de log-loss": [x["gain"] for x in steps]},
+        x="Groupe", y="Gain de log-loss", y_label="gain de log-loss (nats par match)",
+    )  # fmt: skip
+    for step in steps:
+        st.markdown(f"- **{step['group']} · {step['label']}** : {step['variables']}.")
+    st.subheader("Où se concentre le gain de G5")
+    st.dataframe(views.contribution_rounds_frame(contribution["g5_by_round"]), hide_index=True)
+    st.subheader("Diagnostics, sans pouvoir de décision")
+    st.dataframe(views.contribution_other_frame(contribution["diagnostics"]), hide_index=True)
+    st.subheader("Structures du modèle (6.8)")
+    st.dataframe(views.contribution_other_frame(contribution["structures"], decisions=True), hide_index=True)
+    st.subheader("À lire avec ces chiffres")
+    st.markdown("\n".join(f"- {note}" for note in contribution["notes"]))
+    st.caption(
+        f"Rapports : décision `{contribution['reports']['decision']}`, structures `{contribution['reports']['structures']}`."
+    )
 
 
 def model_screen(client: ApiClient) -> None:
@@ -264,14 +373,16 @@ def main() -> None:
         st.title("foot-predictor")
         st.radio("Écran", SCREENS, key="screen")
         st.caption(
-            "Loi du nombre total de buts d'un match du top 5, horizon H1 (sans composition). "
-            f"Interface locale ; elle ne parle qu'à l'API ({client.base_url})."
+            "Loi du nombre total de buts d'un match du top 5 : H1 (sans composition), et H2 (avec la composition "
+            f"annoncée) en rejeu seulement. Interface locale ; elle ne parle qu'à l'API ({client.base_url})."
         )
     screen = st.session_state.screen
     if screen == "Matchs":
         matches_screen(client)
     elif screen == "Détail":
         detail_screen()
+    elif screen == "Apport des variables":
+        contribution_screen(client)
     else:
         model_screen(client)
 

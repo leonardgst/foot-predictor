@@ -1,6 +1,6 @@
 # Étape 11 : inférence (jalon J7)
 
-Mode d'emploi de l'inférence : variables d'un match quelconque, modèles actif et de rejeu, matrice de disponibilité, prédiction, traçabilité. Décisions : **ADR-0040**, et **ADR-0045** pour l'ouverture du scellé (5.13). Le code vit dans `src/foot_predictor/inference/` ; il **importe** `features/` et `modeling/` sans jamais les modifier (règle de la phase A, gel `pre-scelle-h1` ; la porte `features/sources.py` a reçu l'option d'ouverture en 5.13).
+Mode d'emploi de l'inférence : variables d'un match quelconque, modèles actif et de rejeu, matrice de disponibilité, prédiction, traçabilité. Décisions : **ADR-0040**, **ADR-0045** pour l'ouverture du scellé (5.13), **ADR-0051** pour l'horizon H2 en rejeu (6.10). Le code vit dans `src/foot_predictor/inference/` ; il **importe** `features/` et `modeling/` sans jamais les modifier (règle de la phase A, gel `pre-scelle-h1` ; la porte `features/sources.py` a reçu l'option d'ouverture en 5.13).
 
 ## En bref
 
@@ -16,17 +16,22 @@ Mode d'emploi de l'inférence : variables d'un match quelconque, modèles actif 
 ```bash
 uv run python -m foot_predictor.inference predict --date 2024-05-19 --mode replay            # une journée
 uv run python -m foot_predictor.inference predict --date 2024-05-19 --mode replay --json     # réponse complète
+uv run python -m foot_predictor.inference predict --date 2024-05-19 --mode replay --horizon H2   # avec la composition (6.10)
 uv run python -m foot_predictor.inference predict --date 2024-05-19 --mode replay --save     # + ops.prediction
 uv run python -m foot_predictor.inference live --days 7 [--save]   # live (5.14) : rapport ; --save trace les disponibles
 uv run python -m foot_predictor.inference models                 # modèle actif et modèles de rejeu en cache
 uv run python -m foot_predictor.inference models --register      # inscription dans ops.model_registry
 uv run python -m foot_predictor.inference models --activate <version>   # inscrit models/<version>/ et le rend actif
 uv run python -m foot_predictor.inference check                  # contrôles réels (environ 2 min)
+uv run python -m foot_predictor.inference check --only rows-h2       # sur demande (6.10) : lignes H2 (environ 6 min)
+uv run python -m foot_predictor.inference check --only replay-h2     # sur demande : modèles de rejeu H2 (quelques secondes)
+uv run python -m foot_predictor.inference check --only predictions-h2   # sur demande : journées de rejeu H2 (environ 4 min)
 uv run python -m foot_predictor.inference check --only rows-scelle   # sur demande : période scellée, lecture journalisée
 ```
 
 | Option | Rôle |
 |---|---|
+| `--horizon H1\|H2` | H1 (défaut) ; H2 ajoute la composition annoncée, en rejeu seulement (en live : `h2_unavailable`) |
 | `--mode replay\|live` | rejeu (modèle du pli de la saison, score réel affiché) ou live (modèle actif, matchs à venir) |
 | `--competition <id>` | filtre sur l'identifiant **interne** du championnat (plusieurs fois possible) |
 | `--match <id>` | un match (identifiant interne) |
@@ -161,6 +166,26 @@ uv run python -m foot_predictor.inference live --days 7 --save
 - **41 prédictions live tracées**, toutes avant le coup d'envoi ; 2 refusées, leurs matchs ayant commencé à 12:30 et 13:00 UTC : collecter plus tôt le samedi (le fichier des prochains matchs paraît le vendredi après-midi) ;
 - `ops.prediction` : 89 lignes live au total.
 
+## Horizon H2 en rejeu (6.10, ADR-0051)
+
+H2 = le modèle H1 plus la qualité du onze annoncé (G5) : **M3 sur G0 + G1 + G2 + G5** (ADR-0050). Il n'existe qu'en **rejeu** : après la fin de l'abonnement, aucune composition n'arrive plus (ADR-0010).
+
+- **Modèle de rejeu H2 de la saison S** : le pli S, appris sur 2015-16 à S − 1 par la ligne `M3_H2` de `experiments/scelle_h2.yaml` (rodage de G5 : apprentissage dès 2016-17), sur le jeu `ds-2026-11-01-e0defb32`. Cache : `models/rejeu/h2/<S>/`, version `rejeu-<S>-m3_h2`. Contrôle réel : prédictions **identiques** à celles de l'expérience `structures-h2` (7 135 matchs, écart nul).
+- **Variables** : `build_frame_h2` appelée sur la table des matchs, les compositions et les feuilles de match tronquées au jour J (un jour à la fois). Compositions lues par la porte (`load_lineups`, `load_team_sheets`) à la **première demande H2** seulement (environ 2 millions de lignes, 17 s). Pour le match cible, on garde le onze annoncé, le poste et l'entraîneur ; on retire minutes, note, remplaçant, capitaine (défense en profondeur : G4 à G6 ne lisent déjà que des jours strictement antérieurs).
+- **Disponibilité** : mêmes règles que H1. Raisons propres à G5 : onze incomplet ou absent de la feuille de match, titulaire sans poste ni note antérieure, moins de 10 matchs d'historique du club, date de naissance manquante. Jamais de valeur de remplacement.
+- **Live** : `h2_unavailable` avec la raison (compositions plus fournies, ADR-0010), sans modèle ni lecture des compositions ; un match hors périmètre ou exclu garde son statut de H1. API : 200 sur `/matches` et `/availability`, 409 sur `POST /predictions`.
+- **Scellé** : le rejeu H2 d'une saison scellée est refusé comme celui de H1, jusqu'au test scellé de H2 (ADR-0045). Les compositions passent par la porte, scellé filtré en SQL, sans ouverture à l'inférence.
+
+| Contrôle H2 (sur demande) | Rapport | Résultat du 2026-11-01 |
+|---|---|---|
+| `rows-h2` : lignes d'inférence contre le jeu H2 `e0defb32` | `reports/inference/lignes_h2_2026-11-01.md` | 17 jours, 622 lignes identiques au bit près (92 colonnes), chargement n° 7 des deux côtés ; 15 à 23 s par jour |
+| `replay-h2` : modèles de rejeu contre `structures-h2` (`M3_H2`) | `reports/inference/rejeu_h2_2026-11-01.md` | écart nul, 4 saisons, 7 135 matchs (demi-vies 240, 120, 240, 240) |
+| `predictions-h2` : journées de rejeu contre `structures-h2` | `reports/inference/predictions_h2_2026-11-01.md` | 8 journées, λ à 9e-16 près, log-loss identique |
+
+**Garde H1** : `check --only replay` (H1) reproduit toujours le rejeu, avec les mêmes modèles ; aucun fichier de `modeling/`, `features/`, `seal.py` ni `experiments/` n'a changé (`git diff --stat pre-scelle-h2` vide).
+
+**Ce que le test ne détecte pas** : une mutation qui désactive le retrait des colonnes d'après-match du match cible n'est détectée que par le test unitaire de `lineups_for_day`, pas par le test « ce que le match produit ne change rien », parce que G5 ne lit que des notes antérieures. Le retrait est une protection de plus, pas la seule.
+
 ## Temps mesurés (portable, 2026-09-30)
 
 | Opération | Temps |
@@ -171,10 +196,16 @@ uv run python -m foot_predictor.inference live --days 7 --save
 | Modèle de rejeu d'une saison (entraînement et cache) | 0,6 à 1,7 s |
 | `predict` d'une journée de 77 matchs, commande complète à froid | 8,3 s |
 | Journée de rejeu, contexte chargé | 2 à 3 s |
+| **H2** : lignes d'un jour, à froid (3 tables tronquées, `build_frame_h2`) | 15 à 23 s |
+| **H2** : compositions et feuilles de match (première demande) | 17 s |
+| **H2** : modèle de rejeu d'une saison | environ 1 s |
+| **H2** : journée de rejeu complète, contexte chargé, à froid | 17 à 39 s |
 
 ## Limites connues
 
 - Fraîcheur par équipe (ADR-0046) : les glissants d'un match prédit alors que son championnat n'est pas complet sont **approchés** (a priori μ du championnat), dans la tolérance vérifiée par la répétition ; une prédiction faite ainsi se reconnaît à `data_complete_until` < J − 1. Un match dont une équipe a joué depuis la dernière mise à jour attend la suivante.
 - Fraîcheur par championnat, règle prudente : un match reporté sans nouvelle date bloque son championnat jusqu'à son résultat (ADR-0042, critère de révision).
-- Un seul jour est calculé à la fois (règle d'exactitude) : une plage de dates coûte quelques secondes par jour à froid.
+- Un seul jour est calculé à la fois (règle d'exactitude) : une plage de dates coûte quelques secondes par jour à froid pour H1, une vingtaine pour H2.
+- H2 : sans aucune apparition de joueur identifiée dans l'historique, `compute_xi_quality` (chemin gelé de `features/`) échoue au lieu de rendre des valeurs vides ; non atteignable sur les données réelles du rejeu, et une base sans composition donne un 503 explicite (ADR-0051).
+- H2 : le gain mesuré est minuscule (ADR-0048) ; l'écart H2 − H1 d'un match n'est pas une preuve que H2 avait raison.
 - Les identifiants de championnat de `--competition` sont internes ; l'API (étape 12) les liste.

@@ -14,7 +14,6 @@ from foot_predictor.inference import predict as P
 from foot_predictor.inference.availability import (
     AVAILABLE,
     EXCLUDED,
-    H2_UNAVAILABLE,
     OUT_OF_SCOPE,
     STALE,
     UNAVAILABLE,
@@ -72,9 +71,9 @@ def context(matches, loaded, **kwargs):
         freshness=Freshness("staging", matches["match_day"].max()),
         team_names={1: "Club Un"}, **kwargs,
     )  # fmt: skip
-    ctx._models[("replay", 2022)] = loaded
-    ctx._models[("replay", 2023)] = loaded
-    ctx._models[("live", "actif")] = loaded
+    ctx._models[("replay", 2022, "H1")] = loaded
+    ctx._models[("replay", 2023, "H1")] = loaded
+    ctx._models[("live", "actif", "H1")] = loaded
     return ctx
 
 
@@ -156,13 +155,12 @@ def test_stale_source_makes_history_variables_stale(setup):
     assert "football_data" in availability.reasons[0]
 
 
-def test_excluded_match_h2_and_unknown_team(setup):
+def test_excluded_match_and_unknown_team(setup):
     matches, _, loaded = setup
     target = day_of(matches, lambda m: (m["api_league_id"] == 39) & (m["season_year"] == 2023))
     excluded = target.copy()
     excluded["excluded"] = True
     assert match_availability(excluded, pd.DataFrame(), loaded.model.features).status == EXCLUDED
-    assert match_availability(target, pd.DataFrame(), loaded.model.features, horizon="H2").status == H2_UNAVAILABLE
     unknown = match_availability(target, pd.DataFrame(), loaded.model.features)
     assert unknown.status == UNAVAILABLE and "équipe inconnue" in unknown.reasons[0]
 

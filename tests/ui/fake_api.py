@@ -48,6 +48,51 @@ PREDICTION = {
     "interval": {"low": 1, "high": 4, "high_label": "4", "announced_coverage": 0.77},
 }  # fmt: skip
 
+H2_REASON = "horizon H2 (avec composition) : non disponible en live (ADR-0010)"
+VARIABLES_H2 = [
+    *VARIABLES_OK,
+    {"variable": "xi_quality", "side": "domicile", "status": "presente", "value": 7.125},
+    {"variable": "xi_quality", "side": "exterieur", "status": "presente", "value": 6.98},
+    {"variable": "xi_regulars_missing", "side": "domicile", "status": "presente", "value": 0.18},
+    {"variable": "xi_regulars_missing", "side": "exterieur", "status": "manquante", "value": None,
+     "reason": "moins de 10 matchs d'historique avec onze complet"},
+    {"variable": "xi_mean_age", "side": "domicile", "status": "presente", "value": 26.4},
+    {"variable": "xi_mean_age", "side": "exterieur", "status": "presente", "value": 27.9},
+]  # fmt: skip
+PREDICTION_H2 = {
+    "lambda_home": 1.70, "lambda_away": 1.05, "expected_total": 2.75,
+    "total_distribution": dict(zip(K_LABELS, DISTRIBUTION, strict=True)), "p_over_2_5": 0.57,
+    "interval": {"low": 1, "high": 4, "high_label": "4", "announced_coverage": 0.77},
+}  # fmt: skip
+
+
+def gain(value, low, high, won=4, excludes=True):
+    return {"gain": value, "low": low, "high": high, "excludes_zero": excludes, "folds_won": won, "folds": 4,
+            "matches": 7123}  # fmt: skip
+
+
+CONTRIBUTION = {
+    "model": "M3 (Poisson par équipe) sur G0 + G1 + G2 + G5",
+    "unit": "écart de log-loss du total, en nats par match ; positif : le modèle avec le groupe est meilleur",
+    "dataset": "ds-essai-h2",
+    "reports": {"decision": "ablations-essai", "structures": "structures-essai"},
+    "folds": "4 plis de validation glissante, saisons 2021-22 à 2024-25",
+    "steps": [
+        {"step": 1, "group": "G6", "label": "Stabilité du onze", "variables": "recouvrement, cohésion",
+         "added_to": "base H1", "retained": False, **gain(0.00035, -0.00022, 0.00091, 3, False)},
+        {"step": 2, "group": "G5", "label": "Qualité du onze", "variables": "note rétrécie, habituels absents, âge",
+         "added_to": "base H1 (G6 n'étant pas retenu)", "retained": True, **gain(0.00078, 0.00003, 0.00151)},
+        {"step": 3, "group": "G4", "label": "Entraîneur", "variables": "ancienneté, nouvel entraîneur",
+         "added_to": "base H1 + G5", "retained": False, **gain(-0.0009, -0.00158, -0.00022, 1)},
+    ],
+    "diagnostics": [{"label": "G5 à fenêtre d'apprentissage égale", "against": "base dès 2016-17",
+                     **gain(0.00061, -0.0001, 0.0013, 4, False)}],
+    "structures": [{"label": "M7 (boosting) contre M3", "replaces": False,
+                    **gain(-0.00235, -0.00444, -0.00025, 0)}],
+    "g5_by_round": [{"rounds": "1-5", "mean": 0.0021, "low": 0.0002, "high": 0.0041, "n": 967, "excludes_zero": True}],
+    "notes": ["Le gain de G5 est minuscule."],
+}  # fmt: skip
+
 CARD = {
     "version": "scelle-h1-essai",
     "created_at": "2026-09-30T12:00:00+00:00",
@@ -91,6 +136,17 @@ class FakeApi:
             if match is None:
                 return httpx.Response(404, json={"detail": f"Match {match_id} inconnu.", "reasons": []})
             variables = VARIABLES_OK if match["status"] == "available" else VARIABLES_MISSING
+            h2 = params.get("horizon") == "H2"
+            if h2 and params.get("mode") == "live":  # ADR-0010 : aucune composition en live
+                match = match | {"horizon": "H2", "mode": "live", "status": "h2_unavailable", "reasons": [H2_REASON],
+                                 "model_version": None}  # fmt: skip
+                if path.endswith("/availability"):
+                    return httpx.Response(200, json=match | {"variables": []})
+                return httpx.Response(409, json={"detail": f"Match {match_id} indisponible (h2_unavailable) : "
+                                                 "aucune prédiction.", "reasons": [H2_REASON]})  # fmt: skip
+            if h2:
+                match = match | {"horizon": "H2", "model_version": "rejeu-2023-m3_h2"}
+                variables = VARIABLES_H2 if match["status"] == "available" else VARIABLES_MISSING
             if path.endswith("/availability"):
                 return httpx.Response(200, json=match | {"variables": variables})
             if method == "POST" and path.endswith("/predictions"):
@@ -99,11 +155,14 @@ class FakeApi:
                                                      "reasons": match["reasons"]})  # fmt: skip
                 self.saved += 1
                 body = match | {
-                    "variables": variables, "prediction": PREDICTION, "actual_score": {"home": 2, "away": 1},
+                    "variables": variables, "prediction": PREDICTION_H2 if h2 else PREDICTION,
+                    "actual_score": {"home": 2, "away": 1},
                     "market_reference": {"p_over_2_5": 0.52, "odds_column": "avant clôture", "version": "v"},
                     "saved": {"id": 7, "created": self.saved == 1, "created_at": "2026-10-04T10:00:00+00:00"},
                 }  # fmt: skip
                 return httpx.Response(201 if self.saved == 1 else 200, json=body)
+        if path == "/models/h2/contribution":
+            return httpx.Response(200, json=CONTRIBUTION)
         if path == "/models/active":
             return httpx.Response(200, json=CARD)
         if path == "/data/freshness":

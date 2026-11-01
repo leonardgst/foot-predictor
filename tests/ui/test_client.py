@@ -80,3 +80,21 @@ def test_api_url_comes_from_the_environment(monkeypatch):
     assert client_module.api_url() == "http://127.0.0.1:8000"
     monkeypatch.setenv("FP_API_URL", "http://127.0.0.1:9000/")
     assert ApiClient().base_url == "http://127.0.0.1:9000"
+
+
+def test_the_horizon_is_sent_only_when_it_is_h2(api):
+    client = ApiClient("http://api.test", transport=api.transport())
+    client.matches(dt.date.fromisoformat(DAY), "replay", horizon="H2")
+    assert api.calls[-1][2] == {"date": DAY, "mode": "replay", "horizon": "H2"}
+    client.availability(1, "replay", "H2")
+    assert api.calls[-1][2] == {"mode": "replay", "horizon": "H2"}
+    client.availability(1, "replay")
+    assert api.calls[-1][2] == {"mode": "replay"}  # H1 : appel inchangé
+    client.predict(1, "replay", "H2")
+    assert api.calls[-1][0] == "POST" and api.calls[-1][2] == {"mode": "replay", "horizon": "H2"}
+
+
+def test_the_h2_contribution_is_a_get(api):
+    client = ApiClient("http://api.test", transport=api.transport())
+    assert client.h2_contribution()["steps"][1]["group"] == "G5"
+    assert api.calls[-1][:2] == ("GET", "/models/h2/contribution")

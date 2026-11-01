@@ -39,6 +39,11 @@ ADR & Décision \\
 0041--0042 & tirs de football-data en live ; football-data superposé en mémoire \\
 0043--0044 & relance unique du test scellé ; modèle final H1 \\
 0045--0046 & ouverture du scellé à l'inférence ; fraîcheur par équipe \\
+0047 & horizon H2 : périmètre, protocole pré-enregistré, test scellé de la version intermédiaire \\
+0048--0049 & spécification des modèles H2 et des structures M6 et M7, écrite avant toute mesure \\
+0050 & modèle H2 retenu et liste figée du test scellé H2 (\code{pre-scelle-h2}) \\
+0051 & H2 en rejeu dans l'inférence, l'API et l'interface ; live \og indisponible \fg{} \\
+0052 & ouverture du rejeu des saisons scellées ; garde du modèle testé ; évaluation du journal prospectif \\
 \bottomrule
 \end{tabularx}
 \end{center}
@@ -54,7 +59,10 @@ uv run alembic upgrade head                            # migrations
 uv run python -m foot_predictor.ingestion load ...     # référentiel depuis le brut
 uv run python -m foot_predictor.features build         # jeu de données versionné
 uv run python -m foot_predictor.modeling evaluate experiments/<nom>.yaml
+uv run python -m foot_predictor.features build --horizon H2   # jeu de données avec composition
 uv run python -m foot_predictor.inference live --days 7 --save
+uv run python -m foot_predictor.inference prospective  # relevé du journal prospectif
+uv run python -m foot_predictor.inference check --only sealed_replay   # garde du modèle testé
 uv run python -m foot_predictor.api serve              # API locale
 uv run streamlit run src/foot_predictor/ui/app.py      # interface
 uv run pytest -q                                       # tests
@@ -68,10 +76,14 @@ uv run pytest -q                                       # tests
   \item[B0, B1] références : même loi pour tous ; moyennes du championnat par terrain.
   \item[Brut] réponses des sources gardées telles quelles, jamais modifiées.
   \item[Couverture annoncée] probabilité, selon le modèle, que le total tombe dans l'intervalle publié.
+  \item[G4, G5, G6] groupes de variables de l'horizon H2 : entraîneur, qualité du onze, stabilité du onze.
   \item[H1, H2] horizons de prédiction : avant et avec composition.
+  \item[Journal prospectif] prédictions live écrites avant le coup d'envoi, comparées ensuite aux résultats.
+  \item[Onze] les onze titulaires annoncés d'une équipe.
   \item[Log-loss] \(-\log\) de la probabilité donnée au total observé ; plus petit est meilleur.
   \item[Pli] découpage apprentissage puis test sur une saison future.
   \item[Rejeu] prédiction d'un match passé par un modèle qui ne l'a jamais vu.
-  \item[Scellé] matchs tenus à l'écart du développement, pour un test unique.
+  \item[Scellé] matchs tenus à l'écart du développement, pour un test par horizon.
+  \item[T-60] une heure avant le coup d'envoi, moment où la composition est publiée.
   \item[\code{staging}] référentiel en base, reconstruit depuis le brut.
 \end{description}

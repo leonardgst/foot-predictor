@@ -1,4 +1,5 @@
-% Application : inférence, disponibilité, live, API, interface, traçabilité (partie 5 ; ADR-0040 à 0046).
+% Application : inférence, disponibilité, live, API, interface, traçabilité (parties 5 et 6 ; ADR-0040 à 0046,
+% 0051, 0052).
 
 \chapter{Application}
 \label{chap:application}
@@ -13,8 +14,8 @@ du jeu d'entraînement. Deux modes existent :
 \begin{itemize}
   \item \textbf{rejeu} : un match passé, prédit par le modèle du pli de sa saison, qui ne l'a jamais vu ;
         les prédictions reproduisent celles de l'évaluation à la précision machine. Les saisons 2021-22 à
-        2024-25 sont ouvertes ; les saisons scellées restent fermées jusqu'au test de l'horizon H2
-        (ADR-0045) ;
+        2024-25 sont ouvertes ; les saisons scellées 2025-26 et 2026-27 l'ont été après le test de
+        l'horizon H2, avec le modèle de ce test, leur score réel mais pas leurs cotes (ADR-0052) ;
   \item \textbf{live} : un match à venir, prédit par le modèle final, et seulement avant son coup
         d'envoi.
 \end{itemize}
@@ -43,11 +44,28 @@ match n'attend plus que les résultats de ses deux équipes. L'Elo reste exact ;
 deviennent approchées, à moins de 0,0011 près sur \(\lambda\) d'après une répétition sur 2023-24. La part
 d'indisponibles est tombée à 14~\%, puis à 10~\% le 31 octobre.
 
+\section{L'horizon H2 dans l'application}
+
+L'horizon H2 se demande en rejeu, par la même route et la même fonction (ADR-0051). Les variables de
+composition sont calculées sur l'historique arrêté au jour du match, le onze du match cible étant réduit à
+ce qu'on sait une heure avant le coup d'envoi ; le modèle est celui du pli de la saison, appris par la
+procédure du modèle H2. Sur 622 lignes réelles, les lignes H2 sont identiques au bit près à celles du jeu
+d'entraînement, et le rejeu reproduit l'évaluation (7\,135 matchs). En direct, la réponse est
+\og H2 indisponible : compositions non fournies après la fin de l'abonnement \fg{}, avec un code 200 et sa
+raison : une absence d'information, jamais une valeur inventée.
+
+\paragraph{Garde du modèle testé.} Le modèle de rejeu des saisons scellées est celui des tests. Une commande
+(\code{inference check --only sealed\_replay}) compare, sur 7 jours de 2025-26 et de 2026-27 pour chaque
+horizon, les prédictions de rejeu à celles des rapports des tests, après contrôle de l'empreinte de leurs
+fichiers : écart maximal \(8{,}9 \times 10^{-16}\) (tolérance \(10^{-12}\)), aucun match du test sans
+prédiction. Elle doit être lancée par toute modification des variables ou des modèles ; le modèle H1 garde sa
+propre garde (ADR-0044).
+
 \section{API et interface}
 
 L'API FastAPI (7 routes) liste les matchs d'une date avec leur disponibilité, calcule et trace une
 prédiction, décrit le modèle actif et la fraîcheur des données. Elle n'écoute que sur \code{127.0.0.1}
-et refuse toute date scellée (code 403). L'interface Streamlit a trois écrans :
+et refuse toute date dont la saison n'est pas ouverte (code 403). L'interface Streamlit a quatre écrans :
 
 \begin{itemize}
   \item \textbf{Matchs} : mode (rejeu ou live), date, championnats ; une pastille de disponibilité par
@@ -55,8 +73,12 @@ et refuse toute date scellée (code 403). L'interface Streamlit a trois écrans 
         disponible ;
   \item \textbf{Détail} : loi du total en barres, \(E[T]\), \(\lambda\) de chaque équipe, \(P(T > 2{,}5)\),
         intervalle et couverture annoncée, variables utilisées, version du modèle et des données, score
-        réel en rejeu, référence de marché en live ;
-  \item \textbf{Modèle} : carte d'identité, métriques de validation, courbe d'apport, fraîcheur.
+        réel en rejeu, référence de marché en live. Avec la version intermédiaire, les horizons H1 et H2
+        s'affichent côte à côte, avec l'écart entre les deux et la qualité du onze lue par H2, accompagnés
+        d'une mise en garde sur la taille du gain ;
+  \item \textbf{Modèle} : carte d'identité, métriques de validation, courbe d'apport, fraîcheur ;
+  \item \textbf{Apport des variables} : pour l'horizon H2, le gain de chaque groupe de composition avec son
+        intervalle, lu dans les rapports d'expériences par une route de l'API.
 \end{itemize}
 
 L'interface ne parle qu'à l'API, en HTTP : un test d'architecture lui interdit d'importer la logique
@@ -67,10 +89,12 @@ métier ou la base.
 Chaque prédiction créée est écrite dans \code{ops.prediction} avec tout ce qui a servi à la faire :
 modèle, version des données, variables, loi, intervalle, date de complétude des sources. L'écriture est
 idempotente : une seconde demande renvoie la ligne existante. En live, une prédiction n'est acceptée
-qu'avant le coup d'envoi, et une réponse indisponible n'est jamais écrite. Au 31 octobre 2026, 89
-prédictions live sont tracées. Ce journal prospectif servira à évaluer le modèle sur des matchs
-réellement futurs ; il n'est pas encore évalué, car lire leurs scores reviendrait à ouvrir le scellé au
-développement (ADR-0045).
+qu'avant le coup d'envoi, et une réponse indisponible n'est jamais écrite. Au 1\textsuperscript{er}
+novembre 2026, 89 prédictions live sont tracées, sur 7 journées. Ce journal prospectif évalue le modèle sur
+des matchs réellement futurs. Une commande (\code{inference prospective}) le compare aux résultats de
+football-data et publie un relevé descriptif (traçage, mesures, écart à B1), refait à chaque collecte : le
+premier est au chapitre~\ref{chap:resultats}. Sa règle de lecture est écrite d'avance : aucun modèle n'est
+changé à partir de lui, et aucune conclusion de performance n'est tirée avant 8 journées (ADR-0052).
 
 \section{Tests de bout en bout}
 

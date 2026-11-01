@@ -46,6 +46,11 @@ définition, horizon, source.
         exclue et comptée, jamais remplie par une moyenne.
   \item \textbf{Protocole figé} : le protocole d'évaluation est écrit et marqué d'un tag Git
         (\code{protocole-v1}) avant toute évaluation de modèle (ADR-0037).
+  \item \textbf{Gel avant un test scellé} : la liste du test est figée par un tag (\code{pre-scelle-h1},
+        \code{pre-scelle-h2}) ; jusqu'au test, le code d'évaluation et des variables ne change plus, et la
+        commande refuse elle-même un code modifié depuis le tag ou un second lancement.
+  \item \textbf{Garde du modèle testé} : une commande vérifie que le rejeu reproduit, à
+        \(10^{-12}\) près, les prédictions des deux tests scellés (ADR-0052).
   \item \textbf{Secrets et données hors Git} : clés dans des fichiers \code{.env} ignorés, hooks de
         détection de secrets ; aucune donnée ni aucun modèle n'est versionné.
 \end{itemize}
@@ -54,7 +59,7 @@ définition, horizon, source.
 
 Git suit un modèle simple (ADR-0022) : une seule branche longue, \code{main}, des branches courtes, une
 demande de fusion (PR) par tâche, fusionnée après intégration continue verte (GitHub Actions : ruff et
-750 tests), et des tags aux jalons (\code{v0.3.0} à \code{v0.6.0}). La documentation suit la même
+957 tests), et des tags aux jalons (\code{v0.3.0} à \code{v1.0.0}, puis la version intermédiaire). La documentation suit la même
 discipline : un état du projet mis à jour à chaque session, un mode d'emploi par étape, un retour écrit
 à la fin de chaque lot de travail.
 

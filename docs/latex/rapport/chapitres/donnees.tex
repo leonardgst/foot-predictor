@@ -71,5 +71,18 @@ Tous les matchs joués à partir du 1\textsuperscript{er} juillet 2025 sont \emp
 (ADR-0012) : aucune de leurs valeurs (score, tirs, cotes) n'a été lue pendant le développement. Ce
 n'est pas qu'une consigne : toute lecture des matchs passe par une seule fonction,
 \code{features/sources.py}, qui filtre la date en SQL, et des tests d'architecture vérifient
-qu'aucun autre module n'interroge la table des matchs (ADR-0028). Le scellé n'a été ouvert qu'une fois,
-pour le test final (chapitre~\ref{chap:resultats}), puis à l'inférence seulement (ADR-0045).
+qu'aucun autre module n'interroge la table des matchs (ADR-0028). Le scellé a servi à deux tests, un par
+horizon, chacun une seule fois (chapitre~\ref{chap:resultats}). Depuis le premier, l'inférence seule peut
+lire les matchs scellés, comme historique de variables (ADR-0045) ; depuis le second, elle peut aussi les
+rejouer, avec leur score mais sans leurs cotes (ADR-0052). Le développement ne les lit toujours pas.
+
+\section{Compositions et entraîneurs}
+
+L'horizon H2 (chapitre~\ref{chap:methode}) s'appuie sur des données déjà sauvegardées au gel : pour chaque
+match, la feuille de match (onze de départ, remplaçants, entraîneur, formation) et, pour chaque joueur
+inscrit, ses minutes, sa note et son poste, avec le profil du joueur (date de naissance). Elles
+viennent d'API-FOOTBALL depuis 2015-16 (entraîneurs depuis 2016-17) et sont lues par la même porte unique
+que les matchs, qui filtre le scellé en SQL. Aucun \code{load} supplémentaire n'a été nécessaire. Deux
+limites en découlent : les notes sont calculées après le match par le fournisseur, selon une formule
+inconnue, et seuls les matchs \emph{antérieurs} servent ; et aucune composition n'arrive plus après la fin
+de l'abonnement, d'où un horizon H2 de rejeu seulement.

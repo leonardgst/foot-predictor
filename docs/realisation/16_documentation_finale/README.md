@@ -24,10 +24,17 @@ Pas de compilateur local (ADR-0034). Avant chaque PR qui touche `docs/latex/`, c
 - **Formules** : relues avec le code qu'elles décrivent (fichier cité en commentaire en tête de chapitre) ; en cas d'écart, le code et les ADR font foi.
 - **Figures** : générées par le code, copiées dans `figures/` du document (aujourd'hui : `courbe_apport.png`, de `docs/resultats/figures/`).
 - **Bibliographie** : références classiques ; volumes et pages vérifiés par l'utilisateur (2026-10-31). Toute nouvelle entrée se vérifie de même avant sa fusion.
-- **Scellé** : aucun chiffre tiré d'une lecture de match scellé hors des résultats publiés du test (`docs/resultats/test_scelle_h1.md`).
+- **Scellé** : aucun chiffre tiré d'une lecture de match scellé hors des résultats publiés des tests (`docs/resultats/test_scelle_h1.md`, `test_scelle_h2.md`) et des rapports d'agrégats de l'inférence ouverte (`reports/inference/rejeu_scelle_*.md`, `prospectif_*.md`, ADR-0052).
 
 ## Version 1 (5.16, 2026-10-31)
 
 - Document mathématique (PR #89) : section « Test scellé et modèle final » ; rejeu, modèle du live et fraîcheur par équipe (ADR-0044 à ADR-0046) ; une étiquette en double corrigée (`sec:scelle`).
 - Rapport (PR #90) : introduction, état de l'art, données, architecture, méthode, résultats, application, bilan (critères E.1, limites, difficultés, perspectives, conclusion), annexes (ADR, commandes, glossaire) ; environ 20 à 25 pages attendues.
 - Compilation sur Overleaf (pdfLaTeX, 2026-10-31, par l'utilisateur) : **sans erreur**.
+
+## Version 2 (6.14, 2026-11-01)
+
+- **Document mathématique** : nouveau chapitre « Composition des équipes (horizon H2) » (`chapitres/composition.tex`) : règle temporelle avec composition, stabilité du onze (la cohésion par paires comme somme de la matrice cumulée, démontrée), qualité du onze (note rétrécie, estimation de la constante `k` par la méthode des moments), entraîneur, modèle H2, décisions de la validation glissante, test scellé de H2. Trois sections ajoutées à « Inférence et disponibilité » : H2 en rejeu, rejeu des saisons scellées et sa garde, évaluation du journal prospectif (ADR-0051, ADR-0052).
+- **Rapport v2** : résumé, introduction, données (compositions), architecture, méthode (section sur H2), résultats (H2, structures, test scellé de H2, premier relevé du journal prospectif), application (H2, garde, journal), bilan (critères E.2, limites, difficultés, perspectives, conclusion), annexes (ADR 0047 à 0052, commandes, glossaire). Aucune nouvelle référence bibliographique ni nouvelle figure.
+- **Contrôle structurel sans compilateur** (script jetable, non versionné) : environnements équilibrés, accolades, `\(`/`\)` et `\[`/`\]`, `\ref` sans `\label`, étiquettes en double, `\cite`, figures, `\input`, `%` non échappés, fins de ligne `\` : propre (les deux faux positifs sont les `\\[0.5em]` des titres).
+- **Compilation sur Overleaf** : à faire par l'utilisateur (pdfLaTeX, puis BibTeX pour le rapport) ; toute erreur ou tout `??` se corrige dans le dépôt, par PR.

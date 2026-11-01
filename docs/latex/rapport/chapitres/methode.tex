@@ -10,7 +10,9 @@ La cible est le nombre de buts de \emph{chaque équipe} ; la sortie publiée est
 \(T\), repliée sur \(\{0, \dots, 9, \ge 10\}\) (ADR-0009). Modéliser par équipe donne la loi du total
 par convolution, et aussi le score exact et le 1N2. L'horizon du MVP, \og H1 \fg{}, est la veille du
 match, avant la publication des compositions : seules des informations connues à ce moment entrent dans
-les variables (ADR-0010). L'horizon \og H2 \fg{}, avec composition, relève de la version intermédiaire.
+les variables (ADR-0010). L'horizon \og H2 \fg{}, une heure avant le coup d'envoi (\og T-60 \fg{}), connaît
+en plus le onze de départ et l'entraîneur ; il fait l'objet de la version intermédiaire et se place en
+rejeu seulement, faute de compositions après la fin de l'abonnement.
 
 \section{Variables}
 
@@ -28,6 +30,13 @@ G2, production & moyennes glissantes des buts et de l'\code{xg\_proxy}, marqués
                  l'équipe et de l'adversaire, à décroissance exponentielle en jours et tirées vers la
                  moyenne du championnat (ADR-0032) \\
 G3, calendrier & jours de repos, matchs des 14 derniers jours, match européen dans les 4 jours \\
+G4, entraîneur (H2) & ancienneté de l'entraîneur dans le club, plafonnée à 365 jours ; indicateur
+                      \og nouvel entraîneur \fg{} (moins de 5 matchs) \\
+G5, qualité du onze (H2) & note moyenne des 11 titulaires, chaque note étant tirée vers la moyenne de son
+                           poste selon le nombre de minutes jouées ; part des \og habituels \fg{}
+                           absents ; âge moyen \\
+G6, stabilité du onze (H2) & nombre de titulaires communs avec le match précédent ; cohésion par paires
+                             pondérée par le rang des matchs ; nouveaux titulaires \\
 \bottomrule
 \end{tabularx}
 \end{center}
@@ -59,7 +68,7 @@ Le protocole est écrit et figé avant toute évaluation (ADR-0037, tag \code{pr
         poolé est positif avec un intervalle qui exclut 0, (ii) il gagne dans au moins 3 plis sur 4,
         (iii) sa calibration ne se dégrade pas. Sinon, on garde le plus simple.
   \item \textbf{Essais comptés} : chaque expérience, échecs compris, laisse un rapport ; l'index en
-        donne le nombre (10 essais, 0 échec).
+        donne le nombre (17 essais à ce jour, 0 échec).
 \end{itemize}
 
 L'intervalle \([q_{10} ; q_{90}]\) d'une loi discrète ne couvre pas exactement 80~\% des matchs : chaque
@@ -83,6 +92,7 @@ M3 & faut-il décomposer par équipe (Poisson par équipe) ? \\
 M4 & la loi de Poisson est-elle adéquate, ou faut-il une binomiale négative ? \\
 M5 & la dépendance entre les deux équipes (Dixon-Coles) change-t-elle la loi du total ? \\
 M6 & plus de variables sous régularisation (ridge, élastique net) ? \\
+M7 & un boosting d'arbres à perte de Poisson (H2) fait-il mieux que M3 ? \\
 \bottomrule
 \end{tabularx}
 \end{center}
@@ -96,3 +106,44 @@ qu'une borne haute, jamais une référence de l'horizon H1 (ADR-0036).
 La liste du test est figée avant son lancement, avec le code (tag \code{pre-scelle-h1}, ADR-0039) : le
 modèle retenu, B0, B1 et le marché, appris sur 2015-16 à 2024-25, évalués une seule fois sur les matchs
 scellés. La commande refuse elle-même un second test et tout code modifié depuis le tag.
+
+\section{L'horizon H2 : méthode}
+\label{sec:methode-h2}
+
+La version intermédiaire répond à une question : que rapporte la composition des équipes ? La méthode est
+celle de l'horizon H1, avec quatre précautions propres.
+
+\begin{itemize}
+  \item \textbf{Spécification avant mesure.} Les variables, les grilles, le chemin de décision et ce qui est
+        publié sont écrits dans une ADR \emph{avant} chaque expérience (ADR-0048, ADR-0049). La règle de
+        décision du protocole figé s'applique mécaniquement, dans l'ordre stabilité, qualité du onze,
+        entraîneur, chaque groupe s'ajoutant au modèle retenu juste avant lui.
+  \item \textbf{Même fonction, composition à T-60.} Les variables du match cible n'utilisent que son onze
+        et son entraîneur annoncés ; les minutes et les notes de ce match n'existent pas encore. Celles des
+        matchs \emph{passés} sont prises à un jour strictement antérieur (ADR-0047). Une valeur incalculable
+        reste vide, et la ligne est exclue et comptée.
+  \item \textbf{Rodage.} Les notes de 2015-16 n'ont pas d'historique pour être tirées vers la moyenne du
+        poste : l'apprentissage de la qualité du onze commence en 2016-17, celui de l'entraîneur en 2017-18,
+        et ces lignes de rodage sont comptées, non utilisées.
+  \item \textbf{Garde de l'horizon H1.} Aucun modèle H1 ni aucune colonne H1 ne change : une PR qui touche
+        aux variables ou aux modèles montre que les prédictions du modèle final H1 et les colonnes H1 du jeu
+        sont inchangées (ADR-0044).
+\end{itemize}
+
+Les trois groupes s'ajoutent à la structure M3 (Poisson par équipe), comme pour H1. Deux autres structures
+sont ensuite comparées à M3 avec les variables retenues : un ridge (M6) et un boosting d'arbres à perte de
+Poisson (M7), chacune une fois, sur un chemin de décision écrit d'avance (ADR-0049).
+
+\paragraph{Test scellé de H2.} Le second test réutilise les mêmes matchs scellés, une dernière fois, sur une
+liste figée par un tag (\code{pre-scelle-h2}, ADR-0050) : le modèle H1 (référence), le modèle H2 retenu, B1
+et le marché. La comparaison de décision est unique : modèle H1 contre modèle H2. Avant l'évaluation, les
+colonnes H1 du jeu scellé de H2 doivent être identiques au bit près à celles du premier test ; le nombre de
+lignes écartées faute de variables est publié ; un échec technique ne se relance pas sans nouvelle ADR. Les
+règles de lecture sont écrites avant le test : un écart non significatif, résultat attendu vu la puissance, ne
+retire pas le groupe.
+
+\paragraph{Après le test.} Le rejeu des saisons scellées s'ouvre (ADR-0052) sur trois règles : la condition
+est lue dans le journal du scellé, le modèle est celui du test, le score est servi mais pas les cotes. Une
+commande de garde vérifie que le rejeu reproduit les prédictions des deux tests à \(10^{-12}\) près. Le
+journal des prédictions live fait l'objet d'un relevé \emph{descriptif} : aucune règle de décision, aucun
+modèle changé à partir de lui, aucune conclusion avant 8 journées.

@@ -1,4 +1,5 @@
-% Rapport du projet foot-predictor, version 1 (sous-étape 5.16, jalon J8 ; rapport de cadrage, K.2).
+% Rapport du projet foot-predictor, version 2 (sous-étape 6.14, jalon J9 ; rapport de cadrage, K.2).
+% La version 1 (sous-étape 5.16, jalon J8) est celle du tag v1.0.0.
 % Compilation : téléverser ce dossier sur Overleaf (pdfLaTeX, puis BibTeX) ; ADR-0034.
 % Les chiffres viennent des pages générées de docs/resultats/, des ADR et des retours de session ;
 % en cas d'écart, le dépôt fait foi. Équations détaillées : docs/latex/mathematiques/.
@@ -18,9 +19,9 @@
 \newcommand{\code}[1]{\texttt{#1}}
 
 \title{foot-predictor\\[0.5em]\large Prédire la loi du nombre de buts d'un match de football\\[0.3em]
-\normalsize Rapport, version 1}
+\normalsize Rapport, version 2 (version intermédiaire)}
 \author{Projet d'apprentissage}
-\date{31 octobre 2026 (tag \code{v0.6.0})}
+\date{1\textsuperscript{er} novembre 2026}
 
 \begin{document}
 \maketitle
@@ -37,6 +38,16 @@ test scellé de 2\,092 matchs jamais vus (\(+0{,}0189\), \([0{,}0102 ; 0{,}0282]
 de son intervalle à 0,2 point de la couverture annoncée. Le marché des paris reste meilleur sur
 l'événement \og plus de 2,5 buts \fg{}. L'application prédit en direct les matchs à venir et explique
 chaque prédiction ; elle refuse de prédire quand une variable manque.
+
+La version 2 ajoute un second horizon, une heure avant le coup d'envoi, qui connaît la composition des
+équipes. Trois groupes de variables sont mesurés (stabilité du onze, qualité du onze, entraîneur) selon la
+même règle écrite d'avance ; seule la qualité du onze est retenue, pour un gain de \(0{,}0008\) nat par
+match, soit plus de vingt fois moins que le gain du modèle de base sur la référence B1 (\(0{,}0179\)). Le test scellé de ce
+second horizon, mené une seule fois, donne le même signe sans qu'il soit significatif
+(\(+0{,}0013\), \([-0{,}0004 ; +0{,}0029]\), 1\,923 matchs), comme l'annonçait le calcul de puissance. Ni la
+régularisation ni le boosting ne remplacent la structure de Poisson par équipe. Le rejeu des matchs scellés
+est ouvert, et un premier relevé du journal des prédictions réellement futures est publié, à titre
+descriptif.
 \end{abstract}
 
 \tableofcontents

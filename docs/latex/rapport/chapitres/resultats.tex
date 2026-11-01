@@ -1,6 +1,7 @@
-% Résultats : références, modèles, ablations, test scellé, marché.
+% Résultats : références, modèles, ablations, test scellé, marché, horizon H2.
 % Chiffres recopiés des pages générées docs/resultats/ (references.md, modeles.md, ablations.md,
-% test_scelle_h1.md) ; log-loss en nats par match.
+% test_scelle_h1.md, h2_ablations.md, h2_structures.md, test_scelle_h2.md) et du relevé
+% reports/inference/prospectif_20261101T161311Z.md ; log-loss en nats par match.
 
 \chapter{Résultats}
 \label{chap:resultats}
@@ -117,3 +118,117 @@ B0 & 1,9063 & 0,1316 & 0,2484 & 87,1~\% (87,4~\%) \\
 Après le test, aucun modèle H1 n'a été modifié. Le modèle final a été réappris par la même procédure sur
 toutes les données, matchs scellés compris : 40\,180 lignes jusqu'au 18 octobre 2026, demi-vie de 240
 jours, coefficients à 0,009 au plus de ceux du modèle testé (ADR-0044).
+
+\section{Horizon H2 : que rapporte la composition ?}
+\label{sec:resultats-h2}
+
+Les trois groupes de la composition sont ajoutés au modèle H1 selon la règle de décision, dans l'ordre
+stabilité, qualité du onze, entraîneur (ADR-0048). Gain de log-loss du total sur les 7\,156 matchs des
+quatre plis (positif : le groupe aide) :
+
+\begin{center}
+\begin{tabular}{llccl}
+\toprule
+Étape & Groupe & Gain [IC 95~\%] & Plis gagnés & Décision \\
+\midrule
+1 & stabilité du onze (G6) & \(+0{,}00035\) \([-0{,}00022 ; +0{,}00091]\) & 3/4 & non retenu \\
+2 & qualité du onze (G5) & \(+0{,}00078\) \([+0{,}00003 ; +0{,}00151]\) & 4/4 & \textbf{retenu} \\
+3 & entraîneur (G4) & \(-0{,}00090\) \([-0{,}00158 ; -0{,}00022]\) & 1/4 & non retenu \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+  \item \textbf{Le gain est minuscule} : \(0{,}0008\) nat par match sur un log-loss d'environ 1,88, soit
+        0,04~\%, contre \(0{,}0179\) pour le modèle H1 sur la référence B1. Il passe la règle de justesse
+        (borne basse à \(+0{,}00003\), Diebold-Mariano \(p = 0{,}040\)). À fenêtre d'apprentissage égale
+        (dès 2016-17), il ne passe plus : \(+0{,}00061\) \([-0{,}00010 ; +0{,}00130]\), 4 plis sur 4 mais
+        un intervalle qui contient 0. Il faut le lire comme \og la qualité du onze apporte peut-être un
+        peu \fg{}, pas comme une certitude.
+  \item \textbf{Il se concentre au début de saison} : aux journées 1 à 5, \(+0{,}0021\)
+        \([+0{,}0002 ; +0{,}0041]\) ; ailleurs, entre 0 et \(+0{,}0007\), intervalles contenant 0. Lecture
+        descriptive : la qualité du onze compte quand les moyennes glissantes sont encore peu informatives.
+  \item \textbf{La qualité du onze recoupe la force} : sa corrélation avec l'Elo est de 0,83 ; à Elo donné
+        elle tombe à 0,07. La composition dit en grande partie ce que l'Elo disait déjà.
+  \item \textbf{La stabilité est abandonnée pour H2} : aucune des huit variantes (cohésion à demi-vie 3,
+        5, 10 ou 20 matchs, historique intégral, remise à zéro par saison, fenêtre de 10 matchs,
+        recouvrement seul) n'a un intervalle qui exclut 0.
+  \item \textbf{L'entraîneur n'aide pas} : l'ancienneté plafonnée et l'indicateur \og nouvel entraîneur
+        \fg{} dégradent le log-loss, de façon significative une fois G5 présent.
+\end{itemize}
+
+Les comparaisons sont nombreuses (treize dans l'expérience de décision, dont trois seulement décident,
+quatorze essais pour cette étape) : le protocole ne corrige pas les comparaisons multiples, il publie leur
+nombre.
+
+\paragraph{Structures.} Avec les variables retenues, le ridge ne remplace pas la structure de Poisson par
+équipe (\(+0{,}00014\), \([-0{,}00044 ; +0{,}00072]\), 3 plis sur 4) et le boosting est significativement
+moins bon (\(-0{,}00235\), \([-0{,}00444 ; -0{,}00025]\), 0 pli sur 4) : sur un signal aussi petit, la
+flexibilité ajuste du bruit. Le modèle H2 reste M3 sur G0, G1, G2 et G5.
+
+\section{Test scellé de l'horizon H2}
+\label{sec:resultats-test-h2}
+
+Le test a été lancé une fois, sur les matchs scellés du top 5 joués du 1\textsuperscript{er} juillet 2025 au
+18 octobre 2026 : 2\,092 matchs, dont 169 écartés parce qu'une variable de G5 manque (surtout l'âge moyen,
+faute de date de naissance), soit \textbf{1\,923 matchs}. Avant l'évaluation, les colonnes H1 du jeu scellé de
+H2 ont été comparées à celles du premier test : identiques au bit près.
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Modèle & Log-loss & RPS & Brier \(P(T > 2{,}5)\) & Couverture (annoncée) \\
+\midrule
+Modèle H2 (G0, G1, G2, G5) & 1,8728 & 0,1268 & 0,2415 & 87,7~\% (87,5~\%) \\
+Modèle H1 (G0, G1, G2) & 1,8741 & 0,1270 & 0,2419 & 87,7~\% (87,4~\%) \\
+B1 & 1,8905 & 0,1290 & 0,2457 & 88,7~\% (88,0~\%) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+  \item \textbf{Comparaison de décision} : modèle H1 \(-\) modèle H2, log-loss du total,
+        \(+0{,}00129\) \([-0{,}00035 ; +0{,}00289]\), Diebold-Mariano \(p = 0{,}12\). Même signe et même
+        ordre de grandeur que la validation glissante (\(+0{,}00078\)), \textbf{non significatif}. C'était le
+        résultat attendu : le test ne détecte un écart qu'à partir de \(0{,}007\) environ, et celui de G5 est
+        près de neuf fois plus petit. Ce résultat ne retire pas G5 et ne le confirme pas statistiquement ; la
+        conclusion principale reste celle de la validation glissante.
+  \item \textbf{Le modèle H2 bat B1} : \(+0{,}0177\) \([+0{,}0089 ; +0{,}0268]\), comme le modèle H1 l'avait
+        fait (\(+0{,}0189\) sur 2\,092 matchs).
+  \item \textbf{Le marché reste meilleur} sur plus ou moins 2,5 buts, sur les 1\,855 matchs avec une cote :
+        Brier de 0,2418 pour le modèle H2 et 0,2405 pour le marché avant clôture, un écart non significatif.
+  \item \textbf{Une métrique secondaire isolée} (Brier de \(P(T = 1)\), \(p = 0{,}04\)) sort significative parmi
+        six, hors de la règle de décision et sans correction : elle n'est pas mise en avant.
+\end{itemize}
+
+Les prédictions du modèle H1 sont identiques au bit près à celles de la relance du premier test, sur les
+matchs communs. Aucun modèle final H2 n'a été appris avec les matchs scellés.
+
+\section{Premier relevé du journal prospectif}
+\label{sec:resultats-prospectif}
+
+Les 89 prédictions live écrites avant le coup d'envoi, du 22 au 31 octobre 2026, ont été comparées aux
+résultats de football-data le 1\textsuperscript{er} novembre. Elles couvrent 7 journées sur les 8 que le
+critère de la version intermédiaire demande ; 48 matchs ont un résultat, répartis sur 4 jours (les matchs du
+31 octobre au 2 novembre n'en ont pas encore).
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Mesure (48 matchs) & Valeur \\
+\midrule
+Log-loss du total & 1,8752 \\
+RPS & 0,1250 \\
+Brier \(P(T > 2{,}5)\) & 0,2380 \\
+\(P(T > 2{,}5)\) prédite en moyenne / observée & 0,552 / 0,458 \\
+Couverture de \([q_{10} ; q_{90}]\) observée / annoncée & 83,3~\% / 87,9~\% \\
+Écart à B1 (log-loss, positif : le modèle fait mieux) & \(+0{,}0396\) \([+0{,}0027 ; +0{,}0700]\) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+C'est un relevé \emph{descriptif} : avec 4 jours de résultats, l'intervalle est large (4 blocs pour le
+bootstrap) et la règle de lecture, écrite avant, interdit toute conclusion avant 8 journées. Le modèle fait
+mieux que B1, comme au test ; la fréquence observée de plus de 2,5 buts est sous la fréquence prédite sur ces
+quelques jours, sans qu'on puisse en tirer quoi que ce soit. Le relevé sera refait à chaque collecte de
+résultats, et tous les relevés sont conservés.

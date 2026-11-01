@@ -450,6 +450,150 @@ def render_predictions(report: dict) -> str:
 
 # ------------------------------------------------------------------------------ répétition du live
 
+SEALED_REPLAY_REFERENCE = {
+    "H1": ("scelle-h1-20261022T120542", "M3_G0G2", "14b103d3292cef4b3055034b8aea88a368f0b37b99fd77e66c9c1f2cdd560e44"),
+    "H2": ("scelle-h2-20261101T153604", "M3_H2", "7eab862d1c548adb5b96ff3dd80a03f89d6f1c44496049dfc5c68f748f0d9421"),
+}
+"""Rapport des tests scellés, modèle et empreinte sha256 de son fichier de prédictions (ADR-0052, §2)."""
+SEALED_REPLAY_TOLERANCE = 1e-12
+
+
+def sealed_replay_days(match_days: pd.Series) -> list[tuple[dt.date, str]]:
+    """Jours du contrôle `sealed_replay`, parmi les jours des matchs du test (déterministe, sans tirage).
+
+    `match_days` : le jour de chaque match du test. Début, milieu et fin de 2025-26, début et fin de ce
+    qu'on a de 2026-27, et le jour le plus chargé de chacune des deux saisons.
+    """
+    from foot_predictor.inference.models import season_of
+
+    days = pd.DataFrame({"day": match_days.to_numpy()})
+    days["season"] = [season_of(d) for d in days["day"]]
+    chosen: list[tuple[dt.date, str]] = []
+    for season, label in ((2025, "2025-26"), (2026, "2026-27")):
+        part = days[days["season"] == season]
+        if part.empty:
+            continue
+        distinct = sorted(part["day"].unique())
+        chosen.append((distinct[0], f"premier jour de {label}"))
+        if season == 2025:
+            chosen.append((distinct[len(distinct) // 2], f"milieu de {label}"))
+        chosen.append((distinct[-1], f"dernier jour du test dans {label}"))
+        chosen.append((part.groupby("day").size().idxmax(), f"jour le plus chargé de {label}"))
+    seen, unique = set(), []
+    for day, reason in chosen:
+        if day not in seen:
+            seen.add(day)
+            unique.append((day, reason))
+    return unique
+
+
+def run_sealed_replay_check(context=None, horizon: str = "H1", experiments_root: Path | None = None) -> dict:
+    """Garde du modèle testé (ADR-0052, §2) : le rejeu des saisons scellées reproduit les prédictions du test.
+
+    Pour des jours de 2025-26 et de 2026-27, les prédictions de rejeu (lignes d'inférence sur l'historique
+    tronqué, disponibilité, modèle du pli de 2025) sont comparées à celles du rapport du test scellé,
+    retrouvées par `match_id`, après contrôle de l'empreinte sha256 du fichier de prédictions. Le rapport
+    ne donne que des décomptes et des écarts maximaux : aucun score ni aucune prédiction.
+    """
+    import hashlib
+
+    from foot_predictor.inference.context import build_context
+    from foot_predictor.inference.predict import K_LABELS, predict_day
+    from foot_predictor.modeling.experiment import PREDICTIONS_DIR
+
+    report_name, model_name, expected_sha = SEALED_REPLAY_REFERENCE[horizon]
+    path = (experiments_root or PREDICTIONS_DIR) / report_name / "predictions.parquet"
+    if not path.exists():
+        return {
+            "horizon": horizon,
+            "reference": f"{report_name} ({model_name})",
+            "reference_found": False,
+            "days": [],
+            "all_reproduced": False,
+        }
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    reference = pd.read_parquet(path)
+    reference = reference[reference["model"] == model_name].set_index("match_id")
+    if context is None:
+        context = build_context(with_odds=False)
+    known = context.matches.set_index("match_id")["match_day"]
+    test_days = known.reindex(reference.index).dropna()
+    results = []
+    for day, reason in sealed_replay_days(test_days):
+        answers = predict_day(day, "replay", context, horizon=horizon)
+        predicted = {a["match_id"]: a["prediction"] for a in answers if a["prediction"] is not None}
+        wanted = [i for i in test_days.index if test_days[i] == day]
+        both = [i for i in predicted if i in reference.index]
+        gap = 0.0
+        if both:
+            ref = reference.loc[both]
+            ours = [predicted[i] for i in both]
+            lam_home = np.abs(np.array([p["lambda_home"] for p in ours]) - ref["lambda_home"].to_numpy())
+            lam_away = np.abs(np.array([p["lambda_away"] for p in ours]) - ref["lambda_away"].to_numpy())
+            total = np.array([[p["total_distribution"][k] for k in K_LABELS] for p in ours])
+            total_gap = np.abs(total - ref[[f"p_total_{k}" for k in range(11)]].to_numpy())
+            gap = float(max(lam_home.max(), lam_away.max(), total_gap.max()))
+        results.append(
+            {
+                "day": pd.Timestamp(day).date().isoformat(),
+                "reason": reason,
+                "matches": len(answers),
+                "predicted": len(predicted),
+                "in_test": len(wanted),
+                "compared": len(both),
+                "test_without_replay": len([i for i in wanted if i not in predicted]),
+                "max_abs_gap": gap,
+            }
+        )
+    return {
+        "horizon": horizon,
+        "reference": f"{report_name} ({model_name})",
+        "reference_found": True,
+        "sha256": sha,
+        "sha256_expected": expected_sha,
+        "sha256_ok": sha == expected_sha,
+        "tolerance": SEALED_REPLAY_TOLERANCE,
+        "days": results,
+        "all_reproduced": sha == expected_sha
+        and bool(results)
+        and all(
+            r["compared"] > 0 and r["test_without_replay"] == 0 and r["max_abs_gap"] <= SEALED_REPLAY_TOLERANCE
+            for r in results
+        ),
+    }
+
+
+def render_sealed_replay(report: dict) -> str:
+    lines = [
+        f"# Rejeu des saisons scellées ({report['horizon']}) contre le test scellé — {report['date']}",
+        "",
+        "Produit par `python -m foot_predictor.inference check --only sealed_replay` (ADR-0052, §2). "
+        "Aucun score, aucune prédiction : des décomptes et des écarts maximaux.",
+        "",
+        f"Référence : `{report['reference']}`.",
+    ]
+    if not report["reference_found"]:
+        lines += [
+            "",
+            "**Fichier de prédictions absent** (`data/experiments/<rapport>/predictions.parquet`) : contrôle impossible.",
+        ]
+        return "\n".join(lines) + "\n"
+    lines += [
+        f"Empreinte sha256 du fichier : `{report['sha256']}` ({'conforme' if report['sha256_ok'] else 'DIFFÉRENTE'}).",
+        f"Tolérance : {report['tolerance']:g}.",
+        "",
+        "| Jour | Raison | Matchs | Prédits | Dans le test | Comparés | Test sans rejeu | Écart max |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    lines += [
+        f"| {r['day']} | {r['reason']} | {r['matches']} | {r['predicted']} | {r['in_test']} | {r['compared']} "
+        f"| {r['test_without_replay']} | {r['max_abs_gap']:.2e} |"
+        for r in report["days"]
+    ]
+    lines += ["", f"**{'Reproduit' if report['all_reproduced'] else 'ÉCART'}**"]
+    return "\n".join(lines) + "\n"
+
+
 LIVE_FREEZE = dt.date(2024, 2, 15)
 LIVE_TODAY = dt.date(2024, 3, 9)
 FOLLOWING_DAYS = 7

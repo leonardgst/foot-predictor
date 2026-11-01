@@ -2,11 +2,12 @@
 
     python -m foot_predictor.inference predict --date 2024-05-19 --mode replay [--horizon H1|H2] [--competition <id>] [--match <id>] [--json]
     python -m foot_predictor.inference live [--days 7] [--save] [--json]
+    python -m foot_predictor.inference prospective
     python -m foot_predictor.inference models [--register] [--activate <version>]
-    python -m foot_predictor.inference check [--only rows|replay|predictions|live|rows-h2|replay-h2|predictions-h2|rows-scelle]
+    python -m foot_predictor.inference check [--only rows|replay|predictions|live|rows-h2|replay-h2|predictions-h2|rows-scelle|sealed_replay]
 
 `predict` : réponses d'un jour (disponibilité, prédiction ou raisons), en rejeu (saisons 2021-22 à
-2024-25, jusqu'au test scellé de H2) ou en live ; `--horizon H2` (rejeu seulement, 6.10) ajoute la qualité
+2026-27 ; les saisons scellées depuis le test scellé de H2, ADR-0052) ou en live ; `--horizon H2` (rejeu seulement, 6.10) ajoute la qualité
 du onze, et vaut `h2_unavailable` en live ; les dates à partir du 1er juillet 2025 sont
 refusées tant que le test scellé H1 n'est pas fait (ADR-0045). `models` : modèle actif et modèles
 de rejeu en cache, avec leur carte ; `--activate` inscrit un modèle de `models/` et en fait le
@@ -50,9 +51,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--activate", metavar="VERSION",
         help="inscrit le modèle models/<VERSION>/ dans ops.model_registry et en fait le seul modèle actif",
     )  # fmt: skip
+    sub.add_parser(
+        "prospective", help="relevé du journal prospectif H1 contre les résultats de football-data (6.13, ADR-0052)"
+    )
     check = sub.add_parser("check", help="contrôles sur données réelles")
     check.add_argument(
-        "--only", choices=["rows", "replay", "predictions", "live", "rows-h2", "replay-h2", "predictions-h2", "rows-scelle"],
+        "--only", choices=["rows", "replay", "predictions", "live", "rows-h2", "replay-h2", "predictions-h2", "rows-scelle", "sealed_replay"],
         help="un seul contrôle ; les contrôles H2 (6.10) et rows-scelle ne sont lancés que sur demande "
         "(rows-scelle : lecture du jeu scellé, journalisée)",
     )  # fmt: skip
@@ -93,6 +97,31 @@ def save_answers(results: list[dict], reference: dt.date, force: bool = False) -
             counts["created" if saved.created else "kept"] += 1
         session.commit()
     return counts
+
+
+def cmd_prospective(args) -> int:
+    """Relevé descriptif du journal prospectif H1 : traçage, résultats connus, mesures, écart à B1 (ADR-0052)."""
+    from sqlalchemy.orm import Session
+
+    from foot_predictor.db.session import get_engine
+    from foot_predictor.inference import prospective
+    from foot_predictor.inference.check import write_report
+    from foot_predictor.inference.context import build_context
+
+    context = build_context(with_odds=False)
+    if not context.history_opened:
+        print("Fermé : le test scellé H1 n'est pas terminé (ADR-0045).", file=sys.stderr)
+        return 3
+    with Session(get_engine()) as session:
+        rows = prospective.journal_rows(session)
+    report = prospective.evaluate(rows, context.matches, context.today)
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")  # un relevé par collecte : tous conservés
+    json_path, md_path = write_report(report, f"prospectif_{stamp}", prospective.render(report))
+    trace = report["tracing"]
+    print(f"{trace['predictions']} prédiction(s), {trace['before_kickoff']} écrite(s) avant le coup d'envoi, "
+          f"{trace['journees']} journée(s) sur {report['journees_required']} ; "
+          f"{report.get('with_result', 0)} résultat(s) connu(s) ; {md_path}")  # fmt: skip
+    return 0
 
 
 def cmd_live(args) -> int:
@@ -263,6 +292,16 @@ def cmd_check(args) -> int:
         _, md_path = check.write_report(report, f"predictions_h2_{today}", check.render_predictions(report))
         print(f"Prédictions H2 : {'reproduites' if report['all_reproduced'] else 'ÉCART'} ; {md_path}")
         ok &= report["all_reproduced"]
+    if args.only == "sealed_replay":  # garde du modèle testé (ADR-0052) : rejeu des saisons scellées = test scellé
+        for horizon in ("H1", "H2"):
+            report = check.run_sealed_replay_check(horizon=horizon)
+            report["date"] = today
+            _, md_path = check.write_report(
+                report, f"rejeu_scelle_{horizon.lower()}_{today}", check.render_sealed_replay(report)
+            )
+            verdict = "reproduit" if report["all_reproduced"] else "ÉCART"
+            print(f"Rejeu des saisons scellées {horizon} : {verdict} ; {md_path}")
+            ok &= report["all_reproduced"]
     if args.only == "rows-scelle":  # jamais dans la série par défaut : lecture du jeu scellé, journalisée
         report = check.run_sealed_rows_check()
         report["date"] = today
@@ -293,6 +332,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_predict(args)
     if args.command == "live":
         return cmd_live(args)
+    if args.command == "prospective":
+        return cmd_prospective(args)
     if args.command == "models":
         return cmd_models(args.register, args.activate)
     return cmd_check(args)

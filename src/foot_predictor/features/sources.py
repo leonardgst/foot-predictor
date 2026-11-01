@@ -33,7 +33,12 @@ import pandas as pd
 from sqlalchemy import Engine, bindparam, text
 from sqlalchemy.orm import Session
 
-from foot_predictor.seal import SEAL_TIMESTAMP, check_opened_for_inference, check_seal
+from foot_predictor.seal import (
+    SEAL_TIMESTAMP,
+    check_opened_for_h2_inference,
+    check_opened_for_inference,
+    check_seal,
+)
 
 # Une ligne par match ; les colonnes « home_* » et « away_* » viennent des deux lignes de
 # staging.team_match, de leurs statistiques API (staging.team_match_stats) et de leurs tirs
@@ -286,8 +291,19 @@ def _filters(competition_ids: Iterable[int] | None, kinds: Iterable[str] | None)
     return "\n".join(extra), params, binds
 
 
-def _read_gated(connectable, sql: str, params: dict, binds: list, *, sealed_test, experiment, sealed_log):
-    """Lit une requête filtrée par `m.match_date < :upper`, puis contrôle le scellé (seconde barrière)."""
+def _check_open_h2(sealed_test: bool, opened_for_inference: bool, sealed_log: Path | None) -> None:
+    """Refus, avant toute lecture, d'une ouverture des compositions à l'inférence (ADR-0052)."""
+    if sealed_test and opened_for_inference:
+        raise ValueError("sealed_test et opened_for_inference s'excluent : le test scellé n'est pas l'inférence.")
+    if opened_for_inference:
+        check_opened_for_h2_inference(sealed_log)
+
+
+def _read_gated(connectable, sql: str, params: dict, binds: list, *, sealed_test, experiment, sealed_log, opened=False):
+    """Lit une requête filtrée par `m.match_date < :upper`, puis contrôle le scellé (seconde barrière).
+
+    `opened` : ouverture à l'inférence (ADR-0052), déjà contrôlée par l'appelant avant la requête ;
+    la seconde barrière n'a alors rien à journaliser."""
     if connectable is None:
         from foot_predictor.db.session import get_engine
 
@@ -297,7 +313,14 @@ def _read_gated(connectable, sql: str, params: dict, binds: list, *, sealed_test
     if isinstance(connectable, Engine):
         with connectable.connect() as connection:
             return _read_gated(
-                connection, sql, params, binds, sealed_test=sealed_test, experiment=experiment, sealed_log=sealed_log
+                connection,
+                sql,
+                params,
+                binds,
+                sealed_test=sealed_test,
+                experiment=experiment,
+                sealed_log=sealed_log,
+                opened=opened,
             )
     query = text(sql)
     if binds:
@@ -306,6 +329,8 @@ def _read_gated(connectable, sql: str, params: dict, binds: list, *, sealed_test
     frame = pd.read_sql(query, connectable, params=params)
     frame["match_date"] = pd.to_datetime(frame["match_date"], utc=True)
     # Une date par match : le journal du scellé compte des matchs, pas des lignes de joueurs.
+    if opened:
+        return frame
     match_dates = frame.drop_duplicates("match_id")["match_date"]
     check_seal(match_dates, sealed_test=sealed_test, experiment=experiment, log_path=sealed_log)
     return frame
@@ -373,12 +398,15 @@ def load_lineups(
     sealed_test: bool = False,
     experiment: str | None = None,
     sealed_log: Path | None = None,
+    opened_for_inference: bool = False,
 ) -> pd.DataFrame:
     """Compositions des matchs antérieurs au scellé, une ligne par joueur inscrit (horizon H2, ADR-0047).
 
     Même porte que `load_matches` : filtre du scellé dans la requête SQL, puis `check_seal` ;
-    mêmes paramètres (`competition_ids`, `kinds`, `until`, `sealed_test`). Pas d'ouverture à
-    l'inférence : H2 n'a pas de live (ADR-0010).
+    mêmes paramètres (`competition_ids`, `kinds`, `until`, `sealed_test`). `opened_for_inference=True`
+    lève le filtre pour le **rejeu H2 des saisons scellées** (ADR-0052) : refusé, avant toute lecture,
+    tant que le test scellé H2 n'est pas terminé au journal ; aucune ligne n'est ajoutée au journal ;
+    réservé à `inference/` ; incompatible avec `sealed_test`. H2 n'a pas de live (ADR-0010).
 
     Colonnes : `match_id`, `match_date` (UTC), `team_id`, `player_id`, `api_player_id` (stable d'un
     chargement à l'autre, E-058), `started`, `position`, `position_bucket`, `grid`, `shirt_number`
@@ -386,8 +414,9 @@ def load_lineups(
     `substitute`, `captain` (statistiques du match, vides si le joueur n'en a pas). Aucune valeur
     n'est remplie. Ordre : date, match, équipe, titulaires d'abord.
     """
+    _check_open_h2(sealed_test, opened_for_inference, sealed_log)
     extra, params, binds = _filters(competition_ids, kinds)
-    params["upper"] = _upper_bound(until, sealed_test).to_pydatetime()
+    params["upper"] = _upper_bound(until, sealed_test or opened_for_inference).to_pydatetime()
     frame = _read_gated(
         connectable,
         _LINEUP_SQL.format(extra=extra),
@@ -396,6 +425,7 @@ def load_lineups(
         sealed_test=sealed_test,
         experiment=experiment,
         sealed_log=sealed_log,
+        opened=opened_for_inference,
     )
     for column in ("match_id", "team_id", "player_id", "api_player_id", "shirt_number", "minutes"):
         frame[column] = frame[column].astype("Int64")
@@ -416,6 +446,7 @@ def load_team_sheets(
     sealed_test: bool = False,
     experiment: str | None = None,
     sealed_log: Path | None = None,
+    opened_for_inference: bool = False,
 ) -> pd.DataFrame:
     """Feuilles de match des matchs antérieurs au scellé, une ligne par (match, équipe) (horizon H2).
 
@@ -423,8 +454,9 @@ def load_team_sheets(
     `team_id`, `is_home`, `coach_id` et `api_coach_id` (vides si l'API ne donne pas
     d'entraîneur, comme en 2015-16), `formation`, `unknown_starters`, `collision_excluded`.
     """
+    _check_open_h2(sealed_test, opened_for_inference, sealed_log)
     extra, params, binds = _filters(competition_ids, kinds)
-    params["upper"] = _upper_bound(until, sealed_test).to_pydatetime()
+    params["upper"] = _upper_bound(until, sealed_test or opened_for_inference).to_pydatetime()
     frame = _read_gated(
         connectable,
         _TEAM_SHEET_SQL.format(extra=extra),
@@ -433,6 +465,7 @@ def load_team_sheets(
         sealed_test=sealed_test,
         experiment=experiment,
         sealed_log=sealed_log,
+        opened=opened_for_inference,
     )
     for column in ("match_id", "team_id", "coach_id", "api_coach_id", "unknown_starters", "collision_excluded"):
         frame[column] = frame[column].astype("Int64")

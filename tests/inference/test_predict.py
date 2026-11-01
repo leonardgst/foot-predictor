@@ -232,3 +232,38 @@ def test_market_reference_only_for_unsealed_matches_with_odds(setup):
     ctx = context(matches, loaded, odds=odds)
     (answer,) = P.predict_day(target["match_day"], "replay", ctx, match_ids=[target["match_id"]])
     assert answer["market_reference"] == {"p_over_2_5": 0.55, "odds_column": "Avg", "version": "avant_cloture"}
+
+
+def journal(path, *experiments):
+    lines = [f"| x | y | {e} | {SEALED_DONE}, rapport z |\n" for e in experiments]
+    path.write_text("".join(lines), encoding="utf-8")
+    return path
+
+
+def test_replay_of_sealed_seasons_opens_with_the_h2_test_line_and_never_serves_the_market(tmp_path):
+    """ADR-0052 : prédiction et score réel d'un match scellé joué ; la cote reste fermée ; sans la ligne H2, refus."""
+    from foot_predictor.inference.models import season_of
+    from foot_predictor.seal import H2_SEALED_EXPERIMENT
+
+    matches = shifted_matches(years=6)  # 2025-26 et 2026-27
+    loaded = LoadedModel("essai", FakeModel(), {"version": "essai"}, None)
+    played = day_of(matches, lambda m: m["status"] == "played")
+    odds = pd.DataFrame(
+        [{"match_id": int(played["match_id"]), "version": "avant_cloture", "p_over": 0.55, "odds_column": "Avg"}]
+    )
+    key = ("replay", season_of(played["match_day"]), "H1")
+
+    h1_only = journal(tmp_path / "h1.md", H1_SEALED_EXPERIMENT)
+    closed = context(matches, loaded, sealed_log=h1_only, history_opened=True, odds=odds)
+    closed._models[key] = loaded
+    with pytest.raises(P.ReferenceDateRefused, match="test scellé de H2"):
+        P.predict_day(played["match_day"], "replay", closed)
+
+    both = journal(tmp_path / "h2.md", H1_SEALED_EXPERIMENT, H2_SEALED_EXPERIMENT)
+    opened = context(matches, loaded, sealed_log=both, history_opened=True, odds=odds)
+    opened._models[key] = loaded
+    answers = P.predict_day(played["match_day"], "replay", opened)
+    answer = next(a for a in answers if a["match_id"] == int(played["match_id"]))
+    assert answer["actual_score"] == {"home": int(played["home_goals_90"]), "away": int(played["away_goals_90"])}
+    assert answer["market_reference"] is None  # les cotes d'un match scellé restent fermées
+    assert P.sealed_replay_open(opened) and not P.sealed_replay_open(closed)

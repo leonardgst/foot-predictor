@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-01",
+  "journees_required": 8,
+  "tracing": {
+    "predictions": 89,
+    "before_kickoff": 89,
+    "after_or_unknown": 0,
+    "journees": 7,
+    "days": {
+      "2026-10-23": 5,
+      "2026-10-24": 20,
+      "2026-10-25": 22,
+      "2026-10-26": 1,
+      "2026-10-31": 20,
+      "2026-11-01": 16,
+      "2026-11-02": 5
+    }
+  },
+  "enough_journees": false,
+  "model_versions": [
+    "scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle"
+  ],
+  "with_result": 48,
+  "without_result": 41,
+  "scores": {
+    "n": 48,
+    "log_loss": 1.8751594084391667,
+    "rps": 0.12498321181666677,
+    "brier_over_2_5": 0.2379646993288558,
+    "coverage": {
+      "observed": 0.8333333333333334,
+      "announced": 0.8790687868340328,
+      "gap": -0.04573545350069941,
+      "mean_width": 4.1875
+    },
+    "mean_predicted_over_2_5": 0.5520343132817479,
+    "observed_over_2_5": 0.4583333333333333,
+    "calibration_intercept": -0.6248504399183435,
+    "calibration_slope": 2.0678171171767423
+  },
+  "b1": {
+    "n": 48,
+    "log_loss_b1": 1.9147933465016937,
+    "difference": {
+      "mean": 0.039633938062527206,
+      "low": 0.0027074694902029304,
+      "high": 0.06995633269131928,
+      "n": 48,
+      "n_blocks": 4
+    },
+    "diebold_mariano": {
+      "statistic": 1.8650138669761047,
+      "p_value": 0.062179460508619264
+    },
+    "without_b1": 0
+  },
+  "conclusion_allowed": false
+}

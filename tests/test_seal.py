@@ -118,3 +118,31 @@ def test_opening_for_inference_waits_for_the_finished_h1_test(tmp_path):
 def test_the_real_journal_opens_the_seal_for_inference():
     """Le test scellé H1 est terminé (4.16) : l'ouverture à l'inférence est acquise (ADR-0045)."""
     check_opened_for_inference()
+
+
+def test_opening_for_h2_inference_waits_for_the_finished_h2_test(tmp_path):
+    """ADR-0052 : compositions et rejeu des saisons scellées s'ouvrent à la ligne « évaluation terminée » du test H2."""
+    from foot_predictor.seal import H2_SEALED_EXPERIMENT, check_opened_for_h2_inference
+
+    log = tmp_path / "journal.md"
+    with pytest.raises(SealViolation, match="n'est pas terminé"):  # journal absent
+        check_opened_for_h2_inference(log)
+    log.write_text(f"| 2026-10-22 12:05 | def | {H1_SEALED_EXPERIMENT} | {SEALED_DONE}, rapport y |\n", "utf-8")
+    with pytest.raises(SealViolation, match="n'est pas terminé"):  # le test H1 seul n'ouvre rien
+        check_opened_for_h2_inference(log)
+    with log.open("a", encoding="utf-8") as handle:
+        handle.write(f"| 2026-11-01 15:34 | abc | {H2_SEALED_EXPERIMENT} | accès autorisé, résultat à compléter |\n")
+    with pytest.raises(SealViolation, match="n'est pas terminé"):  # une lecture sans résultat non plus
+        check_opened_for_h2_inference(log)
+    with log.open("a", encoding="utf-8") as handle:
+        handle.write(f"| 2026-11-01 15:36 | abc | {H2_SEALED_EXPERIMENT} | {SEALED_DONE}, rapport z |\n")
+    before = log.read_text(encoding="utf-8")
+    check_opened_for_h2_inference(log)  # ne lève rien
+    assert log.read_text(encoding="utf-8") == before  # l'ouverture n'écrit rien au journal
+
+
+def test_the_real_journal_opens_the_h2_seal():
+    """Le test scellé H2 est terminé (6.12) : l'ouverture est acquise (ADR-0052)."""
+    from foot_predictor.seal import check_opened_for_h2_inference
+
+    check_opened_for_h2_inference()

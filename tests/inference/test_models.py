@@ -56,13 +56,36 @@ def test_replay_model_is_cached_on_disk(data, tmp_path):
     assert second.card["version"] == first.card["version"] == "rejeu-2023-m3_g0g2"
 
 
-def test_replay_seasons_open_from_2021_and_sealed_seasons_stay_closed_until_the_h2_test():
+def write_journal(path, *experiments):
+    """Journal du scellé avec une ligne « évaluation terminée » par fichier d'expérience donné."""
+    from foot_predictor.seal import SEALED_DONE
+
+    lines = [f"| x | y | {e} | {SEALED_DONE}, rapport z |\n" for e in experiments]
+    path.write_text("".join(lines), encoding="utf-8")
+    return path
+
+
+def test_replay_seasons_open_from_2021_and_sealed_seasons_open_with_the_h2_test_line(tmp_path):
+    from foot_predictor.seal import H1_SEALED_EXPERIMENT, H2_SEALED_EXPERIMENT
+
     with pytest.raises(models.ModelUnavailable, match="2021-22"):
         models.check_replay_season(2020)
     models.check_replay_season(2024)  # ouverte
-    for season in (2025, 2026):  # fermées même après le test H1 : le test de H2 réutilisera ces matchs (ADR-0045)
-        with pytest.raises(models.ModelUnavailable, match="test scellé de H2"):
-            models.check_replay_season(season)
+    h1_only = write_journal(tmp_path / "h1.md", H1_SEALED_EXPERIMENT)
+    for season in (2025, 2026):  # fermées sans la ligne du test H2 (ADR-0045), même si le test H1 est fini
+        for log in (tmp_path / "absent.md", h1_only):
+            with pytest.raises(models.ModelUnavailable, match="test scellé de H2"):
+                models.check_replay_season(season, log)
+    both = write_journal(tmp_path / "h2.md", H1_SEALED_EXPERIMENT, H2_SEALED_EXPERIMENT)
+    for season in (2025, 2026, 2027):  # ouvertes par la ligne du journal (ADR-0052)
+        models.check_replay_season(season, both)
+    with pytest.raises(models.ModelUnavailable, match="2021-22"):
+        models.check_replay_season(2020, both)  # l'ouverture ne rouvre pas le passé
+
+
+def test_sealed_seasons_use_the_model_of_the_test():
+    """ADR-0052 : le modèle de 2025-26 et de 2026-27 est celui du pli 2025 (apprentissage 2015-16 à 2024-25)."""
+    assert [models.training_season(s) for s in (2021, 2024, 2025, 2026, 2027)] == [2021, 2024, 2025, 2025, 2025]
 
 
 def test_the_final_h1_model_is_the_default_active_model():
@@ -135,9 +158,9 @@ def test_h2_replay_models_are_cached_apart_from_h1(data, data_h2, tmp_path):
     assert again.card["version"] == h2.card["version"] == "rejeu-2023-m3_h2"
 
 
-def test_h2_replay_seasons_are_as_closed_as_h1_and_the_horizon_is_checked():
+def test_h2_replay_seasons_are_as_closed_as_h1_and_the_horizon_is_checked(tmp_path):
     with pytest.raises(models.ModelUnavailable, match="test scellé de H2"):
-        models.replay_model(2025, horizon="H2")
+        models.replay_model(2025, horizon="H2", sealed_log=tmp_path / "absent.md")
     with pytest.raises(ValueError, match="Horizon inconnu"):
         models.replay_model(2022, horizon="H3")
     assert models.REPLAY_DATASET_VERSION["H2"] == "ds-2026-11-01-e0defb32"

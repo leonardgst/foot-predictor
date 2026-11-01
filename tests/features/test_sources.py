@@ -221,6 +221,31 @@ def test_lineups_of_sealed_matches_need_the_sealed_test_and_are_logged(db_sessio
     assert "2 match(s) scellé(s) lus" in log.read_text(encoding="utf-8")
 
 
+def test_sealed_compositions_open_to_inference_only_after_the_h2_test_and_log_nothing(
+    db_session, league, sheets, tmp_path
+):
+    """ADR-0052 : `opened_for_inference` lève le filtre des compositions et des feuilles de match, sans journal."""
+    from foot_predictor.features.sources import load_lineups, load_team_sheets
+    from foot_predictor.seal import H1_SEALED_EXPERIMENT, H2_SEALED_EXPERIMENT, SEALED_DONE, SealViolation
+
+    log = tmp_path / "journal.md"
+    log.write_text(f"| x | y | {H1_SEALED_EXPERIMENT} | {SEALED_DONE}, rapport a |" + chr(10), encoding="utf-8")
+    for load in (load_lineups, load_team_sheets):
+        with pytest.raises(SealViolation, match="n'est pas terminé"):  # refus avant toute lecture
+            load(None, competition_ids=[league.id], opened_for_inference=True, sealed_log=log)
+        with pytest.raises(ValueError, match="s'excluent"):
+            load(db_session, sealed_test=True, experiment="experiments/x.yaml", opened_for_inference=True)
+    with log.open("a", encoding="utf-8") as handle:
+        handle.write(f"| x | y | {H2_SEALED_EXPERIMENT} | {SEALED_DONE}, rapport b |" + chr(10))
+    before = log.read_text(encoding="utf-8")
+    lineups = load_lineups(db_session, competition_ids=[league.id], opened_for_inference=True, sealed_log=log)
+    team_sheets = load_team_sheets(db_session, competition_ids=[league.id], opened_for_inference=True, sealed_log=log)
+    assert len(lineups) == 8 and lineups["match_date"].max().date() > dt.date(2025, 6, 30)  # matchs scellés inclus
+    assert len(team_sheets) == 8
+    assert log.read_text(encoding="utf-8") == before  # aucune ligne de journal par lecture
+    assert len(load_lineups(db_session, competition_ids=[league.id])) == 4  # sans ouverture : toujours filtré
+
+
 def test_team_sheets_give_the_coach_and_leave_unknowns_empty(db_session, league, sheets):
     from foot_predictor.features.sources import load_team_sheets
 

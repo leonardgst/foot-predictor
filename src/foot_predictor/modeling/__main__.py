@@ -4,8 +4,8 @@
     python -m foot_predictor.modeling index
     python -m foot_predictor.modeling summary reports/experiments/<id>.json [--output <fichier.md>]
     python -m foot_predictor.modeling train --final experiments/scelle_h1.yaml --model M3_G0G2
-    # phase B seulement (après le gel, une seule fois) :
-    python -m foot_predictor.modeling evaluate experiments/scelle_h1.yaml --sealed-test --dataset <version scellée>
+    # phase B seulement (après le gel, une seule fois par version : scelle_h1, puis scelle_h2) :
+    python -m foot_predictor.modeling evaluate experiments/scelle_h2.yaml --sealed-test --dataset <version scellée>
     python -m foot_predictor.modeling train --final experiments/scelle_h1.yaml --model M3_G0G2 --include-sealed ...
 
 `evaluate` exécute une expérience sur les 4 plis de validation (2021-22 à 2024-25), écrit
@@ -13,9 +13,10 @@
 par Git) et régénère `reports/experiments/INDEX.md`. `index` régénère l'index ; `summary` imprime
 les tableaux Markdown d'un rapport.
 
-`evaluate --sealed-test` : test scellé (ADR-0012, règle 5), seulement pour un fichier qui déclare
-`sealed_test: true`, si le code et les expériences n'ont pas changé depuis le tag `pre-scelle-h1`
-et si le journal `reports/sealed_tests.md` ne contient pas déjà une évaluation terminée.
+`evaluate --sealed-test` : test scellé (ADR-0012, règle 5), seulement pour un fichier
+`experiments/scelle_<version>.yaml` qui déclare `sealed_test: true`, si le code et les expériences
+n'ont pas changé depuis le tag `pre-scelle-<version>` (ADR-0050) et si le journal
+`reports/sealed_tests.md` ne contient pas déjà une évaluation terminée.
 
 `train --final` : entraîne un modèle d'une expérience selon sa procédure, écrit
 `models/<version>/` (jamais écrasé) et copie la carte d'identité dans `reports/model_cards/`.
@@ -36,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument(
         "--sealed-test",
         action="store_true",
-        help="test scellé (ADR-0012, règle 5) : une seule fois, après le tag pre-scelle-h1, journalisé",
+        help="test scellé (ADR-0012, règle 5) : une seule fois, après le tag pre-scelle-<version>, journalisé",
     )
     evaluate.add_argument("--dataset", help="version du jeu (défaut : celle du fichier, sinon la plus récente)")
     sub.add_parser("index", help="régénère reports/experiments/INDEX.md")

@@ -77,13 +77,14 @@ def test_sealed_test_appends_one_line_to_the_log(tmp_path):
 
 def test_the_versioned_log_only_lists_the_frozen_sealed_test():
     """Aucun usage pendant le développement ; depuis la phase B (4.16, après le gel du 2026-10-19),
-    seulement le fichier figé par le tag `pre-scelle-h1`. La version intermédiaire (H2) ajoutera son fichier."""
+    seulement les fichiers figés par les tags `pre-scelle-h1` et `pre-scelle-h2` (ADR-0050)."""
     from foot_predictor.seal import SEALED_TESTS_LOG
 
     rows = [line for line in SEALED_TESTS_LOG.read_text(encoding="utf-8").splitlines() if line.startswith("| 20")]
     cells = [[cell.strip() for cell in row.strip().strip("|").split("|")] for row in rows]
     assert all(date >= "2026-10-19" for date, *_ in cells)
-    assert all(experiment == "experiments/scelle_h1.yaml" for _, _, experiment, _ in cells)
+    frozen = {"experiments/scelle_h1.yaml", "experiments/scelle_h2.yaml"}
+    assert all(experiment in frozen for _, _, experiment, _ in cells)
 
 
 def test_finished_text_is_the_one_written_by_the_evaluation():

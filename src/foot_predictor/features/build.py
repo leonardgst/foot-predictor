@@ -85,15 +85,20 @@ def database_trace(connection) -> dict:
     return {"alembic_revision": revision, "load_run_id": load_run}
 
 
-def read_h2_inputs(connectable, matches, until=None):
-    """Compositions et feuilles de match des championnats des échelles, lues par la porte (H2, ADR-0047)."""
+def read_h2_inputs(connectable, matches, until=None, sealed_test: bool = False, experiment: str | None = None):
+    """Compositions et feuilles de match des championnats des échelles, lues par la porte (H2, ADR-0047).
+
+    `sealed_test=True` : celles des matchs scellés aussi, pour le jeu du test scellé H2 (ADR-0050) ;
+    chaque lecture ajoute sa ligne au journal du scellé, comme celle des matchs.
+    """
     from foot_predictor.features.sources import load_lineups, load_team_sheets
 
     ladder = matches[matches["api_league_id"].isin(list(LADDERS))]
     ids = sorted(int(c) for c in ladder["competition_id"].unique())
+    gate = {"until": until, "sealed_test": sealed_test, "experiment": experiment}
     return (
-        load_lineups(connectable, competition_ids=ids, until=until),
-        load_team_sheets(connectable, competition_ids=ids, until=until),
+        load_lineups(connectable, competition_ids=ids, **gate),
+        load_team_sheets(connectable, competition_ids=ids, **gate),
     )
 
 
@@ -109,18 +114,17 @@ def run_build(
     """Construit une version du jeu de données ; renvoie un résumé (version, chemin, lignes, durée).
 
     `horizon="H2"` ajoute les groupes G4 à G6 (compositions) au jeu H1, dont les colonnes restent
-    celles de `horizon="H1"` (ADR-0047). Le jeu H2 du test scellé est le lot 6.12, pas celui-ci.
+    celles de `horizon="H1"` (ADR-0047).
 
     `sealed_test=True` (test scellé, ADR-0012 règle 5, une fois par version) : lit aussi les matchs
     scellés par la porte (usage journalisé dans `reports/sealed_tests.md`, `experiment` obligatoire)
-    et écrit dans `data/datasets_scelles/`, jamais lu par défaut.
+    et écrit dans `data/datasets_scelles/`, jamais lu par défaut. Avec `horizon="H2"`, les
+    compositions et feuilles de match scellées sont lues de même (jeu du test scellé H2, ADR-0050).
     """
     from foot_predictor.features.sources import load_matches
 
     if horizon not in ("H1", "H2"):
         raise ValueError(f"Horizon inconnu : {horizon} (attendu : H1 ou H2).")
-    if horizon == "H2" and sealed_test:
-        raise ValueError("Le jeu H2 scellé n'existe pas encore : il appartient au test scellé de H2 (lot 6.12).")
     started = time.monotonic()
     if engine is None:
         from foot_predictor.db.session import get_engine
@@ -136,10 +140,11 @@ def run_build(
     # Toutes compétitions ; filtre du scellé en SQL, levé seulement avec sealed_test (journalisé).
     matches = load_matches(engine, sealed_test=sealed_test, experiment=experiment)
     if horizon == "H2":
-        lineups, team_sheets = read_h2_inputs(engine, matches)
+        lineups, team_sheets = read_h2_inputs(engine, matches, sealed_test=sealed_test, experiment=experiment)
         frame = build_frame_h2(
-            matches, lineups, team_sheets, load_elo_params(), xg_proxy.load(), huis_clos.load_periods()
-        )
+            matches, lineups, team_sheets, load_elo_params(), xg_proxy.load(), huis_clos.load_periods(),
+            sealed_test=sealed_test,
+        )  # fmt: skip
     else:
         frame = build_frame(
             matches, load_elo_params(), xg_proxy.load(), huis_clos.load_periods(), sealed_test=sealed_test

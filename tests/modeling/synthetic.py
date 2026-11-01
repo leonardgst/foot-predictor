@@ -126,3 +126,18 @@ def with_composition(rows: pd.DataFrame, seed: int = 1, quality_effect: float = 
             pd.MultiIndex.from_arrays([frame["match_id"], frame["opp_team_id"]])
         ).to_numpy()
     return frame
+
+
+def synthetic_odds(data: pd.DataFrame) -> pd.DataFrame:
+    """Probabilités de marché synthétiques (avant clôture et clôture) pour chaque match de `data`."""
+    from foot_predictor.modeling.models import market
+
+    rng = np.random.default_rng(1)
+    ids = np.sort(data["match_id"].unique())
+    frames = []
+    for version in ("avant_cloture", "cloture"):
+        over = rng.uniform(1.6, 2.4, len(ids))
+        frames.append(
+            pd.DataFrame({"match_id": ids, "version": version, "odds_over_2_5": over, "odds_under_2_5": 3.9 - over})
+        )
+    return market.market_probabilities(pd.concat(frames, ignore_index=True))

@@ -1,15 +1,17 @@
-"""Jeu H2 (G0 à G6) : colonnes H1 inchangées, jointure sur (match, équipe), anti-fuite, refus du scellé. Sans base."""
+"""Jeu H2 (G0 à G6) : colonnes H1 inchangées, jointure sur (match, équipe), anti-fuite, scellé. Sans base."""
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from foot_predictor.features import build, registry
+from foot_predictor.features import build, registry, sources
 from foot_predictor.features.dataset import build_frame, build_frame_h2
+from foot_predictor.seal import SealViolation
 from tests.features.test_dataset import COEF, PARAMS, synthetic_matches
 
 K = 500.0
@@ -137,9 +139,59 @@ def test_changing_the_composition_of_m_does_not_change_the_h2_row_of_earlier_mat
     pd.testing.assert_frame_equal(before, after, check_exact=True)
 
 
-def test_run_build_refuses_a_sealed_h2_dataset():
-    with pytest.raises(ValueError, match="6.12"):
-        build.run_build(horizon="H2", sealed_test=True, experiment="experiments/x.yaml", engine=object())
+SIX_YEARS = pd.Timedelta(days=2192)  # 2019-08-03 → 2025-08-03 : toute la table passe sous scellés
+
+
+def shifted_six_years(matches, lineups, sheets):
+    """La même table, six ans plus tard (dates, saisons et naissances) : les variables doivent être les mêmes."""
+    matches = matches.copy()
+    matches["match_date"] += SIX_YEARS
+    matches["match_day"] = (pd.to_datetime(matches["match_day"]) + SIX_YEARS).dt.date
+    matches["season_year"] += 6
+    lineups = lineups.assign(birth_date=lineups["birth_date"] + SIX_YEARS)
+    return matches, lineups, sheets
+
+
+def test_sealed_matches_get_their_h2_values_like_any_other(inputs, frame):
+    """Jeu du test scellé H2 (ADR-0050) : refusé sans `sealed_test` ; avec, les lignes scellées ont leurs variables
+    H2, calculées comme les autres (mêmes valeurs qu'avant le décalage de six ans), sans borne de saison cachée."""
+    shifted = shifted_six_years(*inputs)
+    with pytest.raises(SealViolation):
+        build_frame_h2(*shifted, PARAMS, COEF, shrinkage_minutes=K)
+    sealed = build_frame_h2(*shifted, PARAMS, COEF, shrinkage_minutes=K, sealed_test=True)
+    assert set(sealed["season_year"]) == {2025, 2026} and set(sealed["phase"]) == {"scelle"}
+    assert sealed[H2_FEATURES].notna().any().all()
+    pd.testing.assert_frame_equal(sealed[H2_FEATURES], frame[H2_FEATURES], check_exact=True)
+
+
+def test_run_build_reads_the_sealed_compositions_for_the_sealed_h2_dataset(monkeypatch, tmp_path):
+    """`--horizon H2 --sealed-test` : matchs, compositions et feuilles de match lus par la porte avec le scellé levé
+    et le fichier d'expérience (chaque lecture journalisée), puis `build_frame_h2` avec `sealed_test`."""
+    reads, built = {}, {}
+
+    def gate(name):
+        def read(*args, **kwargs):
+            reads[name] = (kwargs.get("sealed_test"), kwargs.get("experiment"))
+            return pd.DataFrame({"api_league_id": [39], "competition_id": [1]})
+
+        return read
+
+    class Engine:  # seule `connect` est appelée (`record=False`)
+        def connect(self):
+            return contextlib.nullcontext(None)
+
+    for name in ("load_matches", "load_lineups", "load_team_sheets"):
+        monkeypatch.setattr(sources, name, gate(name))
+    monkeypatch.setattr(build, "build_frame_h2", lambda *args, **kwargs: built.update(kwargs) or pd.DataFrame())
+    monkeypatch.setattr(build, "database_trace", lambda connection: {"alembic_revision": "0008", "load_run_id": 7})
+    monkeypatch.setattr(build, "counts_of", lambda frame: {"rows": 0})
+    monkeypatch.setattr(build, "write_snapshot", lambda frame, base, root, today: (root, base | {"version": "ds-x"}))
+    build.run_build(
+        output_root=tmp_path, record=False, engine=Engine(), today=dt.date(2026, 11, 20), horizon="H2",
+        sealed_test=True, experiment="experiments/scelle_h2.yaml",
+    )  # fmt: skip
+    assert reads == dict.fromkeys(reads, (True, "experiments/scelle_h2.yaml")) and len(reads) == 3
+    assert built["sealed_test"] is True
 
 
 def test_run_build_refuses_an_unknown_horizon():

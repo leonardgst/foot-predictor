@@ -1,7 +1,8 @@
 """Variables du MVP : construction, contrôle et catalogue du jeu de données (ADR-0030).
 
     python -m foot_predictor.features build [--output-root data/datasets] [--no-db] [--horizon H1|H2]
-    python -m foot_predictor.features build --sealed-test --experiment experiments/scelle_h1.yaml   # phase B seulement
+    # phase B seulement, une fois par version (H1 : fait le 2026-10-22) :
+    python -m foot_predictor.features build --horizon H2 --sealed-test --experiment experiments/scelle_h2.yaml
     python -m foot_predictor.features check [--version ds-...] [--report-dir reports/variables] [--invariance]
     python -m foot_predictor.features catalogue [--output docs/realisation/06_variables/catalogue.md]
 

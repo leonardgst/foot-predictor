@@ -7,15 +7,13 @@ import json
 import subprocess
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from foot_predictor import sealed_rerun
 from foot_predictor.modeling import experiment
-from foot_predictor.modeling.models import market
 from foot_predictor.modeling.summary import render
 from foot_predictor.seal import REPO_ROOT
-from tests.modeling.synthetic import realistic_rows
+from tests.modeling.synthetic import realistic_rows, synthetic_odds
 
 REAL_SPEC = (REPO_ROOT / sealed_rerun.EXPERIMENT).read_text(encoding="utf-8")
 
@@ -119,18 +117,6 @@ def test_uncommitted_changes_or_changed_frozen_code_refuse_the_rerun(first_launc
         check(first_launch, git=fake_git("status", " M x.py"))
     with pytest.raises(sealed_rerun.RerunRefused, match="modifiés"):
         check(first_launch, git=fake_git("diff", " x | 1 +"))
-
-
-def synthetic_odds(data: pd.DataFrame) -> pd.DataFrame:
-    rng = np.random.default_rng(1)
-    ids = np.sort(data["match_id"].unique())
-    frames = []
-    for version in ("avant_cloture", "cloture"):
-        over = rng.uniform(1.6, 2.4, len(ids))
-        frames.append(
-            pd.DataFrame({"match_id": ids, "version": version, "odds_over_2_5": over, "odds_under_2_5": 3.9 - over})
-        )
-    return market.market_probabilities(pd.concat(frames, ignore_index=True))
 
 
 def test_without_the_new_encoder_the_real_sealed_file_fails_like_the_first_launch(tmp_path):

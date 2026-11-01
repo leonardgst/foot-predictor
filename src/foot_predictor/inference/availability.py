@@ -20,9 +20,9 @@ Le match reçoit ensuite un statut global :
 |---|---|---|
 | `available` | toutes les variables requises sont présentes | oui |
 | `unavailable` | au moins une variable manquante ou périmée ; raisons listées | **non** |
-| `out_of_scope` | match hors du périmètre du modèle H1 (D2, coupe, barrage, autre championnat) | non |
+| `out_of_scope` | match hors du périmètre du modèle (D2, coupe, barrage, autre championnat) | non |
 | `excluded` | match annulé, abandonné ou sur tapis vert (ADR-0009) | non |
-| `h2_unavailable` | horizon H2 demandé : pas avant la partie 6 | non |
+| `h2_unavailable` | horizon H2 demandé en live : aucune composition après la fin de l'abonnement (ADR-0010) | non |
 
 Jamais de valeur de remplacement : une variable non présente bloque la prédiction.
 """
@@ -40,6 +40,11 @@ PRESENT, MISSING, STALE = "presente", "manquante", "perimee"
 AVAILABLE, UNAVAILABLE, OUT_OF_SCOPE, EXCLUDED, H2_UNAVAILABLE = (
     "available", "unavailable", "out_of_scope", "excluded", "h2_unavailable",
 )  # fmt: skip
+
+H2_LIVE_REASON = (
+    "horizon H2 (avec composition) : non disponible en live, les compositions ne sont plus fournies depuis la fin de "
+    "l'abonnement API-FOOTBALL (ADR-0010) ; H2 ne se calcule qu'en rejeu"
+)
 
 HISTORY_PREFIXES = ("elo_", "opp_elo_", "goals_", "opp_goals_", "xgp_", "opp_xgp_")
 """Variables calculées sur l'historique des matchs : elles peuvent être périmées ; le contexte (G0), non."""
@@ -115,6 +120,13 @@ def missing_reason(variable: str) -> str:
         return f"aucun match de championnat {whose} dans les 730 jours"
     if base.startswith("elo_"):
         return f"note Elo {whose} indisponible (équipe hors des échelles nationales)"
+    if base == "xi_quality":
+        return (f"qualité du onze {whose} incalculable : onze incomplet ou absent de la feuille de match, ou "
+                "titulaire sans poste ni note antérieure")  # fmt: skip
+    if base == "xi_regulars_missing":
+        return f"habituels absents {whose} incalculables : moins de 10 matchs d'historique avec onze complet, ou aucun habitué"
+    if base == "xi_mean_age":
+        return f"âge moyen du onze {whose} incalculable : onze incomplet ou titulaire sans date de naissance"
     return f"valeur {whose} incalculable"
 
 
@@ -139,16 +151,16 @@ def match_availability(
     `{}` : aucune des deux équipes n'a joué depuis, l'historique du match est complet.
     """
     match_id = int(match["match_id"])
-    if horizon != "H1":
-        return Availability(match_id, H2_UNAVAILABLE, ["horizon H2 (avec composition) : pas avant la partie 6"])
     if bool(match.get("excluded", False)):
         return Availability(match_id, EXCLUDED, [f"match exclu ({match.get('exclusion_reason') or 'ADR-0009'})"])
     if match.get("api_league_id") not in TOP5:
         kind = "coupe" if match.get("competition_kind") == "cup" else "championnat hors du top 5"
-        return Availability(match_id, OUT_OF_SCOPE, [f"hors périmètre du modèle H1 ({kind}) : pas de prédiction"])
+        return Availability(
+            match_id, OUT_OF_SCOPE, [f"hors périmètre du modèle {horizon} ({kind}) : pas de prédiction"]
+        )
     if not bool(match.get("is_regular_season", True)):
         return Availability(
-            match_id, OUT_OF_SCOPE, ["barrage ou tour hors saison régulière : hors périmètre du modèle H1"]
+            match_id, OUT_OF_SCOPE, [f"barrage ou tour hors saison régulière : hors périmètre du modèle {horizon}"]
         )
     if len(rows) != 2:
         return Availability(match_id, UNAVAILABLE, ["lignes du match incalculables (équipe inconnue du référentiel)"])

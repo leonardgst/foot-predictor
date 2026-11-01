@@ -87,3 +87,71 @@ def test_season_of_a_day():
 def test_missing_active_model_is_reported(tmp_path):
     with pytest.raises(models.ModelUnavailable, match="absent"):
         models.load_active("inexistant", models_root=tmp_path)
+
+
+# ------------------------------------------------------------------------------ rejeu H2 (6.10, ADR-0050)
+
+
+@pytest.fixture(scope="module")
+def data_h2(data):
+    from tests.modeling.synthetic import with_composition
+
+    return with_composition(data)
+
+
+def test_h2_replay_model_follows_the_m3_h2_procedure_with_the_g5_run_in(data_h2):
+    model, card = models.train_replay_model(2022, data_h2, horizon="H2")
+    assert card["horizon"] == "H2" and card["version"] == "rejeu-2022-m3_h2" and card["replay_season"] == 2022
+    assert "xi_quality" in card["model"]["features"] and "opp_xi_quality" in card["model"]["features"]
+    assert card["training"]["first_season"] == 2016  # 2015-16 sert de rodage à G5 (ADR-0047, D3)
+    assert card["training"]["last_season"] == 2021 and card["training"]["includes_sealed_matches"] is False
+    assert card["experiment_file"] == "experiments/scelle_h2.yaml" and card["model"]["id"] == "M3_H2"
+    assert any("live" in limit for limit in card["limits"])  # limites propres à H2, pas celles de H1
+
+
+def test_h2_replay_model_never_saw_its_season_nor_later_ones(data_h2):
+    _, card = models.train_replay_model(2022, data_h2, horizon="H2")
+    later = data_h2.copy()
+    later.loc[later["season_year"] >= 2022, "goals_for"] = 9
+    _, card_later = models.train_replay_model(2022, later, horizon="H2")
+    assert card_later["coefficients"] == card["coefficients"]
+
+
+def test_h1_replay_model_is_unchanged_by_the_h2_option(data):
+    """Garde H1 : même version, même horizon, même début d'apprentissage qu'avant 6.10."""
+    _, card = models.train_replay_model(2022, data)
+    assert (
+        card["horizon"] == "H1" and card["version"] == "rejeu-2022-m3_g0g2" and card["training"]["first_season"] == 2015
+    )
+    assert "xi_quality" not in card["model"]["features"]
+
+
+def test_h2_replay_models_are_cached_apart_from_h1(data, data_h2, tmp_path):
+    h1 = models.replay_model(2023, data, replay_root=tmp_path)
+    h2 = models.replay_model(2023, data_h2, replay_root=tmp_path, horizon="H2")
+    assert (tmp_path / "2023" / "model.joblib").exists() and (tmp_path / "h2" / "2023" / "model.joblib").exists()
+    assert h1.card["horizon"] == "H1" and h2.card["horizon"] == "H2" and "xi_quality" in h2.features
+    again = models.replay_model(2023, data=None, replay_root=tmp_path, horizon="H2")  # lu dans le cache
+    assert again.card["version"] == h2.card["version"] == "rejeu-2023-m3_h2"
+
+
+def test_h2_replay_seasons_are_as_closed_as_h1_and_the_horizon_is_checked():
+    with pytest.raises(models.ModelUnavailable, match="test scellé de H2"):
+        models.replay_model(2025, horizon="H2")
+    with pytest.raises(ValueError, match="Horizon inconnu"):
+        models.replay_model(2022, horizon="H3")
+    assert models.REPLAY_DATASET_VERSION["H2"] == "ds-2026-11-01-e0defb32"
+    assert models.EXPERIMENT_FILE_H2.name == "scelle_h2.yaml" and models.MODEL_ID_H2 == "M3_H2"
+
+
+def test_the_models_command_lists_h1_and_h2_replay_folders_and_ignores_the_h2_parent(
+    data, data_h2, tmp_path, monkeypatch
+):
+    """Le cache H2 est le sous-dossier `h2/` du cache H1 : il ne doit être pris ni pour une saison ni pour un modèle."""
+    from foot_predictor.inference.__main__ import replay_folders
+
+    monkeypatch.setattr(models, "REPLAY_ROOT", tmp_path)
+    assert replay_folders() == []
+    models.replay_model(2022, data, replay_root=tmp_path)
+    models.replay_model(2022, data_h2, replay_root=tmp_path, horizon="H2")
+    assert [f.relative_to(tmp_path).as_posix() for f in replay_folders()] == ["2022", "h2/2022"]

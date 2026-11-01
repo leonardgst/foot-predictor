@@ -18,3 +18,6 @@ Un usage absent de ce journal est une levée du scellé à constater dans une no
 | 2026-11-01 15:33 | 003d7188508a | experiments/scelle_h2.yaml | accès autorisé, résultat à compléter (17381 match(s) scellé(s) lus) |
 | 2026-11-01 15:34 | 003d7188508a | experiments/scelle_h2.yaml | accès autorisé, résultat à compléter (4591 match(s) scellé(s) lus) |
 | 2026-11-01 15:34 | 003d7188508a | experiments/scelle_h2.yaml | accès autorisé, résultat à compléter (7548 match(s) scellé(s) lus) |
+| 2026-11-01 15:36 | 9c326ab2ca19 | experiments/scelle_h2.yaml | accès autorisé, résultat à compléter (9118 match(s) scellé(s) lus) |
+| 2026-11-01 15:36 | 9c326ab2ca19 | experiments/scelle_h2.yaml | accès autorisé, résultat à compléter (8694 match(s) scellé(s) lus) |
+| 2026-11-01 15:36 | 9c326ab2ca19 | experiments/scelle_h2.yaml | évaluation terminée, rapport scelle-h2-20261101T153604 ; M3_G0G2 − M3_H2 : +0.0013 [-0.0003 ; +0.0029], 1923 matchs |

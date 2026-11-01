@@ -1,0 +1,31 @@
+# Structures de l'horizon H2 sur le jeu retenu : M3 (Poisson), M6 (Poisson ridge) et M7 (boosting à perte de
+# Poisson), population top 5 (partie 6, sous-étape 6.8 ; ADR-0047 D4, ADR-0049).
+# Variables identiques pour les trois : G0 + G1 + G2 + G5, le modèle H2 retenu en 6.7 (ADR-0048). Seule la structure
+# change. Chemin de décision écrit d'avance (ADR-0049) : étape 1, M3_H2 -> M6_H2 ; étape 2, la structure retenue
+# après l'étape 1 -> M7_H2. Les deux comparaisons de l'étape 2 sont écrites pour chaque issue de l'étape 1 ; le chemin
+# suivi est celui que la règle dicte, et lui seul décide. À gain non significatif, on garde le plus simple (M3 < M6 < M7).
+# Hyperparamètres choisis par validation interne du pli, ensemble avec la demi-vie de G2 (3, 12 et 27 candidats).
+# Rodage (D3) : G5 apprend dès 2016-17. Diagnostic sans pouvoir de décision : l'apport de G5 sous M6 et sous M7, contre
+# le même modèle sans G5 appris sur la même fenêtre (dès 2016-17).
+name: structures-h2
+dataset: ds-2026-11-01-e0defb32
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  - {id: M3_H2, model: m3, params: {groups: [G0, G1, G2, G5]}, grid: {half_life: [60, 120, 240]}}
+  - {id: M6_H2, model: m6, params: {groups: [G0, G1, G2, G5], penalty: l2}, grid: {half_life: [60, 120, 240], alpha: [0.0001, 0.001, 0.01, 0.1]}}
+  - {id: M7_H2, model: m7, params: {groups: [G0, G1, G2, G5], learning_rate: 0.05, min_samples_leaf: 200, l2_regularization: 1.0}, grid: {half_life: [60, 120, 240], max_depth: [2, 3, 4], max_iter: [100, 200, 400]}}
+  # diagnostic : mêmes structures sans G5, sur la même fenêtre d'apprentissage (dès 2016-17)
+  - {id: M6_sans_G5, model: m6, params: {groups: [G0, G1, G2], penalty: l2, train_from: 2016}, grid: {half_life: [60, 120, 240], alpha: [0.0001, 0.001, 0.01, 0.1]}}
+  - {id: M7_sans_G5, model: m7, params: {groups: [G0, G1, G2], learning_rate: 0.05, min_samples_leaf: 200, l2_regularization: 1.0, train_from: 2016}, grid: {half_life: [60, 120, 240], max_depth: [2, 3, 4], max_iter: [100, 200, 400]}}
+comparisons:
+  # Étape 1 : régularisation
+  - [M3_H2, M6_H2]
+  # Étape 2 : boosting, contre la structure retenue à l'étape 1
+  - [M3_H2, M7_H2]
+  - [M6_H2, M7_H2]
+  # Diagnostic (sans pouvoir de décision) : G5 sous chaque structure, à fenêtre égale
+  - [M6_sans_G5, M6_H2]
+  - [M7_sans_G5, M7_H2]

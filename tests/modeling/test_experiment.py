@@ -9,6 +9,7 @@ import pytest
 
 from foot_predictor.modeling import experiment
 from foot_predictor.modeling.models import MODELS
+from foot_predictor.seal import REPO_ROOT
 from tests.modeling.test_protocol import LeagueSide, Mean, synthetic_rows
 
 SPEC = """
@@ -156,3 +157,18 @@ def test_comparisons_carry_the_gain_by_round_bucket(run):
     if all_rounds:  # toutes les journées sont dans une tranche : la moyenne pondérée est la moyenne poolée
         assert weighted == pytest.approx(pooled["mean"])
     assert all(b["low"] <= b["mean"] <= b["high"] for b in buckets.values())
+
+
+EXPERIMENT_FILES = sorted((REPO_ROOT / "experiments").glob("*.yaml"))
+
+
+@pytest.mark.parametrize("path", EXPERIMENT_FILES, ids=lambda path: path.name)
+def test_every_experiment_file_goes_through_the_report_encoder(path):
+    """Prévention d'E-059 : le rapport recopie le fichier ; aucune valeur ne doit faire planter son encodeur.
+    Seul `scelle_h1.yaml`, figé avec sa date et déjà relancé (ADR-0043), la garde : elle reste refusée."""
+    spec = experiment.load_spec(path)
+    if path.name == "scelle_h1.yaml":
+        with pytest.raises(TypeError):
+            json.dumps(spec, default=experiment._json_default)
+        return
+    json.dumps(spec, default=experiment._json_default)

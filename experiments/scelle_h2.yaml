@@ -1,0 +1,35 @@
+# Test scellé de la version intermédiaire, horizon H2 (ADR-0012, règle 5 b ; ADR-0047, D5 ; ADR-0050). Liste FIGÉE
+# par le tag pre-scelle-h2 : ce fichier ne change plus après le tag. Lancé UNE SEULE FOIS, en phase B (sous-étape
+# 6.12), par
+#   uv run python -m foot_predictor.modeling evaluate experiments/scelle_h2.yaml --sealed-test --dataset <version>
+# sur un jeu construit avec `features build --horizon H2 --sealed-test --experiment experiments/scelle_h2.yaml`.
+#
+# Procédure d'entraînement, la même que celle du premier test (experiments/scelle_h1.yaml) et identique pour chaque
+# modèle : apprentissage sur les saisons de développement, 2015-16 à 2024-25 (matchs joués avant le 1er juillet
+# 2025), population top 5 ; hyperparamètres par validation interne (apprentissage 2015-16 à 2023-24, mesure sur
+# 2024-25), puis réajustement sur 2015-16 à 2024-25. Rodage de G5 (ADR-0047, D3) : M3_H2 apprend dès 2016-17.
+# Évaluation une fois, sur les matchs de championnat du top 5 joués à partir du 1er juillet 2025 (saison 2025-26 et
+# début de 2026-27, jusqu'au gel), restreints à l'intersection des matchs prédits par les trois lois complètes.
+#
+# Seule comparaison de décision : la première, [M3_G0G2, M3_H2] (ADR-0047, D5) ; c'est aussi elle que la ligne de
+# résultat du journal recopie. Les deux autres sont publiées en contexte, sans pouvoir de décision.
+# `test_from` est descriptive (le code ne la lit pas) : entre guillemets, pour rester un texte (E-059).
+name: scelle-h2
+dataset: null            # la version construite avec --sealed-test, donnée en option à la phase B
+sealed_test: true
+train_seasons: [2015, 2024]
+test_from: "2025-07-01"
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  # Référence : la procédure H1 du premier test (même identifiant, mêmes paramètres que scelle_h1.yaml).
+  - {id: M3_G0G2, model: m3, params: {groups: [G0, G1, G2]}, grid: {half_life: [60, 120, 240]}}
+  # Modèle H2 retenu (ADR-0048, ADR-0049) : M3, G0 + G1 + G2 + G5.
+  - {id: M3_H2, model: m3, params: {groups: [G0, G1, G2, G5]}, grid: {half_life: [60, 120, 240]}}
+  - {id: B1, model: b1, grid: {window: [1, 2, 3, 6]}}
+  - {id: marche_avant_cloture, model: market, params: {version: avant_cloture}}
+comparisons:
+  - [M3_G0G2, M3_H2]
+  - [B1, M3_H2]
+  - [M3_H2, marche_avant_cloture]

@@ -9,6 +9,7 @@ Mode d'emploi de la sélection du modèle MVP, du test scellé (phase B) et de l
 - **Tag `pre-scelle-h1`** : posé sur la fusion de la sous-étape 4.14, après l'écriture du code du test scellé ; ensuite, plus aucun changement sous `src/foot_predictor/modeling/`, `src/foot_predictor/features/`, `experiments/` avant le test.
 - **Test scellé** : une seule fois, en phase B, après le gel ; résultat publié tel quel.
 - **Modèle final H1** (4.17, ADR-0044) : `scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle`, appris avec les matchs scellés, jusqu'au 2026-10-18 ; jalon J6, tag `v0.5.0`.
+- **Modèle H2 et test scellé H2** (partie 6, sous-étape 6.9, **ADR-0050**) : M3 sur G0 + G1 + G2 + G5. Liste figée `experiments/scelle_h2.yaml` ; le tag `pre-scelle-h2` gèle aussi `seal.py`. Voir la section [Test scellé H2](#test-scellé-h2-liste-figée-69).
 
 ## Commandes
 
@@ -69,12 +70,51 @@ uv run python -m foot_predictor.modeling train --final experiments/scelle_h1.yam
 - **`code.dirty: true` dans la carte** : faux positif. La ligne du journal est écrite avant la lecture de l'état Git (E-061). La même cause explique `git_dirty: true` dans le manifeste du jeu `94969da0`. Corrigé dans le code le 2026-10-31 (PR #93) ; la carte et le manifeste déjà écrits restent tels quels.
 - **Pas encore en service** : le modèle actif de l'inférence reste celui du 2026-09-30 jusqu'à la sous-étape 5.13.
 
+## Test scellé H2 : liste figée (6.9)
+
+Décision : **ADR-0050** (modèle H2 retenu, liste, contrôles et règles de lecture fixés avant le test), en application de l'ADR-0047 (D5, D6).
+
+| Identifiant | Modèle | Rôle |
+|---|---|---|
+| `M3_G0G2` | M3, G0 + G1 + G2 | référence : la procédure H1 du premier test, même ligne que `scelle_h1.yaml` |
+| `M3_H2` | M3, G0 + G1 + G2 + G5 (G5 appris dès 2016-17) | modèle H2 retenu (6.7 et 6.8) |
+| `B1`, `marche_avant_cloture` | | contexte, sans décision |
+
+La seule comparaison de décision est `[M3_G0G2, M3_H2]`. Elle est placée en premier, parce que la ligne de résultat du journal recopie la première comparaison.
+
+**Garde-fous** (`modeling/sealed.py`) : le nom du fichier `experiments/scelle_<v>.yaml` désigne la version, et donc son tag `pre-scelle-<v>` et ses chemins gelés :
+
+| Version | Tag | Chemins gelés jusqu'au test |
+|---|---|---|
+| H1 (fait) | `pre-scelle-h1` | `modeling/`, `features/`, `experiments/` |
+| H2 | `pre-scelle-h2` | les mêmes, plus `src/foot_predictor/seal.py` |
+
+**Répétition avant le tag** (`tests/test_scelle_h2.py`, sans base ni scellé) :
+
+- le vrai fichier passe de bout en bout sur des données synthétiques avec les colonnes H2, avec 10 000 rééchantillonnages et le marché ;
+- les tableaux se relisent (« non applicable : 1 pli »), et le journal porte `M3_G0G2 − M3_H2` ;
+- deux exécutions donnent des prédictions identiques ;
+- `M3_G0G2` prédit au bit près comme celui de `scelle_h1.yaml`.
+
+Prévention d'E-059 : chaque fichier d'`experiments/` passe par l'encodeur du rapport (`tests/modeling/test_experiment.py`).
+
+Phase B seulement (6.12, une fois ; `git diff --stat pre-scelle-h2 -- src/foot_predictor/modeling src/foot_predictor/features src/foot_predictor/seal.py experiments` vide) :
+
+```bash
+uv run python -m foot_predictor.features build --horizon H2 --sealed-test --experiment experiments/scelle_h2.yaml   # 3 lignes au journal
+# contrôle 1 de l'ADR-0050 : colonnes H1 identiques à ds-2026-10-22-94969da0 (verdict seulement), sinon arrêt
+uv run python -m foot_predictor.modeling evaluate experiments/scelle_h2.yaml --sealed-test --dataset <version scellée H2>   # UNE fois
+uv run python -m foot_predictor.modeling summary reports/experiments/<id>.json --output docs/resultats/test_scelle_h2.md
+```
+
+Pas d'entraînement final H2 avec les matchs scellés (ADR-0047, D6). La commande `train --final --include-sealed` l'accepterait techniquement après le test : c'est la règle qui l'interdit.
+
 ## Ce que fait chaque commande
 
 | Commande | Effet | Garde-fous |
 |---|---|---|
-| `features build --sealed-test` | jeu avec les matchs scellés (variables sur l'historique antérieur à chaque match), phase `scelle`, dans `data/datasets_scelles/` | `--experiment` obligatoire ; lecture journalisée dans `reports/sealed_tests.md` |
-| `evaluate --sealed-test` | pli unique : apprentissage 2015-16 à 2024-25, validation interne sur 2024-25, test sur toutes les saisons suivantes ; rapport JSON et ligne de résultat au journal | fichier `sealed_test: true` ; tag `pre-scelle-h1` présent et code inchangé ; aucune évaluation terminée au journal |
+| `features build --sealed-test` | jeu avec les matchs scellés (variables sur l'historique antérieur à chaque match), phase `scelle`, dans `data/datasets_scelles/` ; avec `--horizon H2`, compositions et feuilles de match scellées lues de même | `--experiment` obligatoire ; chaque lecture journalisée dans `reports/sealed_tests.md` |
+| `evaluate --sealed-test` | pli unique : apprentissage 2015-16 à 2024-25, validation interne sur 2024-25, test sur toutes les saisons suivantes ; rapport JSON et ligne de résultat au journal | fichier `experiments/scelle_<v>.yaml` avec `sealed_test: true` ; tag `pre-scelle-<v>` présent et chemins gelés inchangés ; aucune évaluation terminée au journal |
 | `train --final` | apprentissage selon la procédure du fichier, `models/<version>/` (modèle et carte), carte copiée dans `reports/model_cards/` | jamais d'écrasement ; `--include-sealed` refusé tant que le test scellé n'est pas terminé |
 
 ## Carte d'identité (`modeling/model_card.py`)

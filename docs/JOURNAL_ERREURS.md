@@ -15,6 +15,28 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-067 — Test scellé H2 : le jeu scellé aurait été impossible à construire une fois `features/` gelé (2026-11-01)
+
+- **Contexte** : sous-étape 6.9, relecture du code du test scellé avant le tag `pre-scelle-h2`.
+- **Message d'erreur** : aucun, le défaut a été trouvé avant d'agir. Si on l'avait laissé, `features build --horizon H2 --sealed-test` aurait levé en 6.12 : `ValueError: Le jeu H2 scellé n'existe pas encore : il appartient au test scellé de H2 (lot 6.12).`
+- **Cause** :
+  - en 6.5, `run_build` refusait volontairement le jeu H2 scellé, renvoyé « au lot 6.12 », et `read_h2_inputs` ne transmettait pas `sealed_test` à la porte des compositions ;
+  - or le tag `pre-scelle-h2` gèle `features/` **avant** 6.12 : une fois le tag posé, le garde-fou du test aurait refusé toute correction ;
+  - le cadrage plaçait le jeu scellé du côté du test, sans voir que son code appartenait aux chemins gelés.
+
+  Même défaut pour le tag, fixé à `pre-scelle-h1` dans `modeling/sealed.py`.
+- **Solution** (avant le tag, ADR-0050) :
+  - `run_build` accepte `--horizon H2 --sealed-test` et lit matchs, compositions et feuilles de match par la porte, scellé levé et journalisé ;
+  - `build_frame_h2` reçoit `sealed_test` ;
+  - le tag et les chemins gelés se déduisent du nom du fichier `scelle_<v>.yaml`.
+- **Fichiers concernés** : `src/foot_predictor/features/build.py`, `src/foot_predictor/modeling/sealed.py`.
+- **Prévention** : avant de poser un tag de gel, parcourir **toutes** les commandes de la phase B (build, evaluate, summary) et vérifier que chacune s'exécute avec le seul code gelé. La répétition du vrai fichier d'expérience ne couvre que l'évaluation.
+- **Test de non-régression** : `tests/features/test_dataset_h2.py`, avec deux tests :
+  - `test_sealed_matches_get_their_h2_values_like_any_other` : les valeurs H2 des lignes scellées sont identiques à celles d'une même table décalée de six ans ;
+  - `test_run_build_reads_the_sealed_compositions_for_the_sealed_h2_dataset` : les trois lectures se font avec le scellé levé.
+
+  Et `tests/modeling/test_sealed_and_final.py` (tag et chemins par version).
+
 ## E-066 — Rapports d'expérience de 700 Ko refusés par le hook des gros fichiers : un lancement de référence noté « arbre non propre » (2026-11-01)
 
 - **Contexte** : sous-étape 6.7, premier lancement de `ablations_h2.yaml` à 10 000 rééchantillonnages, juste après la mesure de durée.

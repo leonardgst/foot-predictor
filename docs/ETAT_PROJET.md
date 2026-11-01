@@ -74,6 +74,20 @@
   - **port 8000 tenu par le relais de WSL** (E-064) : API sur `--port 8001`, interface avec `FP_API_URL=http://127.0.0.1:8001` ;
   - live : collecter le vendredi soir ou le samedi matin ; le 2026-10-31 à 13:03 UTC, 2 matchs étaient déjà commencés.
 
+## À faire par l'utilisateur (semaine du 2 novembre 2026)
+
+Rien n'est urgent ; les passages planifiés (ADR-0053) travaillent seuls si le portable est prêt.
+
+1. **Du 3 au 7 novembre, laisser le portable allumé (ou réveillable), la session Windows ouverte (verrouillée suffit) et Docker Desktop lancé** aux heures des passages : mardi 3 novembre 18:00, vendredi 6 novembre 17:00, samedi 7 novembre 08:00 (heures de Paris). Ne pas toucher au worktree `C:/fp-travail` entre-temps (il doit rester sur un commit propre de `main`, c'est lui que les tâches exécutent).
+2. **Après le passage du mardi 3 novembre** : ouvrir `C:/fp-travail/data/planification/passages.log` (une ligne par étape, `ok` ou `ÉCHEC`). En cas d'échec ou de doute, coller les lignes à l'assistant ; ne rien relancer à la main.
+3. **Après le passage du vendredi 6 novembre (ou le samedi)** : dire à l'assistant « le passage du 6 est fait ». Il regardera combien de matchs ont été tracés avant le coup d'envoi et si la **8e journée d'E.2** est atteinte (7 sur 8 aujourd'hui). Si football-data n'a pas publié les résultats du week-end, les matchs des 6 et 7 novembre resteront « indisponibles » : rien n'est forcé, la 8e journée viendra au passage suivant.
+4. **Quelques jours après cette 8e journée** : le passage du mardi suivant collecte les résultats et écrit un nouveau relevé (`reports/inference/prospectif_*.md`) ; l'assistant le lira à ta demande, sans conclusion avant 8 journées.
+5. **Mettre `C:/foot-predictor` à jour quand l'assistant le demande** : `lock-status` depuis le worktree (doit répondre « libre »), puis `git pull --ff-only origin main` (l'assistant n'y écrit pas).
+6. **Suspendre ou arrêter** : créer le fichier `data/planification/STOP` dans `C:/fp-travail` (suspend), ou `uv run python -m foot_predictor.planification uninstall` (supprime les tâches). Statut : `... planification status`.
+7. **Rien d'autre n'est en attente** : documents LaTeX compilés, tag `v1.1.0` posé, partie 6 close, `C:/foot-predictor` est resté à `a580ee9` : il lui manque la PR #113 (planification) et les mises à jour de l'état, à tirer (point 5).
+
+**Pour l'assistant, à la prochaine session** : lire ce bloc et `data/planification/passages.log` ; les rapports écrits par les passages (`reports/inference/live_*`, `prospectif_*`) sont non suivis par Git, à commiter dans une PR de données de temps en temps ; pour toute PR, désactiver les tâches (`STOP`) le temps de travailler dans le worktree si on le sort de `main`.
+
 ## Décisions ouvertes
 
 - **Renouvellement automatique de l'abonnement : coupé par l'utilisateur le 2026-10-19** (déclaré, non vérifiable par l'assistant ; fin de l'abonnement le 22 octobre à 07:56 UTC, ADR-0005). Conditions de football-data relues le 2026-10-04 et citées (ADR-0042) : interprétation à relire. Rapport : décisions 16, 18, 20 à 22.

@@ -2,7 +2,7 @@
 
 Généré par `python -m foot_predictor.modeling evaluate` (ou `index`). **Tous les essais sont conservés**, y compris ceux qui échouent : leur nombre aide à se méfier des comparaisons multiples.
 
-**13 essai(s)**, dont 0 en échec.
+**14 essai(s)**, dont 0 en échec.
 
 | Date (UTC) | Identifiant | Statut | Modèles | Première comparaison (log-loss du total, A − B, poolée) |
 |---|---|---|---|---|
@@ -19,3 +19,4 @@ Généré par `python -m foot_predictor.modeling evaluate` (ou `index`). **Tous 
 | 2026-11-01T12:30:30+00:00 | `ablations-h2-mesure-duree-20261101T123030` | ok | A2_G0G2, G6, G5, G4, G6_G5, G6_G4, G5_G4, G6_G5_G4, A2_depuis_2016, A2_depuis_2017 | A2_G0G2 − G6 : +0.0003 [-0.0002 ; +0.0010] |
 | 2026-11-01T12:32:12+00:00 | `ablations-h2-20261101T123212` | ok | A2_G0G2, G6, G5, G4, G6_G5, G6_G4, G5_G4, G6_G5_G4, A2_depuis_2016, A2_depuis_2017 | A2_G0G2 − G6 : +0.0003 [-0.0002 ; +0.0009] |
 | 2026-11-01T12:34:36+00:00 | `ablations-h2-20261101T123436` | ok | A2_G0G2, G6, G5, G4, G6_G5, G6_G4, G5_G4, G6_G5_G4, A2_depuis_2016, A2_depuis_2017 | A2_G0G2 − G6 : +0.0003 [-0.0002 ; +0.0009] |
+| 2026-11-01T12:36:24+00:00 | `stabilite-h2-20261101T123624` | ok | A2_G0G2, V_h3, V_h5, V_h10, V_h20, V_hinf, V_reset, V_win10, V_overlap | A2_G0G2 − V_h3 : +0.0003 [-0.0004 ; +0.0010] |

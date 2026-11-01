@@ -35,6 +35,25 @@ Ablations (4.12) : `docs/resultats/ablations.md` ; courbe d'apport et analyses d
 
 Matrice des variables : `modeling/design.py` (groupes G0 à G3, standardisation dans le pli, colonnes constantes retirées). Diagnostics : `modeling/diagnostics.py` (φ, Cameron-Trivedi, rapport de vraisemblance au bord), `modeling/nonlinearity.py` (buts observés contre attendus par décile de l'écart d'Elo).
 
+## Partie 6 : modèles de l'horizon H2 (sous-étape 6.7, 2026-11-01)
+
+Spécification et liste des expériences écrites avant toute mesure : **ADR-0048** (commit `402ffd0`). Résultats lisibles et tableaux générés : [`docs/resultats/h2_ablations.md`](../../resultats/h2_ablations.md).
+
+- **Modèle** : toujours M3 (Poisson par équipe). `Design` accepte maintenant G4 (entraîneur), G5 (qualité du XI) et G6 (stabilité), colonnes de l'équipe et de l'adversaire, standardisées dans le pli ; G6 exige une variante de cohésion (`cohesion` : `h3`, `h5`, `h10`, `h20`, `hinf`, `reset`, `win10` ou `overlap_only`). La description et les paramètres d'un modèle H1 ne changent pas (garde H1 : rejeu et prédictions reproduits).
+- **Rodage (D3)** : `first_training_season` (G5 : 2016-17, G4 : 2017-18) s'applique à la validation interne et à l'ajustement ; les lignes écartées sont comptées dans le rapport (`run_in_rows`). `train_from` (paramètre de M3) donne un témoin de fenêtre sans variable H2.
+- **Hyperparamètres** : la demi-vie de G2 et la variante de cohésion se choisissent ensemble par validation interne (15 candidats avec G6).
+- **Écart par tranche de journées** : chaque comparaison d'un rapport porte `by_round` (écart poolé et intervalle par bootstrap de blocs dans les tranches 1-5, 6-10, 11-19, 20 et plus), descriptif, hors de la règle de décision. `modeling summary` en fait un tableau.
+- **Lancer** (arbre propre, sinon le rapport note `dirty: true`) :
+
+```bash
+uv run python -m foot_predictor.modeling evaluate experiments/ablations_h2_mesure_duree.yaml   # 83 s
+uv run python -m foot_predictor.modeling evaluate experiments/ablations_h2.yaml                # environ 2 min, décision
+uv run python -m foot_predictor.modeling evaluate experiments/stabilite_h2.yaml                # environ 2 min, diagnostic
+uv run python -m foot_predictor.modeling summary reports/experiments/<id>.json                 # tableaux
+```
+
+- **Résultat** : en suivant le chemin écrit d'avance (G6, puis G5, puis G4), **G6 n'est pas retenu** (+0,00035 [−0,00022 ; +0,00091]), **G5 l'est** (+0,00078 [+0,00003 ; +0,00151], 4 plis sur 4, borne basse à 0,00003) et **G4 ne l'est pas** (−0,00090 [−0,00158 ; −0,00022]). Modèle H2 retenu : M3 sur G0 + G1 + G2 + G5. Gain minuscule et fragile (à fenêtre égale, il n'est plus significatif) ; aucune variante de stabilité ne se distingue de la base.
+
 ## Ajouter un modèle
 
 1. Une classe `Model` dans `modeling/models/` : `features` (colonnes requises), `fit`, `predict` → `MatchPredictions`, `describe`.

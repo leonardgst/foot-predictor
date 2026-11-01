@@ -39,3 +39,17 @@ def test_a_four_fold_report_keeps_its_verdict_and_title():
     text = render(report(["2021", "2022", "2023", "2024"], decision))
     assert "| (i) oui, (ii) oui, (iii) oui | **M remplace B1** |" in text
     assert "calibration poolée sur les 4 plis" in text and "non applicable" not in text
+
+
+def test_the_round_bucket_gains_are_tabulated_when_the_report_has_them():
+    base = report(["2021", "2022", "2023", "2024"], {"applicable": True, "i_gain_significant": True,
+                  "ii_positive_folds": True, "iii_calibration": True, "b_replaces_a": True})  # fmt: skip
+    base["comparisons"][0]["by_round"] = {
+        "1-5": {"mean": 0.011, "low": -0.002, "high": 0.024, "n": 700},
+        "20-99": {"mean": 0.004, "low": 0.001, "high": 0.007, "n": 3000},
+    }
+    text = render(base)
+    assert "par tranche de journées" in text
+    assert "| B1 | M | 1-5 | 700 | +0.01100 | [-0.00200 ; +0.02400] |" in text
+    assert "20-99" in text
+    assert "par tranche de journées" not in render(report(["2021"], {"applicable": False}))

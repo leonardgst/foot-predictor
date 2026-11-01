@@ -2,7 +2,7 @@
 
 > **Fichier généré** par `python -m foot_predictor.features catalogue` depuis `src/foot_predictor/features/registry.yaml`. Ne pas le modifier à la main : modifier le registre, puis régénérer (un test vérifie qu'il est à jour).
 
-92 colonnes au jeu de données, dont 78 variables (G0 à G6), celles de G0 à G3 sont à l'horizon H1 (avant composition), celles de G4 à G6 à l'horizon H2 (avec composition, ADR-0010). Une colonne `opp_…` est la même variable pour l'adversaire, lue sur sa ligne du même match. Règle temporelle : une variable du jour J n'utilise que des matchs terminés avant le jour J.
+96 colonnes au jeu de données, dont 82 variables (G0 à G6), celles de G0 à G3 sont à l'horizon H1 (avant composition), celles de G4 à G6 à l'horizon H2 (avec composition, ADR-0010). Une colonne `opp_…` est la même variable pour l'adversaire, lue sur sa ligne du même match. Règle temporelle : une variable du jour J n'utilise que des matchs terminés avant le jour J.
 
 ## Identifiants et découpage
 
@@ -450,3 +450,25 @@
 - **Historique minimal** : un match de championnat au onze complet dans le club
 - **Valeur manquante** : comme xi_overlap_prev
 - **Risque de fuite** : faible — titularisations d'un jour strictement antérieur
+
+### `xi_cohesion_reset`
+
+- **Colonnes** : `xi_cohesion_reset`, `opp_xi_cohesion_reset`
+- **Définition** : variante de diagnostic (rapport H.8) de la cohésion, avec remise à zéro par saison ; moyenne à poids égaux des s(s − 1) / 110 sur les seuls matchs du club de la même saison, d'un jour strictement antérieur
+- **Source** : staging.lineup via load_lineups et load_team_sheets ; features/lineup_stability.py
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : diagnostic = ADR-0047 D2
+- **Historique minimal** : un match de championnat au onze complet dans le club, de la même saison
+- **Valeur manquante** : vide au premier match de la saison du club (n = 0), comme xi_overlap_prev sinon ; mesurée en diagnostic, jamais choisie sur les plis de test
+- **Risque de fuite** : moyen — comme xi_overlap_prev
+
+### `xi_cohesion_win10`
+
+- **Colonnes** : `xi_cohesion_win10`, `opp_xi_cohesion_win10`
+- **Définition** : variante de diagnostic (rapport H.8) de la cohésion, sur fenêtre ; moyenne à poids égaux des s(s − 1) / 110 sur les 10 derniers matchs de l'historique du club (tous, s'il y en a moins)
+- **Source** : staging.lineup via load_lineups et load_team_sheets ; features/lineup_stability.py
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : fenetre_matchs = 10; diagnostic = ADR-0047 D2
+- **Historique minimal** : un match de championnat au onze complet dans le club
+- **Valeur manquante** : comme xi_overlap_prev ; mesurée en diagnostic, jamais choisie sur les plis de test
+- **Risque de fuite** : moyen — comme xi_overlap_prev

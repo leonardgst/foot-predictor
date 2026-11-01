@@ -18,7 +18,12 @@ plus, une recrue arrive avec 0.
   C'est exactement la somme de la matrice cumulée des paires restreinte au onze (H.3, prouvé
   par un test), calculée sans construire la matrice ;
 - `xi_new_starters` : nombre de titulaires de X_m qui ont moins de 3 titularisations de
-  championnat dans le club sur les 365 jours précédents.
+  championnat dans le club sur les 365 jours précédents ;
+- **variantes de diagnostic** (rapport H.8, ADR-0047 D2, mesurées sans jamais être choisies sur les plis
+  de test) : `xi_cohesion_reset`, même moyenne à poids égaux sur les seuls matchs du club **de la même
+  saison** (la spécification d'origine : remise à zéro à chaque saison, vide au premier match) ;
+  `xi_cohesion_win10`, même moyenne à poids égaux sur les 10 derniers matchs de l'historique (tous, s'il
+  y en a moins).
 
 **Valeur vide** (jamais remplacée) : onze incomplet du match (moins de 11 titulaires
 identifiés, entrée sans identifiant ou exclue pour collision, ADR-0008 et ADR-0020), match non
@@ -37,6 +42,8 @@ XI_SIZE = 11
 PAIRS = XI_SIZE * (XI_SIZE - 1)  # 110 paires ordonnées
 HALF_LIVES = (3, 5, 10, 20, float("inf"))
 """Demi-vies de la cohésion, en nombre de matchs (rapport H.7). `inf` : poids égaux, historique intégral du club."""
+WINDOW_MATCHES = 10
+"""Fenêtre de la variante `xi_cohesion_win10` (rapport H.8)."""
 NEW_STARTER_WINDOW_DAYS = 365
 NEW_STARTER_MIN_STARTS = 3
 
@@ -48,6 +55,10 @@ def half_life_suffix(half_life: float) -> str:
 
 def cohesion_columns() -> list[str]:
     return [f"xi_cohesion_ewm_h{half_life_suffix(h)}" for h in HALF_LIVES]
+
+
+VARIANT_COLUMNS = ["xi_cohesion_reset", "xi_cohesion_win10"]
+"""Variantes de diagnostic de la cohésion (rapport H.8) : remise à zéro par saison, fenêtre de 10 matchs."""
 
 
 def day_numbers(values) -> np.ndarray:
@@ -85,7 +96,7 @@ def pair_score(common: np.ndarray) -> np.ndarray:
 def _team_values(valid: pd.DataFrame, xis: pd.DataFrame) -> dict[int, dict]:
     """Variables de chaque match au onze complet d'une équipe, indexées par `match_id`.
 
-    `valid` : matchs de l'historique de l'équipe (`match_id`, `day`), triés par jour ;
+    `valid` : matchs de l'historique de l'équipe (`match_id`, `day`, `season`), triés par jour ;
     `xis` : leurs titulaires (`match_id`, `player`).
     """
     row_of = {m: i for i, m in enumerate(valid["match_id"])}
@@ -94,19 +105,27 @@ def _team_values(valid: pd.DataFrame, xis: pd.DataFrame) -> dict[int, dict]:
     xi = np.zeros((len(valid), codes.max() + 1), dtype=np.float32)
     xi[xis["match_id"].map(row_of).to_numpy(), codes] = 1.0
     days = valid["day"].to_numpy()
+    seasons = valid["season"].to_numpy()
     common = common_starters(xi)
     score = pair_score(common)
     cumulative = np.vstack([np.zeros((1, xi.shape[1]), dtype=np.float32), np.cumsum(xi, axis=0)])
     out = {}
     for i, match_id in enumerate(valid["match_id"]):
         before = int(np.searchsorted(days, days[i], side="left"))  # matchs des jours antérieurs
-        values = {name: np.nan for name in ("xi_overlap_prev", "xi_new_starters", *cohesion_columns())}
+        values = {
+            name: np.nan for name in ("xi_overlap_prev", "xi_new_starters", *cohesion_columns(), *VARIANT_COLUMNS)
+        }
         if before > 0:
             values["xi_overlap_prev"] = float(common[i, before - 1])
             ranks = np.arange(before, 0, -1)  # rang 1 = match précédent, pour les colonnes 0..before-1
             for half_life, name in zip(HALF_LIVES, cohesion_columns(), strict=True):
                 weights = np.ones(before) if np.isinf(half_life) else 0.5 ** ((ranks - 1) / half_life)
                 values[name] = float(weights @ score[i, :before] / weights.sum())
+            win = score[i, max(before - WINDOW_MATCHES, 0) : before]
+            values["xi_cohesion_win10"] = float(win.mean())
+            first_of_season = int(np.searchsorted(seasons, seasons[i], side="left"))  # saisons croissantes
+            if first_of_season < before:
+                values["xi_cohesion_reset"] = float(score[i, first_of_season:before].mean())
             low = int(np.searchsorted(days, days[i] - NEW_STARTER_WINDOW_DAYS, side="left"))
             starts = cumulative[before] - cumulative[low]
             values["xi_new_starters"] = float((starts[xi[i] > 0] < NEW_STARTER_MIN_STARTS).sum())
@@ -119,7 +138,8 @@ def compute_lineup_stability(matches: pd.DataFrame, lineups: pd.DataFrame, team_
 
     `matches` : colonnes de `load_matches` ; `lineups` : de `load_lineups` ; `team_sheets` : de
     `load_team_sheets`. Les colonnes rendues sont `match_id`, `team_id`, `is_home`,
-    `xi_overlap_prev`, `xi_cohesion_ewm_h*` (une par demi-vie) et `xi_new_starters`.
+    `xi_overlap_prev`, `xi_cohesion_ewm_h*` (une par demi-vie), `xi_new_starters` et les variantes
+    de diagnostic `xi_cohesion_reset` et `xi_cohesion_win10`.
     """
     league = matches[matches["api_league_id"].isin(list(LADDERS))]
     sides = []
@@ -131,6 +151,7 @@ def compute_lineup_stability(matches: pd.DataFrame, lineups: pd.DataFrame, team_
                     "team_id": league[f"{side}_team_id"].to_numpy(),
                     "is_home": side == "home",
                     "day": day_numbers(league["match_day"]),
+                    "season": league["season_year"].to_numpy(),
                     "played": (league["status"] == "played").to_numpy(),
                 }
             )
@@ -141,7 +162,7 @@ def compute_lineup_stability(matches: pd.DataFrame, lineups: pd.DataFrame, team_
     history = targets[targets["played"]].merge(
         xis[["match_id", "team_id"]].drop_duplicates(), on=["match_id", "team_id"]
     )
-    columns = ["xi_overlap_prev", *cohesion_columns(), "xi_new_starters"]
+    columns = ["xi_overlap_prev", *cohesion_columns(), "xi_new_starters", *VARIANT_COLUMNS]
     values = {c: np.full(len(targets), np.nan) for c in columns}
     position = pd.Series(np.arange(len(targets)), index=pd.MultiIndex.from_frame(targets[["match_id", "team_id"]]))
     xis_by_team = {team: group for team, group in xis.groupby("team_id")}

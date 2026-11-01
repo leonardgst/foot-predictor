@@ -91,6 +91,8 @@ class Model:
 
     name = "modele"
     features: tuple[str, ...] = ()
+    first_training_season: int | None = None
+    """Première saison d'apprentissage d'un modèle à variables d'historique court (rodage, ADR-0047 D3) ; aucune par défaut."""
 
     def __init__(self, **params) -> None:
         self.params = params

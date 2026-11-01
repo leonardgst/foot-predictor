@@ -172,6 +172,26 @@ def compare(losses_a: dict, losses_b: dict, blocks: dict, n_resamples: int, seed
     }
 
 
+def compare_by_round(losses_a: dict, losses_b: dict, blocks: dict, rounds: dict, n_resamples: int, seed: int) -> dict:
+    """Écart apparié A − B du log-loss poolé sur les plis, par tranche de journées (rapport H.4, ADR-0047).
+
+    Une tranche (1-5, 6-10, 11-19, 20 et plus) est une sous-population de matchs ; l'intervalle est
+    celui du bootstrap par blocs sur ses matchs seulement. Descriptif : hors de la règle de décision.
+    """
+    seasons = sorted(losses_a)
+    result = {}
+    for lo, hi in ROUND_BUCKETS:
+        masks = {s: (rounds[s] >= lo) & (rounds[s] <= hi) for s in seasons}
+        if not all(mask.any() for mask in masks.values()):
+            continue
+        diff = np.concatenate([(losses_a[s] - losses_b[s])[masks[s]] for s in seasons])
+        block = np.concatenate([blocks[s][masks[s]] for s in seasons])
+        strata = np.concatenate([np.full(int(masks[s].sum()), s) for s in seasons])
+        interval = bootstrap.block_bootstrap(diff, block, strata, n_resamples=n_resamples, seed=seed)
+        result[f"{lo}-{hi}"] = interval.to_dict() | {"excludes_zero": interval.excludes_zero()}
+    return result
+
+
 def git_state() -> dict:
     def run(*args):
         try:
@@ -312,6 +332,7 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
     rps_losses: dict[str, dict] = {m["id"]: {} for m in full}
     over_losses: dict[str, dict] = {m["id"]: {} for m in spec["models"]}
     blocks, over_blocks, frames = {}, {}, []
+    rounds: dict[int, np.ndarray] = {}
     p_overs: dict[str, dict] = {}
     over_outcomes: dict[int, np.ndarray] = {}
     small_probs: dict[str, dict] = {}
@@ -324,14 +345,17 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
             make = MODELS[model_spec["model"]]
             fixed = model_spec.get("params") or {}
             grid = [fixed | g for g in expand_grid(model_spec.get("grid"))]
-            features = make(**grid[0]).features
+            first = make(**grid[0])
+            features, first_season = first.features, first.first_training_season
             population = model_spec.get("population", spec["population"])
-            fit = protocol.select_and_fit(make, grid, data, fold, population, features)
+            fit = protocol.select_and_fit(make, grid, data, fold, population, features, first_season)
             predictions, missing = protocol.predict_fold(fit, data, fold, features)
             predicted[model_spec["id"]] = predictions
             entry["models"][model_spec["id"]] = {
                 "params": fit.params,
                 "excluded_train_rows": fit.excluded_train_rows,
+                "run_in_rows": fit.run_in_rows,
+                "first_training_season": fit.first_training_season,
                 "matches_without_prediction": missing,
                 "inner_validation": fit.inner_scores,
                 "fitted": fit.model.describe(),
@@ -341,6 +365,7 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
         entry["excluded_by_intersection"] = int(len(truth_all) - len(common))
         truth = truth_all.loc[common]
         blocks[fold.test_season] = bootstrap.block_keys(truth).to_numpy()
+        rounds[fold.test_season] = round_number(truth["round"]).to_numpy() if "round" in truth.columns else np.array([])
         for model_id, predictions in predicted.items():
             sub = predictions.subset(common)
             per_model[model_id][fold.name] = distribution_metrics(sub, truth, rng)
@@ -408,6 +433,10 @@ def _execute(spec: dict, data: pd.DataFrame, predictions_dir: Path, odds: pd.Dat
         if a in losses and b in losses:
             item["log_loss"] = compare(losses[a], losses[b], blocks, spec["n_resamples"], spec["seed"])
             item["rps"] = compare(rps_losses[a], rps_losses[b], blocks, spec["n_resamples"], spec["seed"])
+            if all(len(r) for r in rounds.values()):
+                item["by_round"] = compare_by_round(
+                    losses[a], losses[b], blocks, rounds, spec["n_resamples"], spec["seed"]
+                )
             item["calibration_pooled"] = {
                 model_id: {
                     k: pooled[model_id]["calibration_over_2_5"][k] for k in ("mean_abs_gap", "slope", "intercept")

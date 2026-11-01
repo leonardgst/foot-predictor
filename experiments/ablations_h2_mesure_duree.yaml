@@ -1,0 +1,48 @@
+# MESURE DE DURÉE de ablations_h2.yaml (200 rééchantillonnages, mêmes modèles et mêmes comparaisons) : ses intervalles
+# ne servent à rien et ne décident rien. Ablations de l'horizon H2 sur la structure retenue M3, population top 5 (partie 6, sous-étape 6.7 ; ADR-0047, ADR-0048).
+# Base : A2_G0G2, le modèle H1 (G0 + G1 + G2, demi-vie de G2 par validation interne). Les huit sous-ensembles de
+# {G6, G5, G4} sont évalués sur les mêmes matchs. Ordre des ajouts (D1) : G6, puis G5, puis G4 ; chaque groupe
+# s'ajoute au modèle RETENU juste avant lui, par la règle de l'ADR-0037. La première comparaison de chaque étape
+# est donc écrite pour chaque issue possible de l'étape précédente ; le chemin suivi est celui que la règle dicte.
+# La demi-vie de G2 et la variante de cohésion de G6 se choisissent ENSEMBLE par validation interne du pli
+# (15 candidats avec G6, 3 sans). Rodage (D3) : G5 apprend dès 2016-17, G4 dès 2017-18 (lignes écartées comptées).
+name: ablations-h2-mesure-duree
+dataset: ds-2026-11-01-e0defb32
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 200
+models:
+  - {id: A2_G0G2, model: m3, params: {groups: [G0, G1, G2]}, grid: {half_life: [60, 120, 240]}}
+  # un groupe seul (diagnostic) ou en tête de chaîne
+  - {id: G6, model: m3, params: {groups: [G0, G1, G2, G6]}, grid: {half_life: [60, 120, 240], cohesion: [h3, h5, h10, h20, hinf]}}
+  - {id: G5, model: m3, params: {groups: [G0, G1, G2, G5]}, grid: {half_life: [60, 120, 240]}}
+  - {id: G4, model: m3, params: {groups: [G0, G1, G2, G4]}, grid: {half_life: [60, 120, 240]}}
+  # deux groupes
+  - {id: G6_G5, model: m3, params: {groups: [G0, G1, G2, G6, G5]}, grid: {half_life: [60, 120, 240], cohesion: [h3, h5, h10, h20, hinf]}}
+  - {id: G6_G4, model: m3, params: {groups: [G0, G1, G2, G6, G4]}, grid: {half_life: [60, 120, 240], cohesion: [h3, h5, h10, h20, hinf]}}
+  - {id: G5_G4, model: m3, params: {groups: [G0, G1, G2, G5, G4]}, grid: {half_life: [60, 120, 240]}}
+  # les trois
+  - {id: G6_G5_G4, model: m3, params: {groups: [G0, G1, G2, G6, G5, G4]}, grid: {half_life: [60, 120, 240], cohesion: [h3, h5, h10, h20, hinf]}}
+  # témoins de fenêtre : le modèle H1 appris sur la même fenêtre que G5 (dès 2016-17) et que G4 (dès 2017-18)
+  - {id: A2_depuis_2016, model: m3, params: {groups: [G0, G1, G2], train_from: 2016}, grid: {half_life: [60, 120, 240]}}
+  - {id: A2_depuis_2017, model: m3, params: {groups: [G0, G1, G2], train_from: 2017}, grid: {half_life: [60, 120, 240]}}
+comparisons:
+  # Étape 1 (G6 s'ajoute à la base)
+  - [A2_G0G2, G6]
+  # Étape 2 (G5) : contre G6 si G6 est retenu, sinon contre la base
+  - [G6, G6_G5]
+  - [A2_G0G2, G5]
+  # Étape 3 (G4) : contre le modèle retenu après l'étape 2
+  - [G6_G5, G6_G5_G4]
+  - [G6, G6_G4]
+  - [G5, G5_G4]
+  - [A2_G0G2, G4]
+  # Diagnostic (sans pouvoir de décision) : toutes les variables H2 ensemble contre la base
+  - [A2_G0G2, G6_G5_G4]
+  # Diagnostic : coût d'une fenêtre d'apprentissage plus courte, et groupes comparés à fenêtre égale
+  - [A2_G0G2, A2_depuis_2016]
+  - [A2_G0G2, A2_depuis_2017]
+  - [A2_depuis_2016, G5]
+  - [A2_depuis_2017, G4]
+  - [A2_depuis_2017, G6_G5_G4]

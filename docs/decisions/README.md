@@ -53,6 +53,7 @@ Modèle : [`_modele_adr.md`](_modele_adr.md). Les numéros « M » renvoient à 
 | [0045](ADR-0045-ouverture-scelle-inference.md) | Ouverture du scellé à l'inférence seulement (historique du live), garde par le code sans journal ; rejeu des saisons scellées fermé jusqu'au test de H2 ; modèle final actif | acceptée | 2026-10-22 | ADR-0011 r. 2, ADR-0012 r. 4 et 5, ADR-0028 |
 | [0046](ADR-0046-fraicheur-par-equipe.md) | Live : fraîcheur par équipe, approchée (Elo exact, a priori μ des glissants sans les derniers résultats du championnat), tolérance : écarts de λ ≤ 0,005 et de P(T > 2,5) ≤ 0,002 | acceptée | 2026-10-22 | ADR-0011 r. 5, ADR-0040, ADR-0042 |
 | [0047](ADR-0047-protocole-h2.md) | Horizon H2 : groupes G6, G5, G4 ajoutés dans cet ordre, demi-vie de la stabilité par validation interne, rodage, structures M6 et M7 ; test scellé H2 contre la procédure H1 du premier test ; pas de modèle final H2 | acceptée | 2026-10-31 | E.2, H.7, H.8, I.3, I.7 ; ADR-0012 r. 5, ADR-0037 |
+| [0048](ADR-0048-specification-modeles-h2.md) | Spécification des modèles H2 et des expériences de 6.7 : colonnes de G4 à G6 dans M3, demi-vie de G2 et cohésion choisies ensemble par validation interne, rodage compté, ablations dans l'ordre G6, G5, G4 avec chemin de décision écrit d'avance, variantes de stabilité en diagnostic | acceptée | 2026-11-01 | ADR-0037, ADR-0047 ; H.3 à H.8, I.3 |
 
 **Décisions encore ouvertes** :
 

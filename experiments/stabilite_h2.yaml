@@ -1,0 +1,40 @@
+# Variantes de la stabilité du onze, DIAGNOSTIC publié (partie 6, sous-étape 6.7 ; ADR-0047 D2, ADR-0048 ; rapport H.8).
+# Chaque variante de cohésion (G6 : recouvrement, une cohésion, nouveaux titulaires) s'ajoute à la base H1, et le
+# recouvrement seul sert de variante la plus simple. Rien ici ne choisit une variante : la demi-vie retenue pour le
+# modèle H2 se choisit par validation interne dans ablations_h2.yaml. La variante `reset` est vide au premier match
+# de chaque saison (n = 0, rapport H.4) : ces matchs sortent de l'intersection de TOUS les modèles de cette expérience
+# (nombre publié par pli).
+name: stabilite-h2
+dataset: ds-2026-11-01-e0defb32
+folds: [2021, 2022, 2023, 2024]
+population: top5
+seed: 20260930
+n_resamples: 10000
+models:
+  - {id: A2_G0G2, model: m3, params: {groups: [G0, G1, G2]}, grid: {half_life: [60, 120, 240]}}
+  - {id: V_h3, model: m3, params: {groups: [G0, G1, G2, G6], cohesion: h3}, grid: {half_life: [60, 120, 240]}}
+  - {id: V_h5, model: m3, params: {groups: [G0, G1, G2, G6], cohesion: h5}, grid: {half_life: [60, 120, 240]}}
+  - {id: V_h10, model: m3, params: {groups: [G0, G1, G2, G6], cohesion: h10}, grid: {half_life: [60, 120, 240]}}
+  - {id: V_h20, model: m3, params: {groups: [G0, G1, G2, G6], cohesion: h20}, grid: {half_life: [60, 120, 240]}}
+  - {id: V_hinf, model: m3, params: {groups: [G0, G1, G2, G6], cohesion: hinf}, grid: {half_life: [60, 120, 240]}}
+  - {id: V_reset, model: m3, params: {groups: [G0, G1, G2, G6], cohesion: reset}, grid: {half_life: [60, 120, 240]}}
+  - {id: V_win10, model: m3, params: {groups: [G0, G1, G2, G6], cohesion: win10}, grid: {half_life: [60, 120, 240]}}
+  - {id: V_overlap, model: m3, params: {groups: [G0, G1, G2, G6], cohesion: overlap_only}, grid: {half_life: [60, 120, 240]}}
+comparisons:
+  # chaque variante contre la base H1
+  - [A2_G0G2, V_h3]
+  - [A2_G0G2, V_h5]
+  - [A2_G0G2, V_h10]
+  - [A2_G0G2, V_h20]
+  - [A2_G0G2, V_hinf]
+  - [A2_G0G2, V_reset]
+  - [A2_G0G2, V_win10]
+  - [A2_G0G2, V_overlap]
+  # chaque variante de cohésion contre la plus simple (le recouvrement seul)
+  - [V_overlap, V_h3]
+  - [V_overlap, V_h5]
+  - [V_overlap, V_h10]
+  - [V_overlap, V_h20]
+  - [V_overlap, V_hinf]
+  - [V_overlap, V_reset]
+  - [V_overlap, V_win10]

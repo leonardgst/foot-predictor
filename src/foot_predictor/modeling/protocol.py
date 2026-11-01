@@ -151,6 +151,9 @@ class FitResult:
     params: dict
     excluded_train_rows: int
     inner_scores: list[dict] = field(default_factory=list)
+    run_in_rows: int = 0
+    """Lignes d'apprentissage écartées parce qu'elles précèdent le début d'apprentissage du modèle (rodage, D3)."""
+    first_training_season: int | None = None
 
 
 def select_and_fit(
@@ -160,16 +163,23 @@ def select_and_fit(
     fold: Fold,
     population: str,
     features: Iterable[str] = (),
+    first_season: int | None = None,
 ) -> FitResult:
     """Validation interne sur la dernière saison d'apprentissage, puis réajustement sur tout l'apprentissage.
 
     Garde-fou : aucune ligne de la saison de test n'entre dans le choix ni dans l'ajustement.
+
+    `first_season` : début d'apprentissage d'un modèle à variables d'historique court (rodage, ADR-0047
+    D3). Les lignes des saisons antérieures ne servent ni à la validation interne ni à l'ajustement ;
+    leur nombre est compté (`run_in_rows`). Sans lui, le comportement est celui de la partie 4.
     """
     features = list(features)
     grid = grid or [{}]
     inner_scores = []
     if len(grid) > 1:
-        inner_train, _ = usable(training_rows(data, fold.inner_train_seasons, population), features)
+        inner_train, _ = usable(
+            training_rows(data, _from(fold.inner_train_seasons, first_season), population), features
+        )
         valid = data[(data["season_year"] == fold.inner_valid_season) & data["eval_population"].astype(bool)]
         valid_x, _ = usable(valid, features)
         valid_x = complete_matches(valid_x)
@@ -185,9 +195,17 @@ def select_and_fit(
         best = min(inner_scores, key=lambda s: s["log_loss"])["params"]
     else:
         best = grid[0]
-    train, excluded = usable(training_rows(data, fold.train_seasons, population), features)
+    train, excluded = usable(training_rows(data, _from(fold.train_seasons, first_season), population), features)
     _guard(train, fold)
-    return FitResult(make(**best).fit(train), best, excluded, inner_scores)
+    run_in = len(training_rows(data, fold.train_seasons, population)) - len(
+        training_rows(data, _from(fold.train_seasons, first_season), population)
+    )
+    return FitResult(make(**best).fit(train), best, excluded, inner_scores, run_in, first_season)
+
+
+def _from(seasons: Iterable[int], first_season: int | None) -> list[int]:
+    """Saisons d'apprentissage à partir du début d'apprentissage du modèle (toutes, s'il n'en a pas)."""
+    return [s for s in seasons if first_season is None or s >= first_season]
 
 
 def _guard(rows: pd.DataFrame, fold: Fold) -> None:

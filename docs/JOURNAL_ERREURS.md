@@ -15,6 +15,16 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-066 — Rapports d'expérience de 700 Ko refusés par le hook des gros fichiers : un lancement de référence noté « arbre non propre » (2026-11-01)
+
+- **Contexte** : sous-étape 6.7, premier lancement de `ablations_h2.yaml` à 10 000 rééchantillonnages, juste après la mesure de durée.
+- **Message d'erreur** : `check for added large files......Failed` au commit de la mesure de durée (rapport JSON de 708 Ko, seuil par défaut de 500 Ko).
+- **Cause** : dix modèles et treize comparaisons font des rapports de 700 Ko, contre 270 Ko au plus pour ceux de la partie 4. Le commit refusé a laissé les fichiers de la mesure **indexés mais non committés** ; le lancement suivant a donc écrit `git.dirty: true` dans son rapport (`ablations-h2-20261101T123212`), alors que le code était celui du commit `402ffd0`.
+- **Solution** : seuil du hook porté à 1 Mo (`--maxkb=1024` dans `.pre-commit-config.yaml`, ce qui protège toujours contre des données ou des modèles ajoutés par erreur) ; les deux essais sont committés ; le lancement de référence est refait sur arbre propre (`ablations-h2-20261101T123436`, `dirty: false`). Les chiffres des deux lancements sont identiques (même graine). Le premier est conservé dans l'index, comme tout essai (ADR-0037).
+- **Fichiers concernés** : `.pre-commit-config.yaml`, `reports/experiments/`.
+- **Prévention** : après un commit refusé par un hook, vérifier `git status` avant de lancer une expérience dont le rapport note l'état de l'arbre.
+- **Test de non-régression** : aucun (configuration d'outil) ; le champ `git.dirty` des rapports est la trace.
+
 ## E-065 — `test_freeze` intermittent : le compteur `pytest-<n>` du dossier temporaire, vraie cause d'E-036 (2026-10-31)
 
 - **Contexte** : suite complète des tests pendant les corrections E-060 et E-061 (2026-10-31) ; un échec, puis 5 relances réussies.

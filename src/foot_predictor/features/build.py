@@ -48,6 +48,7 @@ def frozen_parameters(horizon: str = "H1") -> dict:
                 "half_lives_matches": [str(h) for h in lineup_stability.HALF_LIVES],
                 "new_starter_window_days": lineup_stability.NEW_STARTER_WINDOW_DAYS,
                 "new_starter_min_starts": lineup_stability.NEW_STARTER_MIN_STARTS,
+                "window_matches": lineup_stability.WINDOW_MATCHES,
             },
             "coach": {"tenure_cap_days": coach.TENURE_CAP_DAYS, "new_coach_matches": coach.NEW_COACH_MATCHES},
         }

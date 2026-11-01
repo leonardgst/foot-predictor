@@ -16,7 +16,8 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      - id: check-added-large-files   # données ou modèles ajoutés par erreur (500 Ko par défaut)
+      - id: check-added-large-files   # données ou modèles ajoutés par erreur (1 Mo ; les rapports d'expérience H2 font ~700 Ko)
+        args: [--maxkb=1024]
       - id: check-merge-conflict
       - id: check-yaml
       # Fins de ligne : signale un fichier qui mélange LF et CRLF, sans rien réécrire

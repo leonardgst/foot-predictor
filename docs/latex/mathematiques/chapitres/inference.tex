@@ -1,6 +1,7 @@
 % Chapitre « Inférence et disponibilité » (partie 5, sous-étape 5.11, jalons J7 et J8).
-% Sources : ADR-0009, ADR-0010, ADR-0011, ADR-0040 à ADR-0042, ADR-0044 à ADR-0046 ; code de
-% src/foot_predictor/inference/ (rows.py, models.py, availability.py, predict.py, live_sources.py)
+% Sources : ADR-0009, ADR-0010, ADR-0011, ADR-0040 à ADR-0042, ADR-0044 à ADR-0046, ADR-0051, ADR-0052 ;
+% code de src/foot_predictor/inference/ (rows.py, models.py, availability.py, predict.py, live_sources.py,
+% check.py, prospective.py)
 % et de src/foot_predictor/modeling/ (distributions.py, metrics.py). En cas d'écart, le code fait foi.
 
 \chapter{Inférence et disponibilité}
@@ -173,3 +174,84 @@ Chaque prédiction créée est écrite dans \code{ops.prediction} : match, modè
 couverture annoncée, variables utilisées et manquantes, statut, raisons, fraîcheur. La création est
 idempotente (une seconde demande renvoie la ligne existante). En live, une prédiction n'est acceptée
 qu'avant le coup d'envoi : c'est la condition de l'évaluation prospective de la saison 2026-27.
+
+% ---------------------------------------------------------------------------------------------
+\section{L'horizon H2 en rejeu}
+\label{sec:inference-h2}
+
+Pour l'horizon H2 (chapitre~\ref{chap:composition}), l'inférence garde la même règle : aucune formule
+propre, la fonction qui construit le jeu d'entraînement H2 est appelée sur l'historique arrêté à \(J\)
+(ADR-0051). Deux points changent.
+\begin{itemize}
+  \item \textbf{La composition du match cible} est réduite à ce que l'on sait à T-60 : son onze et son
+        entraîneur, sans ses minutes ni ses notes, qui n'existent qu'après le match. Les minutes, les
+        notes et les compositions des matchs \emph{passés} viennent de l'historique, strictement
+        antérieur à \(J\).
+  \item \textbf{Le modèle de rejeu H2} du pli \(S\) est appris par la procédure de \(M_{\mathrm{H2}}\)
+        (même fichier d'expérience que le test scellé), sur 2015-16 à \(S - 1\).
+\end{itemize}
+Contrôle sur 622 lignes (17 jours) : les lignes H2 de l'inférence sont identiques au bit près à celles du
+jeu d'entraînement H2, et le rejeu H2 reproduit l'évaluation sur 7\,135 matchs. En direct, il n'y a pas
+de composition après la fin de l'abonnement : la réponse est \og H2 indisponible \fg{}, avec sa raison,
+jamais une valeur de remplacement (ADR-0010, ADR-0051).
+
+% ---------------------------------------------------------------------------------------------
+\section{Rejeu des saisons scellées}
+\label{sec:inference-rejeu-scelle}
+
+Le rejeu des saisons 2025-26 et 2026-27 était fermé tant que les matchs scellés pouvaient servir à un
+second test (ADR-0045). Le test de H2 étant terminé, l'ADR-0052 l'ouvre sous trois règles.
+\begin{enumerate}
+  \item \textbf{La condition est lue dans le journal} du scellé, et non codée comme une date ou un
+        drapeau : le rejeu s'ouvre si, et seulement si, il porte la ligne \og évaluation terminée \fg{} du
+        test de H2. Les compositions des matchs scellés s'ouvrent de même, à l'inférence seulement.
+  \item \textbf{Le modèle est celui du test.} Le jeu de développement s'arrête avant le
+        1\textsuperscript{er} juillet 2025 : le pli de la saison \(S = 2025\), appris sur 2015-16 à 2024-25, est
+        exactement le modèle du test. La saison 2026-27 emploie le même, et aucun match scellé n'entre dans
+        un apprentissage.
+  \item \textbf{Le score réel est servi, pas les cotes.} La cote avant clôture d'un match scellé joué reste
+        fermée.
+\end{enumerate}
+
+\paragraph{Garde.} Pour qu'un changement de code ne modifie pas en silence le modèle testé, une commande
+compare, sur 7 jours de 2025-26 et de 2026-27 pour chaque horizon, les prédictions de rejeu à celles des
+rapports des tests (après contrôle de l'empreinte \code{sha256} de leurs fichiers). Avec \(\hat\lambda^{\mathrm{rejeu}}\)
+et \(\hat p^{\mathrm{rejeu}}_k\) les valeurs du rejeu et \(\hat\lambda^{\mathrm{test}}\), \(\hat p^{\mathrm{test}}_k\) celles du test,
+\[
+  \max\Big(\big|\hat\lambda^{\mathrm{rejeu}} - \hat\lambda^{\mathrm{test}}\big|,\;
+  \max_{k}\big|\hat p^{\mathrm{rejeu}}_k - \hat p^{\mathrm{test}}_k\big|\Big) \le 10^{-12}
+\]
+sur tous les matchs comparés. Résultat du 1\textsuperscript{er} novembre 2026 : écart maximal
+\(8{,}9 \times 10^{-16}\) pour H1 comme pour H2, aucun match du test sans prédiction de rejeu.
+
+% ---------------------------------------------------------------------------------------------
+\section{Évaluation du journal prospectif}
+\label{sec:inference-prospectif}
+
+Le journal prospectif est l'ensemble des prédictions live de l'horizon H1 écrites avant le coup d'envoi
+(\code{ops.prediction}). Son évaluation est un relevé \emph{descriptif} (ADR-0052), refait à chaque
+collecte de résultats.
+
+\paragraph{Traçage.} Une \emph{journée} est un jour de match avec au moins une prédiction tracée avant le
+coup d'envoi ; le critère de la version intermédiaire en demande au moins 8. Les prédictions écrites après
+le coup d'envoi, ou sans heure de coup d'envoi connue, seraient comptées et écartées.
+
+\paragraph{Mesures et référence.} Pour les matchs dont le résultat est connu (football-data, superposé en
+mémoire), le log-loss du total, le RPS, le Brier de \(P(T > 2{,}5)\), la couverture de \([q_{10} ; q_{90}]\)
+et la calibration. La référence est B1 de fenêtre 3, celle du test, recalculée pour chaque jour \(J\) de
+match sur l'historique connu \emph{avant} \(J\) : moyennes de buts domicile et extérieur du championnat sur
+les trois dernières saisons, la saison en cours comprise. Pour l'écart apparié
+\(d_m = \ell_{\mathrm{B1}}(m) - \ell_{\mathrm{modèle}}(m)\) (positif : le modèle fait mieux), l'intervalle
+vient d'un bootstrap dont les blocs sont les jours (10\,000 tirages, graine fixe), complété par la statistique
+de Diebold-Mariano à variance groupée par jour (chapitre~\ref{chap:modeles}).
+
+\paragraph{Règle de lecture, écrite avant tout résultat.} Aucune règle de décision, aucun modèle changé,
+réentraîné ou recalibré à partir du relevé ; aucune conclusion de performance avant 8 journées. Avec peu de
+jours, le bootstrap n'a que peu de blocs et l'intervalle est large : le relevé décrit, il ne tranche pas.
+
+\paragraph{Premier relevé (1\textsuperscript{er} novembre 2026).} 89 prédictions, toutes écrites avant le
+coup d'envoi, sur 7 journées ; 48 résultats connus, répartis sur 4 jours. Log-loss du total \(1{,}8752\), RPS
+\(0{,}1250\), Brier \(0{,}2380\), couverture de l'intervalle \(83{,}3~\%\) pour \(87{,}9~\%\) annoncés ;
+\(P(T > 2{,}5)\) prédite en moyenne à \(0{,}552\) et observée à \(0{,}458\). Écart à B1 :
+\(+0{,}0396\) \([+0{,}0027 ; +0{,}0700]\) (Diebold-Mariano \(p = 0{,}062\)), à lire avec les 4 blocs de
+jours : non conclusif.

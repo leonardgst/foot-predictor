@@ -1,0 +1,208 @@
+% Chapitre « Composition des équipes, horizon H2 » (partie 6, sous-étape 6.14, jalon J9).
+% Sources : ADR-0013, ADR-0047 à ADR-0052 ; code de src/foot_predictor/features/ (lineup_stability.py,
+% xi_quality.py, xi_quality_estimation.py, coach.py), de src/foot_predictor/modeling/ (design.py,
+% models/regularized.py, models/boosting.py). Les chiffres viennent de docs/resultats/ (h2_ablations.md,
+% h2_structures.md, test_scelle_h2.md), jeu ds-2026-11-01-e0defb32 pour la validation, 4 plis, 7 156 matchs.
+% En cas d'écart, le code et les ADR font foi.
+
+\chapter{Composition des équipes (horizon H2)}
+\label{chap:composition}
+
+L'horizon H1 s'arrête avant la publication des compositions. L'horizon H2 se place une heure avant le
+coup d'envoi (\og T-60 \fg{}) : le onze de départ de chaque équipe et son entraîneur sont connus. Ce chapitre
+décrit les trois groupes de variables que cela permet (G6 stabilité du onze, G5 qualité du onze, G4
+entraîneur), le modèle H2 qui en est issu et les résultats qui l'ont déterminé. H2 est un horizon de
+\emph{rejeu} : après la fin de l'abonnement à l'API, aucune composition n'arrive plus, et l'application
+répond \og indisponible \fg{} en direct (ADR-0010, ADR-0047).
+
+% ---------------------------------------------------------------------------------------------
+\section{Règle temporelle avec composition}
+\label{sec:composition-regle}
+
+Pour une équipe \(e\) au match \(m\) du jour \(J\), notons \(X_m \subset \mathcal{J}\) son onze annoncé
+(onze joueurs identifiés). Les variables de H2 sont des fonctions de \(X_m\), de l'entraîneur annoncé et
+de l'\emph{historique du club} \(\mathcal{K}_{e,<J}\) : ses matchs de championnat des échelles, terminés,
+d'un jour \emph{strictement antérieur} à \(J\), dont le onze est complet (onze titulaires identifiés, sans
+entrée exclue pour collision, ADR-0020). Le match \(m\) lui-même n'y figure jamais : sinon le recouvrement
+du onze avec lui-même vaudrait 1. Les calculs traversent les saisons, sans remise à zéro, et se limitent au
+club. Une valeur incalculable reste \emph{vide}, jamais remplacée. L'invariance à la date de coupe
+(section~\ref{sec:regle}) est vérifiée sur les 92 colonnes du jeu, au bit près.
+
+% ---------------------------------------------------------------------------------------------
+\section{Stabilité du onze (groupe G6)}
+\label{sec:g6}
+
+Soit \(\mathcal{K}_{e,<J} = (k_1, k_2, \dots)\) l'historique du club, du plus récent au plus ancien, et
+\(s_k = |X_m \cap X_k|\) le nombre de titulaires que le onze de \(m\) partage avec celui du match \(k\)
+(0 à 11).
+
+\paragraph{Recouvrement.} \code{xi\_overlap\_prev} \(= s_{k_1}\), avec le match précédent du club.
+
+\paragraph{Cohésion par paires.} Avec un poids \(w_r = 2^{-(r - 1)/h}\) pour le \(r\)-ième match en
+remontant (le précédent pèse 1) et une demi-vie \(h \in \{3, 5, 10, 20\}\) matchs (\(h = \infty\) : poids
+égaux),
+\[
+  \mathrm{coh}_h(m) = \frac{\sum_{r \ge 1} w_r\, \dfrac{s_{k_r}(s_{k_r} - 1)}{110}}{\sum_{r \ge 1} w_r}
+  \in [0, 1].
+\]
+Le dénominateur \(110 = 11 \times 10\) est le nombre de paires ordonnées de deux joueurs distincts d'un
+onze. L'expression est la somme, restreinte aux paires de \(X_m\), de la matrice \(C\) des fréquences
+pondérées avec lesquelles deux joueurs ont débuté ensemble. En effet, si \(x_m\) et \(x_k\) sont les
+vecteurs indicateurs des onze, le nombre de paires ordonnées \((i, j)\), \(i \ne j\), de \(X_m\) qui sont
+aussi toutes deux dans \(X_k\) vaut
+\[
+  \sum_{i \ne j} x_{m,i}\, x_{m,j}\, x_{k,i}\, x_{k,j}
+  = \Big(\sum_i x_{m,i} x_{k,i}\Big)^2 - \sum_i x_{m,i} x_{k,i}
+  = s_k^2 - s_k = s_k(s_k - 1).
+\]
+Cette égalité, vérifiée par un test sur des matrices construites explicitement, évite de construire la
+matrice : le calcul est linéaire en la taille de l'historique. Une cohésion de 1 veut dire que le onze a
+toujours joué ensemble. La décroissance se fait par \emph{rang} de match, et non en jours : la pause d'été
+ne fait pas vieillir l'historique.
+
+\paragraph{Nouveaux titulaires.} \code{xi\_new\_starters} est le nombre de joueurs de \(X_m\) qui ont moins
+de 3 titularisations de championnat dans le club sur les 365 jours précédents.
+
+\paragraph{Variantes de diagnostic.} La spécification d'origine remettait la cohésion à zéro à chaque saison
+(\code{xi\_cohesion\_reset}, vide au premier match) ; une autre prend les 10 derniers matchs à poids égaux
+(\code{xi\_cohesion\_win10}). Elles sont mesurées, jamais choisies sur les plis de test.
+
+% ---------------------------------------------------------------------------------------------
+\section{Qualité du onze (groupe G5)}
+\label{sec:g5}
+
+\paragraph{Note rétrécie d'un joueur.} Une apparition de \(w\) minutes (\(1 \le w \le 130\)) donne une note
+\(r\) (retenue entre 3 et 10, sinon l'apparition n'a pas de note). On modélise, pour un joueur \(j\) de poste
+\(p\),
+\[
+  r_{j,t} = \theta_j + \varepsilon_{j,t},
+  \qquad \operatorname{Var}(\varepsilon_{j,t}) = \frac{\sigma^2}{w_{j,t}},
+  \qquad \theta_j \sim (\mu_p, \tau^2).
+\]
+Pour un joueur de \(M\) minutes notées avant \(J\) et de moyenne pondérée par les minutes \(\bar r_j\), la
+meilleure prévision linéaire de \(\theta_j\) est la note \emph{rétrécie}
+\[
+  \tilde r_j = \frac{M\, \bar r_j + k\, \mu_p}{M + k},
+  \qquad k = \frac{\sigma^2}{\tau^2},
+\]
+où \(\mu_p\) est la moyenne, pondérée par les minutes, des notes antérieures à \(J\) au poste \(p\). Comme
+pour les moyennes glissantes (section~\ref{sec:glissants}), c'est une combinaison convexe : un joueur sans
+note antérieure vaut \(\mu_p\), et ces cas sont comptés (ADR-0013, règle 3 ; ADR-0047, D9). La constante
+\(k\), en minutes, est estimée \emph{une seule fois} par la méthode des moments (analyse de variance
+déséquilibrée), sur 2015-16 à 2019-20 seulement, donc dans l'apprentissage de tous les plis :
+\(\hat\sigma^2 \approx 20{,}6\), \(\hat\tau^2 \approx 0{,}027\), \(k = 772{,}6\) minutes (9\,001 joueurs,
+446\,381 apparitions). Environ neuf matchs complets suffisent donc à donner autant de poids à la moyenne
+du joueur qu'à celle de son poste. Le poste est celui de la composition annoncée, à défaut le dernier
+connu ; le poste d'un match passé ne vient jamais des statistiques de ce match pour rétrécir.
+
+\paragraph{Les trois variables.} Pour l'équipe :
+\begin{itemize}
+  \item \code{xi\_quality} \(= \frac{1}{11}\sum_{j \in X_m} \tilde r_j\) ;
+  \item \code{xi\_regulars\_missing} \(= |\mathcal{R} \setminus X_m| \,/\, |\mathcal{R}|\), où
+        \(\mathcal{R}\) est l'ensemble des \emph{habituels} du club : les joueurs titulaires d'au moins 5 des
+        10 derniers matchs de l'historique (vide avec moins de 10 matchs ou sans habituel). Un départ compte
+        comme une absence tant que le joueur reste dans la fenêtre ;
+  \item \code{xi\_mean\_age} : âge moyen des titulaires en années au jour de \(m\), vide si une date de
+        naissance manque.
+\end{itemize}
+Les habituels absents sont corrélés à \(-0{,}85\) avec la cohésion de G6, et \code{xi\_quality} à \(0{,}83\) avec
+l'Elo : à Elo donné, la corrélation tombe à \(0{,}07\). La qualité du onze en grande partie \emph{redit} la
+force de l'équipe, d'où un gain attendu petit.
+
+% ---------------------------------------------------------------------------------------------
+\section{Entraîneur (groupe G4)}
+\label{sec:g4}
+
+La \emph{période en cours} d'un entraîneur \(c\) est la suite ininterrompue des derniers matchs de
+l'historique du club dirigés par \(c\) ; elle est vide si le dernier match avait un autre entraîneur (\(c\)
+arrive) ou si l'entraîneur est inconnu. Alors \code{coach\_tenure\_days} est le nombre de jours entre le premier
+match de la période et \(J\), plafonné à 365 (0 pour un entraîneur qui arrive), et \code{coach\_is\_new}
+vaut 1 si la période compte moins de 5 matchs. L'API ne donne l'entraîneur qu'à partir de 2016-17 : un
+entraîneur déjà en poste en août 2016 paraît arrivé à cette date (\emph{censure à gauche}, 19,5~\% de \og
+nouveaux \fg{} contre 10~\% ensuite), d'où un apprentissage de G4 à partir de 2017-18 (ADR-0047, D3).
+
+% ---------------------------------------------------------------------------------------------
+\section{Le modèle H2}
+\label{sec:modele-h2}
+
+Le modèle H2 garde la structure M3 (section~\ref{sec:m3}) et ajoute au prédicteur linéaire les variables
+du groupe retenu, pour l'équipe \(e\) et pour son adversaire, standardisées sur l'apprentissage du pli. Avec
+\(g_e = (\code{xi\_quality}, \code{xi\_regulars\_missing}, \code{xi\_mean\_age})\) de l'équipe,
+\[
+  \log \lambda_{m,e} = \underbrace{\beta_0 + \beta_{\mathrm{ch}(m)} + \cdots + \sum_{j=1}^{8} \gamma_j\,
+  \widetilde{\log g_j}}_{\text{modèle H1 (section~\ref{sec:retenu})}}
+  + \delta^\top \tilde g_e + \delta'^\top \tilde g_{\mathrm{adv}(e)},
+  \qquad Y_{m,e} \sim \mathcal{P}(\lambda_{m,e}),
+\]
+soit six coefficients de plus. Comme les notes de 2015-16 n'ont pas d'historique pour rétrécir
+(\emph{rodage}, ADR-0047, D3), l'apprentissage de G5 commence en 2016-17, et les lignes de 2015-16 sont
+comptées, non utilisées. Les lignes dont une variable manque sont exclues et comptées (0,46~\% des lignes
+des plis), jamais remplies. Les comparaisons portent sur l'intersection des matchs.
+
+% ---------------------------------------------------------------------------------------------
+\section{Décisions de la validation glissante}
+\label{sec:h2-decisions}
+
+La règle de décision de l'ADR-0037 s'applique \emph{mécaniquement}, dans l'ordre G6, G5, G4 (chaque
+groupe s'ajoutant au modèle retenu juste avant lui), sur la spécification écrite avant toute mesure
+(ADR-0048). Gain de log-loss du total sur 7\,156 matchs (positif : le groupe aide) :
+
+\begin{center}
+\begin{tabular}{llccl}
+\toprule
+Étape & Comparaison & Gain [IC 95~\%] & Plis gagnés & Verdict \\
+\midrule
+1 & base H1 \(\to\) + G6 & \(+0{,}00035\) \([-0{,}00022 ; +0{,}00091]\) & 3/4 & non retenu \\
+2 & base H1 \(\to\) + G5 & \(+0{,}00078\) \([+0{,}00003 ; +0{,}00151]\) & 4/4 & \textbf{retenu} \\
+3 & G5 \(\to\) + G4 & \(-0{,}00090\) \([-0{,}00158 ; -0{,}00022]\) & 1/4 & non retenu \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Le modèle H2 est donc M3 sur G0, G1, G2 et G5. Le gain de G5 est minuscule (0,04~\% du log-loss) et passe
+la règle de justesse : sa borne basse est à \(+0{,}00003\) (Diebold-Mariano \(p = 0{,}040\)). À fenêtre
+d'apprentissage égale (dès 2016-17), il vaut \(+0{,}00061\) \([-0{,}00010 ; +0{,}00130]\) : une partie du gain
+tient à la fenêtre. Il se concentre aux journées 1 à 5 (\(+0{,}0021\) \([+0{,}0002 ; +0{,}0041]\)), quand les
+moyennes glissantes sont encore peu informatives. La stabilité (G6) est \emph{abandonnée} pour H2 : aucune
+des huit variantes (cohésion à demi-vie 3, 5, 10, 20 matchs ou infinie, remise à zéro par saison, fenêtre de
+10 matchs, recouvrement seul) ne se distingue de la base.
+
+\paragraph{Structures (ADR-0049).} Avec les mêmes variables, le ridge (M6, chapitre~\ref{chap:modeles})
+ne remplace pas M3 (\(+0{,}00014\), \([-0{,}00044 ; +0{,}00072]\), 3 plis sur 4). Le boosting à perte de
+Poisson (M7), \code{HistGradientBoostingRegressor(loss="poisson")}, minimise la déviance de Poisson
+\(2\sum_i [y_i \log(y_i/\lambda_i) - (y_i - \lambda_i)]\) sur un ensemble d'arbres de profondeur 2 à 4, et
+perd significativement (\(-0{,}00235\), \([-0{,}00444 ; -0{,}00025]\), 0 pli sur 4) : sur un signal aussi
+petit, une structure flexible ajuste du bruit. La structure reste M3.
+
+% ---------------------------------------------------------------------------------------------
+\section{Test scellé de l'horizon H2}
+\label{sec:test-scelle-h2}
+
+Les mêmes 2\,092 matchs scellés que pour H1 (du 1\textsuperscript{er} juillet 2025 au 18 octobre 2026) sont
+utilisés une dernière fois (ADR-0047, ADR-0050) : apprentissage sur 2015-16 à 2024-25 (G5 dès 2016-17),
+hyperparamètres par validation interne, réajustement, une seule évaluation. La liste, figée avant le test
+(tag \code{pre-scelle-h2}), compare \(M_{\mathrm{H1}}\) (M3 sur G0, G1, G2) à \(M_{\mathrm{H2}}\) (M3 sur
+G0, G1, G2, G5). Avant l'évaluation, les 68 colonnes H1 du jeu scellé de H2 ont été vérifiées
+\emph{identiques au bit près} à celles du jeu du premier test. 169 matchs n'ont pas de valeur de G5
+(surtout l'âge moyen, faute de date de naissance) et sont écartés : \(1\,923\) matchs sont évalués.
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+Modèle & Log-loss & RPS & Brier \(P(T > 2{,}5)\) & Pente de calibration \\
+\midrule
+\(M_{\mathrm{H1}}\) & 1,8741 & 0,1270 & 0,2419 & 0,97 \\
+\(M_{\mathrm{H2}}\) & 1,8728 & 0,1268 & 0,2415 & 0,99 \\
+B1 & 1,8905 & 0,1290 & 0,2457 & 0,93 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La comparaison de décision, \(M_{\mathrm{H1}} - M_{\mathrm{H2}}\) en log-loss du total, vaut
+\(+0{,}00129\) \([-0{,}00035 ; +0{,}00289]\) (Diebold-Mariano \(p = 0{,}12\)) : même signe et même ordre de
+grandeur que la validation glissante, \emph{non significatif}. C'est le résultat attendu : l'ADR-0047
+estimait qu'un gain inférieur à environ \(0{,}007\) ne se distinguerait probablement pas de zéro sur ces
+matchs, et celui de G5 en est près de neuf fois plus petit. Ce résultat ne retire donc pas G5, et ne le
+confirme pas au sens statistique ; la conclusion principale reste celle de la validation glissante. Le
+modèle H2 bat B1 de \(+0{,}0177\) \([+0{,}0089 ; +0{,}0268]\). Les prédictions de \(M_{\mathrm{H1}}\) sont
+identiques au bit près à celles de la relance du test de H1.

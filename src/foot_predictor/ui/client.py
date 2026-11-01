@@ -73,18 +73,28 @@ class ApiClient:
     def competitions(self) -> list[dict]:
         return self._request("GET", "/competitions")
 
-    def matches(self, date: dt.date, mode: str, competitions: list[int] | None = None) -> list[dict]:
+    def matches(
+        self, date: dt.date, mode: str, competitions: list[int] | None = None, horizon: str = "H1"
+    ) -> list[dict]:
         params: dict = {"date": date.isoformat(), "mode": mode}
+        if horizon != "H1":
+            params["horizon"] = horizon
         if competitions:
             params["competition"] = competitions
         return self._request("GET", "/matches", params=params)
 
-    def availability(self, match_id: int, mode: str) -> dict:
-        return self._request("GET", f"/matches/{int(match_id)}/availability", params={"mode": mode})
+    def availability(self, match_id: int, mode: str, horizon: str = "H1") -> dict:
+        params = {"mode": mode} | ({} if horizon == "H1" else {"horizon": horizon})
+        return self._request("GET", f"/matches/{int(match_id)}/availability", params=params)
 
-    def predict(self, match_id: int, mode: str) -> dict:
+    def predict(self, match_id: int, mode: str, horizon: str = "H1") -> dict:
         """Crée la prédiction (201) ou renvoie celle déjà tracée (200) : la création est idempotente."""
-        return self._request("POST", f"/matches/{int(match_id)}/predictions", params={"mode": mode})
+        params = {"mode": mode} | ({} if horizon == "H1" else {"horizon": horizon})
+        return self._request("POST", f"/matches/{int(match_id)}/predictions", params=params)
+
+    def h2_contribution(self) -> dict:
+        """Apport mesuré des groupes de variables H2 et des structures, lu par l'API dans les rapports."""
+        return self._request("GET", "/models/h2/contribution")
 
     def active_model(self) -> dict:
         return self._request("GET", "/models/active")

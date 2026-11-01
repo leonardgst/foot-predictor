@@ -56,15 +56,19 @@ def test_prediction_button_opens_the_detail_screen(api):
     at = start()
     at.button(key="predict_1").click().run()
     assert not at.exception and at.session_state.screen == "Détail"
-    metrics = {m.label: m.value for m in at.metric}
+    h1, h2 = at.metric[:4], at.metric[4:]  # H1 à gauche, H2 à droite
+    metrics = {m.label: m.value for m in h1}
     assert metrics["E[T] (buts attendus)"] == "2,73" and metrics["P(T > 2,5)"] == "55,0 %"
     assert metrics["λ domicile"] == "1,62" and metrics["λ extérieur"] == "1,11"
+    assert [m.value for m in h2] == ["2,75", "57,0 %", "1,70", "1,05"]
     page = texts(at)
     assert "[1 ; 4] buts, couverture annoncée 77,0 %" in page
     assert "Score réel (rejeu) : 2 – 1 (total 3)" in page
     assert "Référence de marché" in page and "52,0 %" in page
     assert "rejeu-2023-essai" in page and "créée maintenant" in page
     assert any(call[0] == "POST" for call in api.calls)
+    posts = [call[2] for call in api.calls if call[0] == "POST"]
+    assert {p.get("horizon", "H1") for p in posts} == {"H1", "H2"}  # les deux horizons, côte à côte
 
 
 def test_variables_button_shows_the_missing_variable_without_prediction(api):
@@ -75,6 +79,7 @@ def test_variables_button_shows_the_missing_variable_without_prediction(api):
     page = texts(at)
     assert "1 présentes, 1 manquantes ou périmées" in page and "730 jours" in page
     assert all(call[0] == "GET" for call in api.calls)
+    assert any(call[2].get("horizon") == "H2" for call in api.calls)  # H2 demandé aussi, indisponible de même
 
 
 def test_sealed_date_in_live_mode_is_a_readable_error(api, monkeypatch):
@@ -133,3 +138,57 @@ def test_the_interface_imports_neither_the_database_nor_the_business_logic():
                 else:
                     assert root in allowed_third_party or root in {"__future__", "datetime", "os", "pathlib",
                                                                    "dataclasses"}, f"{path.name} importe {name}"  # fmt: skip
+
+
+def titles(at: AppTest) -> list[str]:
+    return [s.value for s in at.subheader]
+
+
+def test_detail_shows_h1_and_h2_side_by_side_with_what_the_composition_changes(api):
+    at = start()
+    at.button(key="predict_1").click().run()
+    assert not at.exception
+    assert "H1 · sans composition" in titles(at) and "H2 · avec composition" in titles(at)
+    assert "Ce que la composition change" in titles(at)
+    difference = next(df.value for df in at.dataframe if "Écart H2 − H1" in df.value.columns)
+    assert list(difference["Grandeur"]) == ["E[T] (buts attendus)", "λ domicile", "λ extérieur", "P(T > 2,5)"]
+    assert list(difference["Écart H2 − H1"]) == ["+0,02", "+0,08", "-0,06", "+2,0 points"]
+    composition = next(
+        df.value for df in at.dataframe if list(df.value.columns) == ["Variable", "Domicile", "Extérieur"]
+    )
+    quality = composition[composition["Variable"].str.startswith("Qualité")].iloc[0]
+    assert quality["Domicile"] == "7,125" and quality["Extérieur"] == "6,980"
+    regulars = composition[composition["Variable"].str.startswith("Part")].iloc[0]
+    assert regulars["Extérieur"] == "manquante"  # jamais une valeur de remplacement
+    assert "moins de 0,1 %" in texts(at)
+
+
+def test_live_h2_shows_its_reason_and_no_prediction(api):
+    at = start(day=None)
+    at.radio(key="mode_label").set_value("Live").run()
+    at.date_input(key="date_live").set_value(dt.date.fromisoformat(DAY)).run()
+    at.button(key="predict_1").click().run()
+    assert not at.exception and at.session_state.screen == "Détail"
+    page = texts(at)
+    assert "non disponible en live (ADR-0010)" in page
+    assert len(at.metric) == 4  # H1 seulement
+    assert "Ce que la composition change" not in titles(at)
+
+
+def test_an_error_common_to_both_horizons_is_shown_once(api):
+    at = start(day=None)
+    at.radio(key="mode_label").set_value("Live").run()
+    at.date_input(key="date_live").set_value(dt.date.fromisoformat("2025-08-16")).run()
+    assert len(at.error) == 1  # l'erreur de date n'est pas dupliquée pour H2
+
+
+def test_contribution_screen_shows_the_decision_path_and_the_cautions(api):
+    at = start(day=None)
+    at.sidebar.radio(key="screen").set_value("Apport des variables").run()
+    assert not at.exception
+    page = texts(at)
+    assert "ds-essai-h2" in page and "Le gain de G5 est minuscule." in page
+    steps = next(df.value for df in at.dataframe if "Verdict" in df.value.columns)
+    assert list(steps["Verdict"]) == ["non retenu", "retenu", "non retenu"]
+    assert steps["Gain de log-loss [IC 95 %]"].iloc[1] == "+0,00078 [+0,00003 ; +0,00151]"
+    assert ("GET", "/models/h2/contribution", {}) in api.calls

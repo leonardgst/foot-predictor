@@ -32,7 +32,8 @@ from foot_predictor.inference.context import last_load_run, names, staging_fresh
 from foot_predictor.inference.predict import InferenceContext
 from foot_predictor.ingestion.pipeline import run_load
 from foot_predictor.ui import client as ui_client
-from tests.modeling.synthetic import realistic_rows
+from tests.features.test_dataset_h2 import synthetic_compositions
+from tests.modeling.synthetic import realistic_rows, with_composition
 from tests.quality.test_raw_check import FLAGS, RawBuilder, listing_of, synthetic
 from tests.ui.test_app import APP
 
@@ -119,11 +120,12 @@ def test_replay_end_to_end_from_raw_files_to_the_interface(loaded, tmp_path, mon
     table = load_matches(engine)
     run_id, finished = last_load_run(engine)
     teams, competitions = names(engine)
+    training = realistic_rows(seasons=range(2015, 2024), leagues=(39, 140), teams_per_league=10, rounds=10)
     context = InferenceContext(
         matches=table, data_version=f"load_run-{run_id}", freshness=staging_freshness(table, finished),
-        team_names=teams, competition_names=competitions,
-        dataset=realistic_rows(seasons=range(2015, 2024), leagues=(39, 140), teams_per_league=10, rounds=10),
+        team_names=teams, competition_names=competitions, dataset=training, dataset_h2=with_composition(training),
         today=dt.date(2026, 10, 4), sealed_log=tmp_path / "journal.md", replay_root=tmp_path / "rejeu",
+        h2_loader=lambda: synthetic_compositions(table),  # voir plus bas
     )  # fmt: skip
     api = TestClient(create_app(ContextProvider(lambda: context, lambda: context.data_version),
                                 sessions=lambda: Session(engine)))  # fmt: skip
@@ -152,15 +154,26 @@ def test_replay_end_to_end_from_raw_files_to_the_interface(loaded, tmp_path, mon
     assert {"E[T] (buts attendus)", "λ domicile", "λ extérieur", "P(T > 2,5)"} <= set(metrics)
     page = "\n".join([m.value for m in ui.markdown] + [i.value for i in ui.info] + [c.value for c in ui.caption])
     assert "couverture annoncée" in page and "Score réel (rejeu)" in page and "rejeu-2023-m3_g0g2" in page
+    # H2 est demandé aussi, côte à côte (6.10). Les bruts de cette mini-ligue n'ont pas de compositions identifiées :
+    # elles sont fournies par `synthetic_compositions`, et le reste de la chaîne est le vrai (porte des matchs,
+    # `build_frame_h2` sur l'historique tronqué, modèle H2 du pli, API, interface). Les compositions réelles sont
+    # contrôlées par `inference check --only rows-h2`.
+    assert "H2 · avec composition" in [s.value for s in ui.subheader]
+    assert len(ui.metric) == 8  # H1 et H2 : quatre grandeurs chacun
+    h2 = api.get(f"/matches/{target}/availability", params={"horizon": "H2"}).json()
+    assert h2["horizon"] == "H2" and h2["status"] == AVAILABLE and h2["model_version"] == "rejeu-2023-m3_h2"
+    assert "xi_quality" in {v["variable"] for v in h2["variables"]}
 
-    # 5. Traçabilité : une ligne de ops.prediction, mode rejeu, loi du total complète.
+    # 5. Traçabilité : une ligne de ops.prediction par horizon (le clic trace H1 et H2), mode rejeu, loi complète.
     with engine.connect() as connection:
         rows = connection.execute(
-            text("SELECT mode, status, model_version, total_distribution, api_fixture_id FROM ops.prediction "
-                 "WHERE match_id = :m"),
+            text("SELECT mode, status, model_version, horizon, total_distribution, api_fixture_id FROM ops.prediction "
+                 "WHERE match_id = :m ORDER BY horizon"),
             {"m": target},
         ).mappings().all()  # fmt: skip
-    assert len(rows) == 1 and rows[0]["mode"] == "replay" and rows[0]["status"] == AVAILABLE
-    assert abs(sum(rows[0]["total_distribution"].values()) - 1) < 1e-9
+    assert [r["horizon"] for r in rows] == ["H1", "H2"] and {r["mode"] for r in rows} == {"replay"}
+    assert [r["model_version"] for r in rows] == ["rejeu-2023-m3_g0g2", "rejeu-2023-m3_h2"]
+    assert {r["status"] for r in rows} == {AVAILABLE}
+    assert all(abs(sum(r["total_distribution"].values()) - 1) < 1e-9 for r in rows)
     fixture = table.loc[table["match_id"] == target, "api_fixture_id"].item()  # E-058 : identifiant API recopié
-    assert pd.notna(fixture) and rows[0]["api_fixture_id"] == int(fixture)
+    assert pd.notna(fixture) and {r["api_fixture_id"] for r in rows} == {int(fixture)}

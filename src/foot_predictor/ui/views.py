@@ -29,7 +29,7 @@ STATUS_LEGEND = {
     "unavailable": "au moins une variable requise est manquante ou périmée : aucune prédiction",
     "out_of_scope": "D2, coupe, barrage ou autre championnat : le modèle H1 ne couvre que le top 5",
     "excluded": "match annulé, abandonné ou sur tapis vert (ADR-0009)",
-    "h2_unavailable": "horizon H2 (avec composition) : pas avant la partie 6",
+    "h2_unavailable": "horizon H2 (avec composition) demandé en live : les compositions ne sont plus fournies",
 }
 VARIABLE_BADGES = {"presente": "🟢 présente", "manquante": "🔴 manquante", "perimee": "🟠 périmée"}
 SIDES = {"domicile": "domicile", "exterieur": "extérieur"}
@@ -162,6 +162,102 @@ def actual_score_text(answer: dict) -> str | None:
     return text
 
 
+XI_VARIABLES = {
+    "xi_quality": "Qualité du onze (note rétrécie)",
+    "xi_regulars_missing": "Part des habituels absents",
+    "xi_mean_age": "Âge moyen du onze (ans)",
+}
+"""Variables de G5 que la page « Détail » montre pour les deux équipes (les seules qui changent la prédiction de H2)."""
+
+
+def h2_difference_frame(h1: dict, h2: dict) -> pd.DataFrame:
+    """Ce que la composition change : H1, H2 et leur écart, pour E[T], λ et P(T > 2,5). Les deux réponses ont une
+    prédiction ; l'écart est H2 − H1 (positif : H2 attend plus de buts)."""
+    first, second = h1["prediction"], h2["prediction"]
+    rows = []
+    for label, key, as_percent in (
+        ("E[T] (buts attendus)", "expected_total", False),
+        ("λ domicile", "lambda_home", False),
+        ("λ extérieur", "lambda_away", False),
+        ("P(T > 2,5)", "p_over_2_5", True),
+    ):
+        a, b = first[key], second[key]
+        if as_percent:
+            rows.append({"Grandeur": label, "H1": percent(a), "H2": percent(b),
+                         "Écart H2 − H1": f"{100 * (b - a):+.1f} points".replace(".", ",")})  # fmt: skip
+        else:
+            rows.append({"Grandeur": label, "H1": number(a), "H2": number(b),
+                         "Écart H2 − H1": f"{b - a:+.2f}".replace(".", ",")})  # fmt: skip
+    return pd.DataFrame(rows, columns=["Grandeur", "H1", "H2", "Écart H2 − H1"])
+
+
+def composition_frame(variables: list[dict]) -> pd.DataFrame:
+    """Valeurs de G5 des deux équipes, telles que le modèle H2 les a lues (vide : variable manquante)."""
+    values = {(v["variable"], v["side"]): v for v in variables}
+    rows = []
+    for name, label in XI_VARIABLES.items():
+        row = {"Variable": label}
+        for side, title in (("domicile", "Domicile"), ("exterieur", "Extérieur")):
+            found = values.get((name, side))
+            if found is None:
+                row[title] = ""
+            elif found.get("value") is None:
+                row[title] = "manquante"
+            else:
+                row[title] = number(float(found["value"]), 3)
+        rows.append(row)
+    return pd.DataFrame(rows, columns=["Variable", "Domicile", "Extérieur"])
+
+
+def gain_text(item: dict) -> str:
+    """« +0,00078 [+0,00003 ; +0,00151] » : écart de log-loss et son intervalle à 95 %."""
+
+    def signed(x: float) -> str:
+        return f"{x:+.5f}".replace(".", ",").replace("-", "−")
+
+    return f"{signed(item['gain'])} [{signed(item['low'])} ; {signed(item['high'])}]"
+
+
+def contribution_steps_frame(contribution: dict) -> pd.DataFrame:
+    rows = [
+        {
+            "Étape": step["step"],
+            "Groupe": f"{step['group']} · {step['label']}",
+            "Ajouté à": step["added_to"],
+            "Gain de log-loss [IC 95 %]": gain_text(step),
+            "Plis gagnés": f"{step['folds_won']} sur {step['folds']}",
+            "Verdict": "retenu" if step["retained"] else "non retenu",
+        }
+        for step in contribution["steps"]
+    ]
+    return pd.DataFrame(
+        rows, columns=["Étape", "Groupe", "Ajouté à", "Gain de log-loss [IC 95 %]", "Plis gagnés", "Verdict"]
+    )
+
+
+def contribution_other_frame(items: list[dict], decisions: bool = False) -> pd.DataFrame:
+    """Diagnostics et structures : un libellé, le gain avec son intervalle, les plis gagnés."""
+    rows = []
+    for item in items:
+        row = {"Comparaison": item["label"], "Gain de log-loss [IC 95 %]": gain_text(item),
+               "Plis gagnés": f"{item['folds_won']} sur {item['folds']}"}  # fmt: skip
+        if decisions:
+            row["Remplace M3"] = "oui" if item["replaces"] else "non"
+        rows.append(row)
+    columns = ["Comparaison", "Gain de log-loss [IC 95 %]", "Plis gagnés"] + (["Remplace M3"] if decisions else [])
+    return pd.DataFrame(rows, columns=columns)
+
+
+def contribution_rounds_frame(rounds: list[dict]) -> pd.DataFrame:
+    rows = [
+        {"Journées": r["rounds"], "Matchs": r["n"], "Gain de G5 [IC 95 %]": gain_text(
+            {"gain": r["mean"], "low": r["low"], "high": r["high"]}
+        ), "Intervalle sans 0": "oui" if r["excludes_zero"] else "non"}
+        for r in rounds
+    ]  # fmt: skip
+    return pd.DataFrame(rows, columns=["Journées", "Matchs", "Gain de G5 [IC 95 %]", "Intervalle sans 0"])
+
+
 def problem_title(status: int | None) -> str:
     """Titre lisible d'une erreur de l'API (le message détaillé de l'API suit)."""
     return {
@@ -170,7 +266,6 @@ def problem_title(status: int | None) -> str:
         404: "Match inconnu",
         409: "Prédiction impossible : match indisponible",
         422: "Requête invalide",
-        501: "Non disponible avant la partie 6",
         503: "Modèle actif indisponible",
     }.get(status, f"Erreur de l'API (HTTP {status})")
 

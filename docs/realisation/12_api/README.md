@@ -17,10 +17,11 @@ Liaison **locale seulement** : `--host` n'accepte que `127.0.0.1` ou `localhost`
 |---|---|---|
 | `GET /health` | vivacité, base, modèle actif | 200 (`ok` ou `degraded`, jamais une erreur) |
 | `GET /competitions` | championnats présents ; `in_model_scope` vrai pour le top 5 | 200 |
-| `GET /matches?date=AAAA-MM-JJ&mode=replay\|live&competition=<id>` | matchs du jour avec leur statut de disponibilité et leurs raisons | 200 ; 403 date refusée ; 422 paramètre invalide |
-| `GET /matches/{id}/availability?horizon=H1&mode=replay` | détail par variable et par équipe | 200 ; 403 ; 404 ; 501 (H2) |
-| `POST /matches/{id}/predictions?horizon=H1&mode=replay&force=false` | calcule et trace dans `ops.prediction` | **201** créée ; **200** déjà tracée (renvoyée) ; 403 ; 404 ; **409** indisponible (raisons) ou live après le coup d'envoi ; 501 |
+| `GET /matches?date=AAAA-MM-JJ&mode=replay\|live&competition=<id>&horizon=H1\|H2` | matchs du jour avec leur statut de disponibilité et leurs raisons ; `horizon=H2` : avec la composition (rejeu seulement, 6.10) | 200 ; 403 date refusée ; 422 paramètre invalide |
+| `GET /matches/{id}/availability?horizon=H1&mode=replay` | détail par variable et par équipe | 200 ; 403 ; 404 (H2 en live : 200, statut `h2_unavailable` et sa raison) |
+| `POST /matches/{id}/predictions?horizon=H1&mode=replay&force=false` | calcule et trace dans `ops.prediction` | **201** créée ; **200** déjà tracée (renvoyée) ; 403 ; 404 ; **409** indisponible (raisons) ou live après le coup d'envoi, ou H2 en live |
 | `GET /models/active` | carte d'identité du modèle actif (sans chemin de fichier) | 200 ; 503 modèle absent |
+| `GET /models/h2/contribution` | apport mesuré des groupes de variables H2 (chemin de décision, diagnostics, structures, gain de G5 par tranche de journées), lu dans les rapports d'expériences (6.10, ADR-0051) | 200 ; 503 rapport absent |
 | `GET /data/freshness` | dernière mise à jour de chaque source ; en live, une ligne par championnat du top 5 (complet jusqu'au…) | 200 |
 
 Toutes les erreurs ont le même corps : `{"detail": "…", "reasons": ["…"]}`.
@@ -58,7 +59,7 @@ Le contexte d'inférence (table des matchs, noms, cotes, jeu versionné) est con
 
 ## Tests
 
-`tests/api/test_app.py` (`TestClient`, contexte synthétique) : compétitions et périmètre, résumé d'une journée, 403 (scellé, saison fermée), 422, 404, 501 (H2), 409 (indisponible, hors périmètre), carte sans chemin et 503, fraîcheur, documentation OpenAPI, refus d'une adresse non locale ; en base (`db`) : 201, puis 200 (idempotence), puis 201 avec `force`.
+`tests/api/test_app.py` (`TestClient`, contexte synthétique) : compétitions et périmètre, résumé d'une journée, 403 (scellé, saison fermée), 422, 404, 409 (indisponible, hors périmètre), carte sans chemin et 503, fraîcheur, documentation OpenAPI, refus d'une adresse non locale ; en base (`db`) : 201, puis 200 (idempotence), puis 201 avec `force`.
 
 ## Limites connues
 

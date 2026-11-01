@@ -1,0 +1,83 @@
+{
+  "horizon": "H1",
+  "reference": "scelle-h1-20261022T120542 (M3_G0G2)",
+  "reference_found": true,
+  "sha256": "14b103d3292cef4b3055034b8aea88a368f0b37b99fd77e66c9c1f2cdd560e44",
+  "sha256_expected": "14b103d3292cef4b3055034b8aea88a368f0b37b99fd77e66c9c1f2cdd560e44",
+  "sha256_ok": true,
+  "tolerance": 1e-12,
+  "days": [
+    {
+      "day": "2025-08-15",
+      "reason": "premier jour de 2025-26",
+      "matches": 32,
+      "predicted": 4,
+      "in_test": 4,
+      "compared": 4,
+      "test_without_replay": 0,
+      "max_abs_gap": 5.551115123125783e-16
+    },
+    {
+      "day": "2026-01-13",
+      "reason": "milieu de 2025-26",
+      "matches": 9,
+      "predicted": 3,
+      "in_test": 3,
+      "compared": 3,
+      "test_without_replay": 0,
+      "max_abs_gap": 0.0
+    },
+    {
+      "day": "2026-05-24",
+      "reason": "dernier jour du test dans 2025-26",
+      "matches": 50,
+      "predicted": 18,
+      "in_test": 18,
+      "compared": 18,
+      "test_without_replay": 0,
+      "max_abs_gap": 2.220446049250313e-16
+    },
+    {
+      "day": "2026-05-17",
+      "reason": "jour le plus chargé de 2025-26",
+      "matches": 94,
+      "predicted": 34,
+      "in_test": 34,
+      "compared": 34,
+      "test_without_replay": 0,
+      "max_abs_gap": 4.440892098500626e-16
+    },
+    {
+      "day": "2026-08-15",
+      "reason": "premier jour de 2026-27",
+      "matches": 51,
+      "predicted": 2,
+      "in_test": 2,
+      "compared": 2,
+      "test_without_replay": 0,
+      "max_abs_gap": 2.220446049250313e-16
+    },
+    {
+      "day": "2026-10-18",
+      "reason": "dernier jour du test dans 2026-27",
+      "matches": 63,
+      "predicted": 19,
+      "in_test": 19,
+      "compared": 19,
+      "test_without_replay": 0,
+      "max_abs_gap": 2.220446049250313e-16
+    },
+    {
+      "day": "2026-09-12",
+      "reason": "jour le plus chargé de 2026-27",
+      "matches": 88,
+      "predicted": 25,
+      "in_test": 25,
+      "compared": 25,
+      "test_without_replay": 0,
+      "max_abs_gap": 8.881784197001252e-16
+    }
+  ],
+  "all_reproduced": true,
+  "date": "2026-11-01"
+}

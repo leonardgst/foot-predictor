@@ -9,7 +9,7 @@ Mode d'emploi de l'inférence : variables d'un match quelconque, modèles actif 
 - **Modèle actif** (live) : celui du registre `ops.model_registry`, allégé au chargement (25 Mo → 576 Ko, prédictions identiques). Depuis 5.13 : le modèle final H1, `scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle` (ADR-0044).
 - **Disponibilité** : chaque variable requise est présente, manquante (raison) ou périmée (source en retard) ; une seule non présente ⇒ `unavailable`, aucune prédiction.
 - **Traçabilité** : `ops.prediction` (migration 0008), idempotente ; live écrit avant le coup d'envoi seulement ; identifiant API du match recopié depuis la réponse (E-058), stable quand `match_id` ne l'est pas.
-- **Scellé** (ADR-0045) : le test scellé H1 étant terminé, la table des matchs est **ouverte à l'inférence**, comme historique des variables du live. Le rejeu reste limité à 2021-22 à 2024-25 **jusqu'au test scellé de H2** ; le score réel et la cote d'un match scellé ne sont jamais servis.
+- **Scellé** (ADR-0045) : le test scellé H1 étant terminé, la table des matchs est **ouverte à l'inférence**, comme historique des variables du live. Le rejeu est limité à 2021-22 à 2024-25 **jusqu'au test scellé de H2** (ADR-0045), puis ouvert à 2025-26 et 2026-27 avec le score réel mais **sans les cotes** (ADR-0052, section « Rejeu des saisons scellées »).
 
 ## Commandes
 
@@ -27,6 +27,8 @@ uv run python -m foot_predictor.inference check --only rows-h2       # sur deman
 uv run python -m foot_predictor.inference check --only replay-h2     # sur demande : modèles de rejeu H2 (quelques secondes)
 uv run python -m foot_predictor.inference check --only predictions-h2   # sur demande : journées de rejeu H2 (environ 4 min)
 uv run python -m foot_predictor.inference check --only rows-scelle   # sur demande : période scellée, lecture journalisée
+uv run python -m foot_predictor.inference check --only sealed_replay # garde du modèle testé (6.13) : rejeu scellé = test scellé (environ 10 min)
+uv run python -m foot_predictor.inference prospective             # relevé du journal prospectif H1 (6.13) ; collecter les résultats avant
 ```
 
 | Option | Rôle |
@@ -37,7 +39,7 @@ uv run python -m foot_predictor.inference check --only rows-scelle   # sur deman
 | `--match <id>` | un match (identifiant interne) |
 | `--save [--force]` | écrit dans `ops.prediction` ; sans `--force`, une prédiction existante est gardée |
 
-Codes de sortie de `predict` : 0 (réponses rendues, disponibles ou non), 3 (date refusée : scellé, saison de rejeu fermée, live dans le passé). `models --activate` : 2 si `models/<version>/` n'existe pas (aucune base ouverte).
+Codes de sortie de `predict` : 0 (réponses rendues, disponibles ou non), 3 (date refusée : scellé avant l'ouverture, saison de rejeu non ouverte, live dans le passé). `models --activate` : 2 si `models/<version>/` n'existe pas (aucune base ouverte).
 
 ## Réponse d'un match
 
@@ -68,10 +70,10 @@ Codes de sortie de `predict` : 0 (réponses rendues, disponibles ou non), 3 (dat
 | Élément | Règle |
 |---|---|
 | Porte | `load_matches(opened_for_inference=True)` : refusée **avant toute lecture** tant que le journal n'a pas « évaluation terminée » pour `experiments/scelle_h1.yaml` ; aucune ligne de journal ; incompatible avec `sealed_test` |
-| Qui | `inference/` seulement (test d'architecture) ; jeux de données, évaluation, modèles et notebooks restent fermés jusqu'au test de H2 ; `load_odds` n'a pas d'ouverture |
+| Qui | `inference/` seulement (test d'architecture) ; jeux de données, évaluation, modèles et notebooks restent fermés (le développement ne lit jamais le scellé) ; `load_odds` n'a pas d'ouverture |
 | Contexte | `build_context` ouvre la table quand le test H1 est terminé (`history_opened`) |
 | Lignes d'un jour scellé | `build_frame` avec son option `sealed_test=True` (même calcul ; c'est l'appel du jeu scellé), seulement pour une table ouverte et un jour à partir du 1er juillet 2025 |
-| Rejeu | 2021-22 à 2024-25 ; saisons scellées refusées jusqu'au test de H2 (code 3, API 403) |
+| Rejeu | 2021-22 à 2024-25 ; **2025-26 et 2026-27 depuis le test de H2** (ADR-0052, section ci-dessous) ; avant la ligne du test H2 au journal : refus (code 3, API 403) |
 | Live | matchs à venir, historique complet, modèle final ; variables affichées agrégées (ADR-0012, règle 4) |
 
 **Résultats du 2026-10-22** (base de travail, chargement n° 7) :
@@ -81,11 +83,32 @@ Codes de sortie de `predict` : 0 (réponses rendues, disponibles ou non), 3 (dat
 | `rows-scelle` : lignes d'inférence (table ouverte) contre le jeu scellé `ds-2026-10-22-94969da0` | `reports/inference/lignes_scelle_2026-10-22.md` | 8 jours de 2025-26 et 2026-27, 434 lignes **identiques au bit près**, environ 6 s par jour |
 | `predictions` avec le contexte ouvert | `reports/inference/predictions_2026-10-22.md` | identique au rapport du 2026-09-30, hors titre et durées : l'ouverture ne change pas le rejeu |
 | `models --activate` | — | `ops.model_registry` : actif = modèle final (avant : `scelle-h1-m3_g0g2-20260930-3c92fc80`) |
-| `predict --date 2025-08-16 --mode replay` | — | refusé, code 3 (« sous scellés pour le rejeu jusqu'au test scellé de H2 ») |
+| `predict --date 2025-08-16 --mode replay` | — | refusé avant la ligne du test H2 au journal, code 3 (« sous scellés pour le rejeu jusqu'au test scellé de H2 ») ; **ouvert depuis le 2026-11-01** (ADR-0052) |
 | `predict --date 2026-10-24 --mode live` | — | 89 matchs : 69 hors périmètre, 20 du top 5 `unavailable` (« variables d'historique périmées » : `staging` complet jusqu'au 2026-10-18) ; modèle final ; 0 score et 0 cote servis |
 
 - Le contrôle `rows-scelle` a été lancé avec le code de la branche `feat/11-ouverture-scelle` avant son premier commit : la ligne du journal (13:23 UTC) porte le commit de base, `8358549`.
 - Les matchs à venir restent indisponibles tant que football-data n'est pas superposé en live (5.14) : c'est la règle de fraîcheur, pas un défaut.
+
+## Rejeu des saisons scellées et journal prospectif (6.13, ADR-0052)
+
+Le test scellé H2 (6.12) est terminé : l'ADR-0052 ouvre ce que l'ADR-0045 avait fermé « jusqu'au test de H2 ».
+
+| Point | Règle |
+|---|---|
+| Condition | la ligne « évaluation terminée » de `experiments/scelle_h2.yaml` au journal `reports/sealed_tests.md` (`seal.check_opened_for_h2_inference`) ; pas de constante, pas de date |
+| Saisons | 2025-26 et 2026-27, H1 et H2 |
+| Modèle | celui du test : pli de 2025, appris sur 2015-16 à 2024-25 par la procédure de `scelle_h1.yaml` et `scelle_h2.yaml` ; 2026-27 emploie le même (`models.training_season`) ; aucun match scellé n'entre dans l'apprentissage |
+| Servi | prédiction, score réel à 90 minutes, log-loss de la journée |
+| Fermé | **les cotes** : `market_reference` reste vide pour tout match à partir du 1er juillet 2025 en rejeu ; `load_odds` n'a pas d'ouverture |
+| Compositions (H2) | `load_lineups` et `load_team_sheets` ont `opened_for_inference`, réservé à `inference/` (test d'architecture) |
+
+**Garde du modèle testé** : `check --only sealed_replay` compare, sur 7 jours de 2025-26 et de 2026-27 pour chaque horizon, le rejeu aux prédictions des rapports `scelle-h1-20261022T120542` (`M3_G0G2`) et `scelle-h2-20261101T153604` (`M3_H2`), après contrôle de l'empreinte sha256 de leurs fichiers de prédictions (inscrites dans l'ADR-0052). Il lit `data/experiments/<rapport>/predictions.parquet` (ignoré par Git) et s'arrête s'il manque. Une PR qui touche `features/` ou `modeling/models/` le lance, avec `check --only replay`.
+
+Résultat du 2026-11-01 : **reproduit**, écart maximal 8,9·10⁻¹⁶ (tolérance 10⁻¹²), 7 jours par horizon, aucun match du test sans rejeu (`reports/inference/rejeu_scelle_h1_2026-11-01.md`, `rejeu_scelle_h2_2026-11-01.md`).
+
+**Journal prospectif** (`prospective`) : les prédictions live H1 de `ops.prediction`, comparées aux résultats de football-data (superposition en mémoire, ADR-0042), après `collect.football_data.live season --season 2026 --max-requests 10`. Relevé **descriptif** : traçage (écrites avant le coup d'envoi, journées), log-loss, RPS, Brier, couverture, calibration, écart apparié à B1 (fenêtre 3) par blocs de jours. Aucune conclusion avant 8 journées, aucun modèle changé à partir du relevé ; un relevé par collecte, tous conservés (`reports/inference/prospectif_<horodatage>.md`).
+
+Premier relevé (2026-11-01, 10 requêtes football-data, 0 requête API-FOOTBALL) : 89 prédictions, toutes écrites avant le coup d'envoi, **7 journées sur 8** ; 48 résultats connus (les journées du 31 octobre au 2 novembre n'ont pas encore de résultat). Sur ces 48 matchs, `B1 − modèle` = +0,0396 [+0,0027 ; +0,0700] (4 jours, p de Diebold-Mariano 0,06) : descriptif, non conclusif.
 
 ## Tirs de football-data en live (`shots_check`, 5.7)
 
@@ -174,7 +197,7 @@ H2 = le modèle H1 plus la qualité du onze annoncé (G5) : **M3 sur G0 + G1 + G
 - **Variables** : `build_frame_h2` appelée sur la table des matchs, les compositions et les feuilles de match tronquées au jour J (un jour à la fois). Compositions lues par la porte (`load_lineups`, `load_team_sheets`) à la **première demande H2** seulement (environ 2 millions de lignes, 17 s). Pour le match cible, on garde le onze annoncé, le poste et l'entraîneur ; on retire minutes, note, remplaçant, capitaine (défense en profondeur : G4 à G6 ne lisent déjà que des jours strictement antérieurs).
 - **Disponibilité** : mêmes règles que H1. Raisons propres à G5 : onze incomplet ou absent de la feuille de match, titulaire sans poste ni note antérieure, moins de 10 matchs d'historique du club, date de naissance manquante. Jamais de valeur de remplacement.
 - **Live** : `h2_unavailable` avec la raison (compositions plus fournies, ADR-0010), sans modèle ni lecture des compositions ; un match hors périmètre ou exclu garde son statut de H1. API : 200 sur `/matches` et `/availability`, 409 sur `POST /predictions`.
-- **Scellé** : le rejeu H2 d'une saison scellée est refusé comme celui de H1, jusqu'au test scellé de H2 (ADR-0045). Les compositions passent par la porte, scellé filtré en SQL, sans ouverture à l'inférence.
+- **Scellé** : le rejeu H2 d'une saison scellée a été refusé comme celui de H1 jusqu'au test scellé de H2 (ADR-0045). Depuis ce test, les compositions des matchs scellés s'ouvrent à l'inférence par la porte (`opened_for_inference`, ADR-0052), sans ligne de journal par lecture.
 
 | Contrôle H2 (sur demande) | Rapport | Résultat du 2026-11-01 |
 |---|---|---|

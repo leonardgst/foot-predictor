@@ -63,6 +63,35 @@ uv run python -m foot_predictor.features.xg_proxy_estimation # estimation de l'x
 - **Architecture** : aucun module de `features/` autre que la porte ne lit `staging.lineup`, `staging.player_match_stats`, `staging.player`, `staging.team_match` ou `staging.coach`, ni n'importe leurs modèles (test d'architecture) ; chaque requête de la porte porte le filtre de date.
 - **H1 inchangé** : `registry.yaml` et `build_frame` ne changent pas (jeu identique). Les 4 modèles de rejeu H1, réentraînés à neuf par `build_card` (donc par la garde), ont des coefficients et des hyperparamètres identiques aux modèles enregistrés. `inference check --only replay` : écart nul sur 7 156 matchs (`reports/inference/rejeu_2026-10-31.md`).
 
+### 6.2 — Variables de stabilité du onze, G6 (2026-11-01)
+
+`features/lineup_stability.py` : `compute_lineup_stability(matches, lineups, team_sheets)`, fonction pure (rapport H.3 et H.7, ADR-0047). Une ligne par (match, équipe) de championnat des échelles ; historique = matchs de **championnat terminés, d'un jour strictement antérieur, au onze complet**, limité au club, sans remise à zéro par saison. Le match évalué n'y figure jamais (H.2).
+
+| Colonne | Définition |
+|---|---|
+| `xi_overlap_prev` | titulaires communs (0 à 11) avec le dernier match de l'historique |
+| `xi_cohesion_ewm_h3`, `_h5`, `_h10`, `_h20`, `_hinf` | moyenne de s(s − 1) / 110 sur l'historique, poids 0,5^((rang − 1) / h) par rang de match (rang 1 = match précédent) ; `hinf` : poids égaux |
+| `xi_new_starters` | titulaires de moins de 3 titularisations de championnat dans le club sur les 365 jours précédents |
+
+- **Pourquoi pas de matrice** : la somme de la matrice cumulée restreinte au onze vaut Σ s_k(s_k − 1) (H.3). Un test construit la vraie matrice sur des compositions aléatoires et vérifie l'égalité.
+- **Valeur vide** (jamais remplacée) : onze incomplet (moins de 11 titulaires identifiés, entrée sans identifiant ou exclue pour collision), match non joué, aucun match antérieur. Un match au onze incomplet sort aussi de l'historique des suivants. Rien n'est rempli.
+- **Cinq demi-vies, une colonne chacune** : le choix par validation interne du pli (D2) se fera en 6.7, comme celui de la demi-vie de G2. Le groupe garde donc 3 variables par équipe, avec une demi-vie retenue.
+- **Pas de fiche au registre ici** : `build_frame` et les contrôles exigent que les colonnes du jeu soient exactement celles de `registry.yaml` (`dataset.py`, `check.py`). Ajouter les fiches G6 maintenant casserait le jeu H1, qui doit rester identique. Les fiches (horizon H2, `{h}`) arrivent en 6.5, avec le branchement dans le jeu.
+- **Catalogue** : le texte d'en-tête se déduit du registre (groupes et horizons présents), et G4 à G6 ont leur titre. Sortie actuelle inchangée.
+
+Contrôles sur les données réelles (lecture seule, avant le scellé, `load_*` filtrés par compétition : 2,0 millions de lignes de composition, lecture 25 s, calcul 10 s) :
+
+| Contrôle | Résultat |
+|---|---|
+| Lignes | 197 002 (match, équipe) ; top 5 des plis 2021-22 à 2024-25 : 14 342 lignes, **0 % de valeurs vides** |
+| Valeurs vides, top 5 | au plus 0,57 % par saison de 2014-15 à 2020-21 (onzes incomplets) |
+| Invariance à la troncature | 0 écart sur toutes les colonnes aux coupes du 2019-01-01 (146 316 lignes) et du 2023-03-01 (179 020 lignes) |
+| Plis (2021-24, top 5) | recouvrement moyen 8,3 sur 11 ; nouveaux titulaires 0,82 en moyenne |
+| Corrélation avec `xi_overlap_prev` | 0,71 (h3), 0,61 (h5), 0,48 (h10), 0,38 (h20), 0,15 (hinf) : la cohésion longue apporte autre chose que le recouvrement |
+| Garde H1 | aucun fichier de `modeling/`, ni `registry.yaml`, ni `dataset.py` touché ; `inference check --only replay` : rejeu reproduit (`reports/inference/rejeu_2026-11-01.md`) |
+
+Le rapport H.3 annonçait plus de 0,9 de corrélation entre paires et recouvrement : ce n'est vrai que pour la version « remise à zéro » (poids égaux sur une saison) ; ici, sans remise à zéro, ce n'est pas le cas pour les longues demi-vies. À regarder en 6.6.
+
 ## Phase B : jeu sur le brut définitif (3.11)
 
 Après le gel et la partie 2 (`staging` = chargement n° 7, tag `v0.3.0`), le jeu est reconstruit puis comparé au jeu en vigueur. Les identifiants internes de `staging` ont changé au chargement n° 6 (E-058) : les lignes se rapprochent par **identifiants API**, jamais par `match_id` ni `team_id`.

@@ -20,6 +20,9 @@ GROUP_TITLES = {
     "G1": "G1 — Force globale (Elo)",
     "G2": "G2 — Attaque et défense (glissants)",
     "G3": "G3 — Calendrier (rejeu seulement)",
+    "G4": "G4 — Entraîneur (horizon H2)",
+    "G5": "G5 — Qualité du XI (horizon H2)",
+    "G6": "G6 — Stabilité du onze (horizon H2)",
 }
 
 
@@ -33,12 +36,18 @@ def _params(params: dict) -> str:
     return "; ".join(f"{k} = {', '.join(map(str, v)) if isinstance(v, list) else v}" for k, v in params.items())
 
 
-def render() -> str:
-    entries = registry.load_entries()
-    variables = registry.variables()
+def render(path=registry.PATH) -> str:
+    entries = registry.load_entries(path)
+    variables = registry.variables(path)
     by_entry: dict[str, list[str]] = {}
     for variable in variables:
         by_entry.setdefault(variable.entry, []).append(variable.name)
+    features = [v for v in variables if v.group in registry.FEATURE_GROUPS]
+    groups = sorted({v.group for v in features})
+    if {v.horizon for v in features} == {"H1"}:
+        horizons = "toutes à l'horizon H1 (avant composition, ADR-0010)"
+    else:
+        horizons = "celles de G0 à G3 sont à l'horizon H1 (avant composition), celles de G4 à G6 à l'horizon H2 (avec composition, ADR-0010)"
     lines = [
         "# Catalogue des variables",
         "",
@@ -46,8 +55,8 @@ def render() -> str:
         "`src/foot_predictor/features/registry.yaml`. Ne pas le modifier à la main : modifier le registre, "
         "puis régénérer (un test vérifie qu'il est à jour).",
         "",
-        f"{len(variables)} colonnes au jeu de données, dont {len(registry.feature_columns())} variables (G0 à G3), "
-        "toutes à l'horizon H1 (avant composition, ADR-0010). Une colonne `opp_…` est la même variable pour "
+        f"{len(variables)} colonnes au jeu de données, dont {len(registry.feature_columns())} variables "
+        f"({groups[0]} à {groups[-1]}), {horizons}. Une colonne `opp_…` est la même variable pour "
         "l'adversaire, lue sur sa ligne du même match. Règle temporelle : une variable du jour J n'utilise que des "
         "matchs terminés avant le jour J.",
         "",

@@ -86,7 +86,7 @@ class MatchSummary(BaseModel):
     horizon: Horizon
     status: Status
     reasons: list[str]
-    model_version: str
+    model_version: str | None = Field(None, description="vide pour un horizon H2 demandé en live (aucun modèle)")
     data_version: str
     data_complete_until: str
 
@@ -102,8 +102,61 @@ class PredictionOut(AvailabilityOut):
     saved: dict | None = Field(None, description="ligne de ops.prediction : identifiant, créée ou existante, date")
 
 
+class Gain(BaseModel):
+    gain: float = Field(description="écart de log-loss du total (sans − avec), en nats par match ; positif : mieux")
+    low: float
+    high: float
+    excludes_zero: bool
+    folds_won: int
+    folds: int
+    matches: int
+
+
+class ContributionStep(Gain):
+    step: int
+    group: str
+    label: str
+    variables: str
+    added_to: str
+    retained: bool = Field(description="verdict de la règle de décision de l'ADR-0037 pour cette étape")
+
+
+class ContributionDiagnostic(Gain):
+    label: str
+    against: str
+
+
+class ContributionStructure(Gain):
+    label: str
+    replaces: bool
+
+
+class ContributionRound(BaseModel):
+    rounds: str
+    mean: float
+    low: float
+    high: float
+    n: int
+    excludes_zero: bool
+
+
+class Contribution(BaseModel):
+    """Apport des groupes de variables H2 (6.7) et des structures (6.8), lu dans les rapports d'expériences."""
+
+    model: str
+    unit: str
+    dataset: str
+    reports: dict[str, str]
+    folds: str
+    steps: list[ContributionStep]
+    diagnostics: list[ContributionDiagnostic]
+    structures: list[ContributionStructure]
+    g5_by_round: list[ContributionRound]
+    notes: list[str]
+
+
 class Problem(BaseModel):
-    """Corps des erreurs 403, 404, 409 et 501 : un message et, pour un 409, les raisons."""
+    """Corps des erreurs 403, 404, 409 et 503 : un message et, pour un 409, les raisons."""
 
     detail: str
     reasons: list[str] = []

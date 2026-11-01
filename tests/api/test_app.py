@@ -13,6 +13,8 @@ from foot_predictor.api import app as api_module
 from foot_predictor.api.__main__ import build_parser
 from foot_predictor.api.app import ContextProvider, create_app
 from foot_predictor.db.models import Prediction
+from tests.features.test_dataset_h2 import synthetic_compositions
+from tests.inference.test_h2 import h2_context
 from tests.inference.test_predict import FakeModel, context, shifted_matches
 
 
@@ -97,12 +99,11 @@ def test_the_context_is_rebuilt_only_when_its_key_changes(ctx):
     assert len(builds) == 3
 
 
-def test_availability_detail_unknown_match_and_h2(client, ctx):
+def test_availability_detail_and_unknown_match(client, ctx):
     match = a_match(ctx)
     body = client.get(f"/matches/{int(match['match_id'])}/availability").json()
     assert body["status"] == "available" and body["variables"]
     assert client.get("/matches/987654321/availability").status_code == 404
-    assert client.get(f"/matches/{int(match['match_id'])}/availability", params={"horizon": "H2"}).status_code == 501
 
 
 def test_prediction_of_an_unavailable_match_is_a_409_with_reasons(client, ctx):
@@ -115,9 +116,87 @@ def test_prediction_of_an_unavailable_match_is_a_409_with_reasons(client, ctx):
     assert response.status_code == 409 and "hors périmètre" in response.json()["reasons"][0]
 
 
-def test_h2_prediction_is_not_implemented(client, ctx):
-    match = a_match(ctx)
-    assert client.post(f"/matches/{int(match['match_id'])}/predictions", params={"horizon": "H2"}).status_code == 501
+@pytest.fixture(scope="module")
+def ctx_h2():
+    matches = shifted_matches()
+    lineups, sheets = synthetic_compositions(matches)
+    return h2_context(matches, lineups, sheets, today=dt.date(2023, 9, 1))
+
+
+@pytest.fixture
+def client_h2(ctx_h2, tmp_path):
+    ctx_h2.sealed_log = tmp_path / "journal.md"
+    return TestClient(create_app(ContextProvider(lambda: ctx_h2, lambda: "v-test")))
+
+
+def test_h2_replay_is_served_side_by_side_with_h1(client_h2, ctx_h2):
+    match = a_match(ctx_h2)
+    mid = int(match["match_id"])
+    h2 = client_h2.get(f"/matches/{mid}/availability", params={"horizon": "H2"})
+    assert h2.status_code == 200 and h2.json()["horizon"] == "H2" and h2.json()["model_version"] == "essai-h2"
+    assert "xi_quality" in {v["variable"] for v in h2.json()["variables"]}
+    h1 = client_h2.get(f"/matches/{mid}/availability").json()
+    assert h1["horizon"] == "H1" and "xi_quality" not in {v["variable"] for v in h1["variables"]}
+    listed = client_h2.get("/matches", params={"date": match["match_day"].isoformat(), "horizon": "H2"})
+    assert listed.status_code == 200 and {m["horizon"] for m in listed.json()} == {"H2"}
+    assert mid in {m["match_id"] for m in listed.json()}
+
+
+def test_h2_in_live_is_a_200_with_its_reason_and_a_prediction_is_a_409(tmp_path):
+    from foot_predictor.inference.availability import H2_LIVE_REASON
+    from foot_predictor.inference.models import LoadedModel
+    from foot_predictor.seal import H1_SEALED_EXPERIMENT, SEALED_DONE
+
+    matches = shifted_matches(years=6)
+    log = tmp_path / "journal.md"
+    log.write_text(f"| x | y | {H1_SEALED_EXPERIMENT} | {SEALED_DONE}, rapport z |\n", encoding="utf-8")
+    upcoming = matches[matches["status"] != "played"].iloc[0]
+    loaded = LoadedModel("essai-api", FakeModel(), {"version": "essai-api", "horizon": "H1"}, None)
+    opened = context(matches, loaded, today=upcoming["match_day"], sealed_log=log, history_opened=True)
+    api = TestClient(create_app(ContextProvider(lambda: opened, lambda: "v-test")))
+    mid = int(upcoming["match_id"])
+    answer = api.get(f"/matches/{mid}/availability", params={"horizon": "H2", "mode": "live"})
+    assert answer.status_code == 200
+    body = answer.json()
+    assert body["status"] == "h2_unavailable" and body["reasons"] == [H2_LIVE_REASON]
+    assert body["model_version"] is None and body["variables"] == []
+    listed = api.get("/matches", params={"date": upcoming["match_day"].isoformat(), "mode": "live", "horizon": "H2"})
+    assert listed.status_code == 200 and {m["status"] for m in listed.json()} == {"h2_unavailable"}
+    refused = api.post(f"/matches/{mid}/predictions", params={"horizon": "H2", "mode": "live"})
+    assert refused.status_code == 409 and refused.json()["reasons"] == [H2_LIVE_REASON]
+
+
+def test_h2_without_a_composition_source_is_a_503_not_a_crash(client, ctx):
+    match = a_match(ctx)  # contexte H1 : aucune lecture des compositions, ni modèle H2
+    ctx._models[("replay", 2022, "H2")] = ctx._models[("replay", 2023, "H2")] = ctx._models[("replay", 2023, "H1")]
+    response = client.get(f"/matches/{int(match['match_id'])}/availability", params={"horizon": "H2"})
+    assert response.status_code == 503 and "compositions" in response.json()["detail"]
+
+
+def test_h2_replay_dates_stay_closed_on_the_sealed_seasons(client_h2):
+    response = client_h2.get("/matches", params={"date": "2025-08-16", "horizon": "H2"})
+    assert response.status_code == 403
+
+
+def test_the_h2_contribution_comes_from_the_experiment_reports(client):
+    response = client.get("/models/h2/contribution")
+    assert response.status_code == 200
+    body = response.json()
+    assert [s["group"] for s in body["steps"]] == ["G6", "G5", "G4"]
+    assert [s["retained"] for s in body["steps"]] == [False, True, False]  # chemin de décision de 6.7 (ADR-0048)
+    assert body["dataset"] == "ds-2026-11-01-e0defb32" and body["structures"] and body["g5_by_round"]
+    assert "/models/h2/contribution" in client.get("/openapi.json").json()["paths"]
+
+
+def test_the_h2_contribution_is_a_503_when_a_report_is_missing(client, monkeypatch):
+    from foot_predictor.inference import h2_contribution
+
+    def missing():
+        raise h2_contribution.ContributionUnavailable("Rapport d'expérience absent : essai.")
+
+    monkeypatch.setattr(h2_contribution, "load_contribution", missing)
+    response = client.get("/models/h2/contribution")
+    assert response.status_code == 503 and "absent" in response.json()["detail"]
 
 
 def test_active_model_card_has_no_file_path_and_missing_model_is_503(client, monkeypatch):
@@ -157,7 +236,8 @@ def test_freshness_lists_each_top5_league_of_the_live(ctx):
 def test_openapi_documentation_is_generated(client):
     paths = client.get("/openapi.json").json()["paths"]
     assert {"/health", "/competitions", "/matches", "/matches/{match_id}/availability",
-            "/matches/{match_id}/predictions", "/models/active", "/data/freshness"} <= set(paths)  # fmt: skip
+            "/matches/{match_id}/predictions", "/models/active", "/models/h2/contribution",
+            "/data/freshness"} <= set(paths)  # fmt: skip
 
 
 def test_serve_refuses_a_non_local_address():

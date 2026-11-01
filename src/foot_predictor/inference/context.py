@@ -108,9 +108,18 @@ def build_context(
     dataset, _ = load_dataset(DATASET_VERSION)
 
     def h2_inputs():
-        from foot_predictor.features.build import read_h2_inputs
+        """Compositions et feuilles de match des championnats à échelle ; celles des matchs scellés aussi
+        quand le test scellé H2 est terminé au journal (rejeu des saisons scellées, ADR-0052)."""
+        from foot_predictor.features.leagues import LADDERS
+        from foot_predictor.features.sources import load_lineups, load_team_sheets
+        from foot_predictor.seal import H2_SEALED_EXPERIMENT, sealed_test_finished
 
-        return read_h2_inputs(engine, matches)
+        ladder = matches[matches["api_league_id"].isin(list(LADDERS))]
+        gate = {
+            "competition_ids": sorted(int(c) for c in ladder["competition_id"].unique()),
+            "opened_for_inference": sealed_test_finished(H2_SEALED_EXPERIMENT),
+        }
+        return load_lineups(engine, **gate), load_team_sheets(engine, **gate)
 
     context = InferenceContext(
         matches=matches,

@@ -49,7 +49,7 @@ from foot_predictor.inference.availability import (
 )
 from foot_predictor.inference.rows import RowsCache, as_day
 from foot_predictor.modeling import metrics
-from foot_predictor.seal import SEAL_DATE
+from foot_predictor.seal import H2_SEALED_EXPERIMENT, SEAL_DATE, sealed_test_finished
 
 MODES = ("replay", "live")
 K_LABELS = [str(k) for k in range(10)] + ["10+"]
@@ -124,7 +124,7 @@ class InferenceContext:
         key = (mode, model_store.season_of(day) if mode == "replay" else "actif", horizon)
         if key not in self._models:
             if mode == "replay":
-                kwargs = {}
+                kwargs = {"sealed_log": self.sealed_log}
                 if self.replay_root is not None:
                     kwargs["replay_root"] = self.replay_root
                 data = self.dataset if horizon == "H1" else self.dataset_h2  # H2 : None = lu à la demande
@@ -149,7 +149,7 @@ def check_reference_date(day: dt.date, mode: str, context: InferenceContext) -> 
         )
     if mode == "replay":
         try:
-            model_store.check_replay_season(model_store.season_of(day))
+            model_store.check_replay_season(model_store.season_of(day), context.sealed_log)
         except model_store.ModelUnavailable as error:
             raise ReferenceDateRefused(str(error)) from error
     elif context.today is not None and day < context.today:
@@ -245,7 +245,11 @@ def predict_match(match: pd.Series, rows: pd.DataFrame, model, context: Inferenc
         "market_reference": None,
     }
     match_date = pd.Timestamp(match["match_date"])
-    if mode == "replay" and match_date < pd.Timestamp(SEAL_DATE, tz="UTC") and match.get("status") == "played":
+    if (
+        mode == "replay"
+        and match.get("status") == "played"
+        and (match_date < pd.Timestamp(SEAL_DATE, tz="UTC") or sealed_replay_open(context))
+    ):
         result["actual_score"] = {"home": _int(match["home_goals_90"]), "away": _int(match["away_goals_90"])}
     result["market_reference"] = _market_reference(int(match["match_id"]), match_date, context, mode)
     if not availability.is_available:
@@ -259,6 +263,11 @@ def predict_match(match: pd.Series, rows: pd.DataFrame, model, context: Inferenc
         **distribution_summary(predicted.total[0]),
     }
     return result
+
+
+def sealed_replay_open(context: InferenceContext) -> bool:
+    """Vrai si le rejeu des saisons scellées est ouvert : test scellé H2 terminé au journal (ADR-0052)."""
+    return sealed_test_finished(H2_SEALED_EXPERIMENT, context.sealed_log)
 
 
 def _int(value):

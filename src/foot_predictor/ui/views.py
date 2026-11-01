@@ -262,7 +262,7 @@ def problem_title(status: int | None) -> str:
     """Titre lisible d'une erreur de l'API (le message détaillé de l'API suit)."""
     return {
         None: "API injoignable",
-        403: "Date refusée (saison scellée ou non ouverte au rejeu)",
+        403: "Date refusée (saison scellée avant son ouverture, saison non ouverte au rejeu, ou live sur un jour passé)",
         404: "Match inconnu",
         409: "Prédiction impossible : match indisponible",
         422: "Requête invalide",

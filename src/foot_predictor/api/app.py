@@ -93,7 +93,7 @@ def default_sessions() -> AbstractContextManager:
 def _find_match(context: InferenceContext, match_id: int):
     found = context.matches[context.matches["match_id"] == match_id]
     if found.empty:
-        raise ApiError(404, f"Match {match_id} inconnu (ou sous scellés : jamais servi avant le test scellé).")
+        raise ApiError(404, f"Match {match_id} inconnu (ou sous scellés : jamais servi avant le test scellé H1).")
     return found.iloc[0]
 
 

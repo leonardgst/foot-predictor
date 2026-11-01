@@ -36,7 +36,7 @@ from foot_predictor.modeling import protocol
 from foot_predictor.modeling.experiment import _json_default, expand_grid, git_state, load_spec
 from foot_predictor.modeling.model_card import build_card
 from foot_predictor.modeling.models import MODELS
-from foot_predictor.seal import SEAL_DATE
+from foot_predictor.seal import SEAL_DATE, SealViolation, check_opened_for_h2_inference
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MODELS_ROOT = REPO_ROOT / "models"
@@ -108,15 +108,32 @@ def sealed_test_done(experiment: str = "experiments/scelle_h1.yaml", log_path: P
     return already_evaluated(experiment, log_path)
 
 
-def check_replay_season(season: int) -> None:
-    """Refuse une saison de rejeu non ouverte : avant 2021-22, ou scellée (jusqu'au test scellé de H2)."""
+def check_replay_season(season: int, sealed_log: Path | None = None) -> None:
+    """Refuse une saison de rejeu non ouverte : avant 2021-22, ou scellée tant que le test scellé H2 n'est pas terminé.
+
+    Les saisons scellées (2025-26 et après) s'ouvrent quand le journal porte « évaluation terminée »
+    pour `experiments/scelle_h2.yaml` (ADR-0052) ; sans cette ligne, le refus de l'ADR-0045 demeure.
+    """
     if season < FIRST_REPLAY_SEASON:
         raise ModelUnavailable(f"Saison {season}-{(season + 1) % 100:02d} : rejeu ouvert à partir de 2021-22.")
     if season >= SEALED_FIRST_SEASON:
-        raise ModelUnavailable(
-            f"Saison {season}-{(season + 1) % 100:02d} : sous scellés pour le rejeu jusqu'au test scellé de H2, "
-            "qui réutilisera ses matchs (ADR-0045)."
-        )
+        try:
+            check_opened_for_h2_inference(sealed_log)
+        except SealViolation as error:
+            raise ModelUnavailable(
+                f"Saison {season}-{(season + 1) % 100:02d} : sous scellés pour le rejeu jusqu'au test scellé de H2, "
+                f"qui réutilise ses matchs (ADR-0045, ADR-0052). {error}"
+            ) from error
+
+
+def training_season(season: int) -> int:
+    """Pli qui apprend le modèle de rejeu de `season` : 2025-26 et 2026-27 emploient le modèle du test (ADR-0052).
+
+    Le jeu de développement s'arrête avant le 1er juillet 2025 : le pli de 2025 apprend sur 2015-16 à
+    2024-25, exactement comme le test scellé. Un modèle de 2026-27 appris sur 2025-26 supposerait de lire
+    des matchs scellés pour l'apprentissage ; il n'existe pas.
+    """
+    return min(season, SEALED_FIRST_SEASON)
 
 
 def season_of(day: dt.date) -> int:
@@ -174,13 +191,15 @@ def replay_model(
     manifest: dict | None = None,
     replay_root: Path = REPLAY_ROOT,
     horizon: str = "H1",
+    sealed_log: Path | None = None,
 ) -> LoadedModel:
     """Modèle de rejeu de la saison : lu dans le cache, sinon entraîné puis mis en cache.
 
     Le cache de H2 est le sous-dossier `h2/` de celui de H1 : les deux horizons ne se mélangent pas.
     """
     check_horizon(horizon)
-    check_replay_season(season)
+    check_replay_season(season, sealed_log)
+    season = training_season(season)
     folder = replay_root / str(season) if horizon == "H1" else replay_root / "h2" / str(season)
     if (folder / "model.joblib").exists():
         return load_model(folder)

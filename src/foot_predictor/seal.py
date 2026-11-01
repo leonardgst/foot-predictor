@@ -43,6 +43,7 @@ SEALED_DONE = "évaluation terminée"
 porte des données n'importe pas `modeling/`."""
 
 H1_SEALED_EXPERIMENT = "experiments/scelle_h1.yaml"
+H2_SEALED_EXPERIMENT = "experiments/scelle_h2.yaml"
 """Liste figée du test scellé H1 (ADR-0039) : son test terminé ouvre le scellé à l'inférence (ADR-0045)."""
 
 LOG_HEADER = """# Journal des tests scellés (ADR-0012)
@@ -124,6 +125,19 @@ def check_opened_for_inference(log_path: Path | None = None) -> None:
         raise SealViolation(
             f"Ouverture du scellé à l'inférence refusée : le test scellé H1 ({H1_SEALED_EXPERIMENT}) "
             "n'est pas terminé au journal (ADR-0045)."
+        )
+
+
+def check_opened_for_h2_inference(log_path: Path | None = None) -> None:
+    """Ouverture des compositions et du rejeu des saisons scellées (ADR-0052) : après le test scellé H2.
+
+    L'ADR-0045 réservait ces matchs au second test (H2) ; il est terminé quand le journal porte sa ligne
+    « évaluation terminée ». Sans cette ligne, rien ne s'ouvre, quelle que soit la date.
+    """
+    if not sealed_test_finished(H2_SEALED_EXPERIMENT, log_path):
+        raise SealViolation(
+            f"Ouverture refusée : le test scellé H2 ({H2_SEALED_EXPERIMENT}) n'est pas terminé au journal "
+            "(ADR-0045, ADR-0052)."
         )
 
 

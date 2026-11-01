@@ -1,12 +1,12 @@
 """Variables du MVP : construction, contrôle et catalogue du jeu de données (ADR-0030).
 
-    python -m foot_predictor.features build [--output-root data/datasets] [--no-db]
+    python -m foot_predictor.features build [--output-root data/datasets] [--no-db] [--horizon H1|H2]
     python -m foot_predictor.features build --sealed-test --experiment experiments/scelle_h1.yaml   # phase B seulement
     python -m foot_predictor.features check [--version ds-...] [--report-dir reports/variables] [--invariance]
     python -m foot_predictor.features catalogue [--output docs/realisation/06_variables/catalogue.md]
 
 `build` lit les matchs par la porte unique (`features/sources.py`, scellé en SQL), calcule
-G0 à G3, écrit `data/datasets/<version>/` (Parquet et manifeste) et une ligne dans
+G0 à G3 (horizon H1, défaut) ou G0 à G6 (`--horizon H2`, compositions), écrit `data/datasets/<version>/` (Parquet et manifeste) et une ligne dans
 `features.dataset_version`. Mode d'emploi : `docs/realisation/06_variables/README.md`.
 """
 
@@ -22,6 +22,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     build = sub.add_parser("build", help="construit un jeu de données versionné (lecture seule de staging)")
     build.add_argument("--output-root", type=Path, help="dossier des versions (défaut : data/datasets)")
+    build.add_argument(
+        "--horizon",
+        choices=("H1", "H2"),
+        default="H1",
+        help="H1 : variables G0 à G3 (défaut) ; H2 : ajoute G4 à G6, lues dans les compositions (ADR-0047)",
+    )
     build.add_argument("--no-db", action="store_true", help="ne pas écrire la ligne de features.dataset_version")
     build.add_argument(
         "--sealed-test",
@@ -64,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
             record=not args.no_db,
             sealed_test=args.sealed_test,
             experiment=args.experiment,
+            horizon=args.horizon,
         )
         print(f"Version {summary['version']} : {summary['rows']} lignes en {summary['seconds']:.0f} s")
         print(f"Dossier : {summary['path']}")

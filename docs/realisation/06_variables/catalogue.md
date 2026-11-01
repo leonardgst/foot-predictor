@@ -2,7 +2,7 @@
 
 > **Fichier généré** par `python -m foot_predictor.features catalogue` depuis `src/foot_predictor/features/registry.yaml`. Ne pas le modifier à la main : modifier le registre, puis régénérer (un test vérifie qu'il est à jour).
 
-68 colonnes au jeu de données, dont 54 variables (G0 à G3), toutes à l'horizon H1 (avant composition, ADR-0010). Une colonne `opp_…` est la même variable pour l'adversaire, lue sur sa ligne du même match. Règle temporelle : une variable du jour J n'utilise que des matchs terminés avant le jour J.
+92 colonnes au jeu de données, dont 78 variables (G0 à G6), celles de G0 à G3 sont à l'horizon H1 (avant composition), celles de G4 à G6 à l'horizon H2 (avec composition, ADR-0010). Une colonne `opp_…` est la même variable pour l'adversaire, lue sur sa ligne du même match. Règle temporelle : une variable du jour J n'utilise que des matchs terminés avant le jour J.
 
 ## Identifiants et découpage
 
@@ -356,3 +356,97 @@
 - **Historique minimal** : aucun
 - **Valeur manquante** : jamais vide
 - **Risque de fuite** : nul — fixé par la couverture des données, pas par les résultats
+
+## G4 — Entraîneur (horizon H2)
+
+### `coach_tenure_days`
+
+- **Colonnes** : `coach_tenure_days`, `opp_coach_tenure_days`
+- **Définition** : jours entre le premier match de la période en cours du même entraîneur dans le club (suite ininterrompue des derniers matchs de championnat terminés, entraîneur connu) et le jour du match, plafonnés à 365 ; 0 pour un entraîneur qui arrive
+- **Source** : staging.team_match et staging.coach (entraîneur de la feuille de match, via la porte load_team_sheets) ; features/coach.py
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : plafond_jours = 365
+- **Historique minimal** : entraîneur de la feuille de match connu (API, depuis 2016-17 ; l'ancienneté n'est fiable qu'à partir d'août 2017, censure à gauche)
+- **Valeur manquante** : vide si l'entraîneur du match est inconnu (toute la période avant 2016-17, 1 à 2 % ensuite en 2019-20 et 2020-21) ou le match non joué ; un match à entraîneur inconnu sort de l'historique sans couper la période
+- **Risque de fuite** : faible — matchs d'un jour strictement antérieur ; l'entraîneur du match évalué est celui de la feuille annoncée à T-60
+
+### `coach_is_new`
+
+- **Colonnes** : `coach_is_new`, `opp_coach_is_new`
+- **Définition** : 1 si la période en cours du même entraîneur compte moins de 5 matchs de championnat avant le match, sinon 0
+- **Source** : staging.team_match et staging.coach (via load_team_sheets) ; features/coach.py
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : matchs_nouvel_entraineur = 5
+- **Historique minimal** : entraîneur de la feuille de match connu (depuis 2016-17 ; censure à gauche, les 5 premiers matchs observés de 2016-17 passent pour des débuts)
+- **Valeur manquante** : vide comme coach_tenure_days
+- **Risque de fuite** : faible — comme coach_tenure_days
+
+## G5 — Qualité du XI (horizon H2)
+
+### `xi_quality`
+
+- **Colonnes** : `xi_quality`, `opp_xi_quality`
+- **Définition** : moyenne des 11 titulaires de la note rétrécie vers la moyenne du poste, (M·r̄ + k·μ) / (M + k), avec r̄ la note moyenne du joueur pondérée par les minutes, M ses minutes notées, μ la note moyenne du poste, sur les matchs de championnat d'un jour strictement antérieur
+- **Source** : staging.lineup, staging.player_match_stats (notes, minutes) via load_lineups ; features/xi_quality.py ; features/params/xi_quality.json
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : k_minutes_fichier = features/params/xi_quality.json; note_valide = 3, 10; minutes_valides = 1, 130
+- **Historique minimal** : une note antérieure au poste (donc après 2014-15) ; rodage 2015-16, apprentissage à partir de 2016-17 (D3)
+- **Valeur manquante** : vide si le onze est incomplet (moins de 11 titulaires identifiés, entrée sans identifiant ou exclue pour collision), si un titulaire n'a ni poste ni note antérieure, ou si aucune note antérieure n'existe au poste ; un joueur sans note antérieure vaut la moyenne de son poste (ADR-0013, règle 3), compté
+- **Risque de fuite** : moyen — notes d'un jour strictement antérieur ; poste de la composition annoncée, jamais des statistiques du match évalué ; k estimé sur 2015-16 à 2019-20 seulement
+
+### `xi_regulars_missing`
+
+- **Colonnes** : `xi_regulars_missing`, `opp_xi_regulars_missing`
+- **Définition** : part des habituels du club (au moins 5 débuts sur les 10 derniers matchs de l'historique du club) absents du onze du match
+- **Source** : staging.lineup via load_lineups et load_team_sheets ; features/xi_quality.py
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : fenetre_matchs = 10; debuts_minimum = 5
+- **Historique minimal** : 10 matchs de championnat au onze complet dans le club (depuis 2010-11)
+- **Valeur manquante** : vide si le onze est incomplet ou si l'historique compte moins de 10 matchs ; un départ compte comme une absence tant que le joueur est dans la fenêtre
+- **Risque de fuite** : faible — matchs d'un jour strictement antérieur, limités au club
+
+### `xi_mean_age`
+
+- **Colonnes** : `xi_mean_age`, `opp_xi_mean_age`
+- **Définition** : âge moyen des 11 titulaires, en années, au jour du match
+- **Source** : staging.player (date de naissance) et staging.lineup via load_lineups ; features/xi_quality.py
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : —
+- **Historique minimal** : aucun ; onze complet et date de naissance de chacun des titulaires
+- **Valeur manquante** : vide si le onze est incomplet ou si une date de naissance manque
+- **Risque de fuite** : nul — la date de naissance ne dépend pas du résultat
+
+## G6 — Stabilité du onze (horizon H2)
+
+### `xi_overlap_prev`
+
+- **Colonnes** : `xi_overlap_prev`, `opp_xi_overlap_prev`
+- **Définition** : nombre de titulaires communs (0 à 11) avec le dernier match de championnat terminé du club, au onze complet, d'un jour strictement antérieur
+- **Source** : staging.lineup via load_lineups et load_team_sheets ; features/lineup_stability.py
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : —
+- **Historique minimal** : un match de championnat au onze complet dans le club (depuis 2010-11)
+- **Valeur manquante** : vide si le onze est incomplet, le match non joué ou sans match antérieur (jamais 1 ni 0, rapport H.2)
+- **Risque de fuite** : moyen — le match évalué n'est jamais dans l'historique ; test d'invariance à la troncature sur données réelles
+
+### `xi_cohesion_ewm_h{h}`
+
+- **Colonnes** : `xi_cohesion_ewm_h3`, `opp_xi_cohesion_ewm_h3`, `xi_cohesion_ewm_h5`, `opp_xi_cohesion_ewm_h5`, `xi_cohesion_ewm_h10`, `opp_xi_cohesion_ewm_h10`, `xi_cohesion_ewm_h20`, `opp_xi_cohesion_ewm_h20`, `xi_cohesion_ewm_hinf`, `opp_xi_cohesion_ewm_hinf`
+- **Définition** : moyenne des s(s − 1) / 110 sur l'historique du club, avec s le nombre de titulaires communs avec chaque match antérieur, pondérée par 0,5^((rang − 1) / {h}) selon le rang du match (rang 1 = match précédent) ; demi-vie {h} matchs, inf = poids égaux ; égale la somme de la matrice cumulée des paires restreinte au onze (H.3)
+- **Source** : staging.lineup via load_lineups et load_team_sheets ; features/lineup_stability.py
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : demi_vie_matchs = 3, 5, 10, 20, inf
+- **Historique minimal** : un match de championnat au onze complet dans le club ; sans remise à zéro par saison, limitée au club
+- **Valeur manquante** : comme xi_overlap_prev ; la demi-vie se choisit par validation interne du pli (ADR-0047, D2)
+- **Risque de fuite** : moyen — comme xi_overlap_prev
+
+### `xi_new_starters`
+
+- **Colonnes** : `xi_new_starters`, `opp_xi_new_starters`
+- **Définition** : nombre de titulaires du match qui ont moins de 3 titularisations de championnat dans le club sur les 365 jours précédents
+- **Source** : staging.lineup via load_lineups et load_team_sheets ; features/lineup_stability.py
+- **Horizon** : H2 ; **disponible en live** : non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)
+- **Paramètres** : fenetre_jours = 365; titularisations_minimum = 3
+- **Historique minimal** : un match de championnat au onze complet dans le club
+- **Valeur manquante** : comme xi_overlap_prev
+- **Risque de fuite** : faible — titularisations d'un jour strictement antérieur

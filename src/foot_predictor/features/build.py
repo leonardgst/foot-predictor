@@ -10,7 +10,7 @@ from pathlib import Path
 
 from sqlalchemy import text
 
-from foot_predictor.features import huis_clos, registry, xg_proxy
+from foot_predictor.features import coach, huis_clos, lineup_stability, registry, xg_proxy, xi_quality
 from foot_predictor.features.dataset import (
     DATASETS_ROOT,
     FIRST_SEASON,
@@ -19,6 +19,7 @@ from foot_predictor.features.dataset import (
     SEALED_DATASETS_ROOT,
     VALIDATION_FROM,
     build_frame,
+    build_frame_h2,
     counts_of,
     git_commit,
     git_dirty,
@@ -31,9 +32,26 @@ from foot_predictor.features.rolling import HALF_LIVES, MAX_AGE_DAYS, PRIOR_WEIG
 from foot_predictor.seal import SEAL_DATE
 
 
-def frozen_parameters() -> dict:
+def frozen_parameters(horizon: str = "H1") -> dict:
     """Tous les paramètres qui déterminent le contenu du jeu (manifeste, traçabilité)."""
-    return {
+    h2 = {}
+    if horizon == "H2":
+        h2 = {
+            "xi_quality": json.loads(xi_quality.PARAMS_PATH.read_text(encoding="utf-8"))
+            | {
+                "rating_range": list(xi_quality.RATING_RANGE),
+                "minutes_range": list(xi_quality.MINUTES_RANGE),
+                "regular_window": xi_quality.REGULAR_WINDOW,
+                "regular_min_starts": xi_quality.REGULAR_MIN_STARTS,
+            },
+            "lineup_stability": {
+                "half_lives_matches": [str(h) for h in lineup_stability.HALF_LIVES],
+                "new_starter_window_days": lineup_stability.NEW_STARTER_WINDOW_DAYS,
+                "new_starter_min_starts": lineup_stability.NEW_STARTER_MIN_STARTS,
+            },
+            "coach": {"tenure_cap_days": coach.TENURE_CAP_DAYS, "new_coach_matches": coach.NEW_COACH_MATCHES},
+        }
+    return h2 | {
         "elo": load_elo_params().to_dict(),
         "xg_proxy": asdict(xg_proxy.load()),
         "rolling": {"half_lives_days": list(HALF_LIVES), "max_age_days": MAX_AGE_DAYS, "prior_weight": PRIOR_WEIGHT},
@@ -43,8 +61,9 @@ def frozen_parameters() -> dict:
     }
 
 
-def scope() -> dict:
+def scope(horizon: str = "H1") -> dict:
     return {
+        "horizon": horizon,
         "leagues": sorted(LADDERS),
         "eval_population": sorted(TOP5),
         "seasons": [FIRST_SEASON, LAST_SEASON],
@@ -65,6 +84,18 @@ def database_trace(connection) -> dict:
     return {"alembic_revision": revision, "load_run_id": load_run}
 
 
+def read_h2_inputs(connectable, matches, until=None):
+    """Compositions et feuilles de match des championnats des échelles, lues par la porte (H2, ADR-0047)."""
+    from foot_predictor.features.sources import load_lineups, load_team_sheets
+
+    ladder = matches[matches["api_league_id"].isin(list(LADDERS))]
+    ids = sorted(int(c) for c in ladder["competition_id"].unique())
+    return (
+        load_lineups(connectable, competition_ids=ids, until=until),
+        load_team_sheets(connectable, competition_ids=ids, until=until),
+    )
+
+
 def run_build(
     output_root: Path | None = None,
     record: bool = True,
@@ -72,8 +103,12 @@ def run_build(
     today: dt.date | None = None,
     sealed_test: bool = False,
     experiment: str | None = None,
+    horizon: str = "H1",
 ) -> dict:
     """Construit une version du jeu de données ; renvoie un résumé (version, chemin, lignes, durée).
+
+    `horizon="H2"` ajoute les groupes G4 à G6 (compositions) au jeu H1, dont les colonnes restent
+    celles de `horizon="H1"` (ADR-0047). Le jeu H2 du test scellé est le lot 6.12, pas celui-ci.
 
     `sealed_test=True` (test scellé, ADR-0012 règle 5, une fois par version) : lit aussi les matchs
     scellés par la porte (usage journalisé dans `reports/sealed_tests.md`, `experiment` obligatoire)
@@ -81,6 +116,10 @@ def run_build(
     """
     from foot_predictor.features.sources import load_matches
 
+    if horizon not in ("H1", "H2"):
+        raise ValueError(f"Horizon inconnu : {horizon} (attendu : H1 ou H2).")
+    if horizon == "H2" and sealed_test:
+        raise ValueError("Le jeu H2 scellé n'existe pas encore : il appartient au test scellé de H2 (lot 6.12).")
     started = time.monotonic()
     if engine is None:
         from foot_predictor.db.session import get_engine
@@ -95,14 +134,22 @@ def run_build(
     commit, dirty = git_commit(), git_dirty()
     # Toutes compétitions ; filtre du scellé en SQL, levé seulement avec sealed_test (journalisé).
     matches = load_matches(engine, sealed_test=sealed_test, experiment=experiment)
-    frame = build_frame(matches, load_elo_params(), xg_proxy.load(), huis_clos.load_periods(), sealed_test=sealed_test)
+    if horizon == "H2":
+        lineups, team_sheets = read_h2_inputs(engine, matches)
+        frame = build_frame_h2(
+            matches, lineups, team_sheets, load_elo_params(), xg_proxy.load(), huis_clos.load_periods()
+        )
+    else:
+        frame = build_frame(
+            matches, load_elo_params(), xg_proxy.load(), huis_clos.load_periods(), sealed_test=sealed_test
+        )
     manifest_base = {
         **trace,
         "git_commit": commit,
         "git_dirty": dirty,  # vrai : construit avec du code non committé, à reconstruire
         "registry_sha256": registry.sha256(),
-        "parameters": frozen_parameters(),
-        "scope": scope() | ({"sealed_test": True, "experiment": experiment} if sealed_test else {}),
+        "parameters": frozen_parameters(horizon),
+        "scope": scope(horizon) | ({"sealed_test": True, "experiment": experiment} if sealed_test else {}),
         "counts": counts_of(frame),
     }
     today = today or dt.datetime.now(dt.UTC).date()

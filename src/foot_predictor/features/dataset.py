@@ -1,8 +1,9 @@
-"""Jeu de données versionné : une ligne par (match, équipe), variables G0 à G3 (ADR-0030).
+"""Jeu de données versionné : une ligne par (match, équipe), variables G0 à G3 (H1) et G4 à G6 (H2) (ADR-0030, ADR-0047).
 
 `build_frame(matches, ...)` est une fonction pure : elle reçoit la table des matchs (porte
-`features/sources.py`, toutes compétitions) et renvoie le jeu, colonnes dans l'ordre du
-registre. `run_build` lit la porte, écrit l'instantané Parquet et son manifeste dans
+`features/sources.py`, toutes compétitions) et renvoie le jeu H1, colonnes dans l'ordre du
+registre. `build_frame_h2(matches, lineups, team_sheets, ...)` appelle `build_frame` puis joint
+les groupes G4 à G6 sur (match, équipe) : les colonnes H1 d'un jeu H2 sont celles du jeu H1. `run_build` lit la porte, écrit l'instantané Parquet et son manifeste dans
 `data/datasets/<version>/` (ignoré par Git) et trace la version dans
 `features.dataset_version`.
 
@@ -24,10 +25,13 @@ import numpy as np
 import pandas as pd
 
 from foot_predictor.features import huis_clos, registry, xg_proxy
+from foot_predictor.features.coach import compute_coach
 from foot_predictor.features.elo import EloParams, compute_elo
 from foot_predictor.features.leagues import LADDERS, TOP5
+from foot_predictor.features.lineup_stability import compute_lineup_stability
 from foot_predictor.features.rest import compute_rest
 from foot_predictor.features.rolling import HALF_LIVES, compute_rolling
+from foot_predictor.features.xi_quality import compute_xi_quality
 from foot_predictor.seal import check_seal
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -139,7 +143,7 @@ def build_frame(
     opponent = opponent.rename(columns={c: f"opp_{c}" for c in own})
     frame = frame.merge(opponent, on=["match_id", "opp_team_id"], how="left", validate="one_to_one")
 
-    expected = registry.columns()
+    expected = registry.columns(horizon="H1")
     missing = [c for c in expected if c not in frame.columns]
     if missing:
         raise ValueError(f"Colonnes du registre non calculées : {missing}")
@@ -166,6 +170,52 @@ def build_frame(
     return frame.sort_values(["match_date", "match_id", "is_home"], ascending=[True, True, False]).reset_index(
         drop=True
     )
+
+
+def build_frame_h2(
+    matches: pd.DataFrame,
+    lineups: pd.DataFrame,
+    team_sheets: pd.DataFrame,
+    elo_params: EloParams,
+    coefficients: xg_proxy.XgProxyCoefficients,
+    periods: list[huis_clos.Period] | None = None,
+    half_lives: tuple[int, ...] = HALF_LIVES,
+    sealed_test: bool = False,
+    shrinkage_minutes: float | None = None,
+) -> pd.DataFrame:
+    """Jeu H2 : le jeu H1 (`build_frame`, inchangé) plus les groupes G4 à G6 de la composition (ADR-0047).
+
+    `lineups` et `team_sheets` viennent de la porte (`load_lineups`, `load_team_sheets`), filtrés
+    comme les matchs. Chaque groupe est une fonction pure de l'historique antérieur au jour du match ;
+    la jointure se fait sur (match, équipe), et la colonne de l'adversaire se lit sur sa ligne du même
+    match, comme pour G2. Une valeur incalculable reste vide. Les colonnes H1 sont identiques,
+    ligne à ligne, à celles de `build_frame` (testé).
+    """
+    base = build_frame(matches, elo_params, coefficients, periods, half_lives, sealed_test)
+    groups = [
+        compute_coach(matches, team_sheets),
+        compute_xi_quality(matches, lineups, team_sheets, shrinkage_minutes=shrinkage_minutes),
+        compute_lineup_stability(matches, lineups, team_sheets),
+    ]
+    keys = ["match_id", "team_id"]
+    frame = base
+    own: list[str] = []
+    for group in groups:
+        values = group.drop(columns=["is_home"])
+        own += [c for c in values.columns if c not in keys]
+        frame = frame.merge(values, on=keys, how="left", validate="one_to_one")
+    opponent = frame[["match_id", "team_id", *own]].rename(columns={"team_id": "opp_team_id"})
+    opponent = opponent.rename(columns={c: f"opp_{c}" for c in own})
+    frame = frame.merge(opponent, on=["match_id", "opp_team_id"], how="left", validate="one_to_one")
+
+    expected = registry.columns()
+    missing = [c for c in expected if c not in frame.columns]
+    if missing:
+        raise ValueError(f"Colonnes du registre non calculées : {missing}")
+    extra = [c for c in frame.columns if c not in expected]
+    if extra:
+        raise ValueError(f"Colonnes hors registre : {extra}")
+    return frame[expected].reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------------- instantané

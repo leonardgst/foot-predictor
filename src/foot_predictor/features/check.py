@@ -9,7 +9,10 @@ Rapport versionné `reports/variables/dataset_<version>.md`, chiffres seulement 
 - résumé des distributions des variables (période de développement : tout le jeu) ;
 - en option (`--invariance`), le contrôle anti-fuite n° 2 sur les données réelles : les lignes
   calculées sur l'historique tronqué à une date de coupe sont identiques à celles calculées sur
-  l'historique complet, pour tous les matchs d'avant la coupe.
+  l'historique complet, pour tous les matchs d'avant la coupe ;
+- pour un jeu H2 (`scope.horizon` du manifeste, ADR-0047) : les colonnes G4 à G6 sont contrôlées avec
+  le reste, la troncature s'applique aussi aux compositions, et une section donne les valeurs vides
+  des groupes de la composition par saison.
 """
 
 from __future__ import annotations
@@ -20,7 +23,7 @@ from pathlib import Path
 import pandas as pd
 
 from foot_predictor.features import huis_clos, registry, xg_proxy
-from foot_predictor.features.dataset import build_frame, load_elo_params
+from foot_predictor.features.dataset import build_frame, build_frame_h2, load_elo_params
 from foot_predictor.features.leagues import LADDERS
 from foot_predictor.seal import SEAL_TIMESTAMP
 
@@ -31,6 +34,7 @@ LEAGUE_NAMES = {
 SEASON_FAMILIES = [
     "elo_pre", "goals_for_ewm_h120", "xgp_for_ewm_h120", "days_since_last_league_match", "rest_days",
 ]  # fmt: skip
+H2_FAMILIES = ["coach_tenure_days", "xi_quality", "xi_regulars_missing", "xi_mean_age", "xi_overlap_prev"]
 DEFAULT_CUTS = (dt.date(2019, 1, 1), dt.date(2023, 3, 1))
 
 
@@ -46,15 +50,28 @@ def _table(headers: list[str], rows: list[list]) -> list[str]:
     ]
 
 
-def invariance(cuts=DEFAULT_CUTS, connectable=None) -> list[dict]:
-    """Contrôle n° 2 sur les données réelles : historique tronqué à la date de coupe contre historique complet."""
+def _frame_until(connectable, until, horizon, params, coef, periods):
+    """Jeu construit sur l'historique antérieur à `until` (tout l'historique si None), H1 ou H2."""
+    from foot_predictor.features.build import read_h2_inputs
     from foot_predictor.features.sources import load_matches
 
+    matches = load_matches(connectable, until=until)
+    if horizon == "H2":
+        lineups, team_sheets = read_h2_inputs(connectable, matches, until=until)
+        return build_frame_h2(matches, lineups, team_sheets, params, coef, periods)
+    return build_frame(matches, params, coef, periods)
+
+
+def invariance(cuts=DEFAULT_CUTS, connectable=None, horizon: str = "H1") -> list[dict]:
+    """Contrôle n° 2 sur les données réelles : historique tronqué à la date de coupe contre historique complet.
+
+    À l'horizon H2, la troncature s'applique aussi aux compositions et aux feuilles de match.
+    """
     params, coef, periods = load_elo_params(), xg_proxy.load(), huis_clos.load_periods()
-    full = build_frame(load_matches(connectable), params, coef, periods)
+    full = _frame_until(connectable, None, horizon, params, coef, periods)
     results = []
     for cut in cuts:
-        truncated = build_frame(load_matches(connectable, until=cut), params, coef, periods)
+        truncated = _frame_until(connectable, cut, horizon, params, coef, periods)
         before = full[full["match_day"] < cut].reset_index(drop=True)
         cut_rows = truncated[truncated["match_day"] < cut].reset_index(drop=True)
         same_shape = before.shape == cut_rows.shape
@@ -72,10 +89,11 @@ def invariance(cuts=DEFAULT_CUTS, connectable=None) -> list[dict]:
 
 def render(frame: pd.DataFrame, manifest: dict, inv: list[dict] | None, today: dt.date) -> str:
     version = manifest["version"]
-    expected = registry.columns()
+    horizon = manifest.get("scope", {}).get("horizon", "H1")
+    expected = registry.columns(horizon=horizon)
     columns_ok = list(frame.columns) == expected
     sealed = int((pd.to_datetime(frame["match_date"], utc=True) >= SEAL_TIMESTAMP).sum())
-    features = [c for c in registry.feature_columns() if not c.startswith("opp_")]
+    features = [c for c in registry.feature_columns(horizon=horizon) if not c.startswith("opp_")]
     lines = [
         f"# Contrôle du jeu de données {version} — {today.isoformat()}",
         "",
@@ -83,6 +101,7 @@ def render(frame: pd.DataFrame, manifest: dict, inv: list[dict] | None, today: d
         "",
         "## 1. Verdicts",
         "",
+        f"- Horizon du jeu : **{horizon}**.",
         f"- Colonnes du jeu contre le registre ({len(expected)} colonnes) : **{'OK' if columns_ok else 'ÉCART'}**.",
         f"- Matchs datés à partir du 1er juillet 2025 : **{sealed}** (attendu : 0).",
         f"- Lignes : {len(frame)} ; matchs : {frame['match_id'].nunique()} ; du {frame['match_day'].min()} au "
@@ -122,6 +141,15 @@ def render(frame: pd.DataFrame, manifest: dict, inv: list[dict] | None, today: d
     rows = [[season, *(_pct(group[c].isna().mean()) for c in SEASON_FAMILIES), _pct(group["rest_reliable"].mean())]
             for season, group in by_season]  # fmt: skip
     lines += _table(["Saison", *SEASON_FAMILIES, "rest_reliable (% vrai)"], rows)
+    if horizon == "H2":
+        lines += ["", "## 5 bis. Part de valeurs vides (%) par saison, groupes de la composition (H2)", ""]
+        lines += [
+            "Toutes les lignes du jeu (top 5 et D2) ; avant 2015-16, les notes manquent et avant 2016-17 les "
+            "entraîneurs (rodage, ADR-0047 D3).",
+            "",
+        ]
+        rows = [[season, *(_pct(group[c].isna().mean()) for c in H2_FAMILIES)] for season, group in by_season]
+        lines += _table(["Saison", *H2_FAMILIES], rows)
 
     lines += ["", "## 6. Distributions (toutes les lignes, période de développement)", ""]
     rows = []
@@ -147,7 +175,8 @@ def run_check(
     from foot_predictor.features.sources import load_dataset
 
     frame, manifest = load_dataset(version, output_root)
-    inv = invariance() if with_invariance else None
+    horizon = manifest.get("scope", {}).get("horizon", "H1")
+    inv = invariance(horizon=horizon) if with_invariance else None
     today = today or dt.datetime.now(dt.UTC).date()
     report_dir.mkdir(parents=True, exist_ok=True)
     path = report_dir / f"dataset_{manifest['version']}.md"

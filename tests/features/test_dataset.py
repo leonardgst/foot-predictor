@@ -73,7 +73,7 @@ def build(matches: pd.DataFrame) -> pd.DataFrame:
 
 def test_dataset_columns_are_exactly_the_registry():
     frame = build(synthetic_matches())
-    assert list(frame.columns) == registry.columns()
+    assert list(frame.columns) == registry.columns(horizon="H1")
 
 
 def test_one_row_per_match_and_team_only_regular_season_played():
@@ -96,7 +96,7 @@ def test_control_1_changing_the_result_of_m_does_not_change_the_row_of_m():
     idx = changed.index[changed["match_id"] == target][0]
     changed.loc[idx, ["home_goals_90", "away_goals_90", "home_sot_fd", "away_sot_fd"]] = [9, 0, 30, 0]
     after = build(changed)
-    features = [c for c in registry.columns() if c not in ("goals_for", "goals_against")]
+    features = [c for c in registry.columns(horizon="H1") if c not in ("goals_for", "goals_against")]
     pd.testing.assert_frame_equal(
         before.loc[before["match_id"] == target, features].reset_index(drop=True),
         after.loc[after["match_id"] == target, features].reset_index(drop=True),

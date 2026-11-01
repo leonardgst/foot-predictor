@@ -6,7 +6,8 @@ décrire plusieurs colonnes :
 - `portee: [equipe, adversaire]` donne la colonne de l'équipe (`nom`) et celle de
   l'adversaire (`opp_<nom>`) ;
 - un `nom` qui contient `{h}` donne une variable **distincte** par demi-vie de
-  `parametres.demi_vie_jours`, qui porte son paramètre (`demi_vie_jours: 60`, par exemple).
+  `parametres.demi_vie_jours` (G2) ou de `parametres.demi_vie_matchs` (G6, cohésion), qui porte son
+  paramètre (`demi_vie_jours: 60`, par exemple). `.inf` donne le suffixe `inf` (poids égaux).
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ HORIZONS = ("H1", "H2")
 GROUP_HORIZON = {"G0": "H1", "G1": "H1", "G2": "H1", "G3": "H1", "G4": "H2", "G5": "H2", "G6": "H2"}
 HORIZON_RANK = {"H1": 1, "H2": 2}
 OPPONENT_PREFIX = "opp_"
+HALF_LIFE_KEYS = ("demi_vie_jours", "demi_vie_matchs")
 
 
 class RegistryError(ValueError):
@@ -91,11 +93,21 @@ def validate_entries(entries: list[dict]) -> None:
             )
         if not set(entry["portee"]) <= {"equipe", "adversaire"} or "equipe" not in entry["portee"]:
             raise RegistryError(f"{entry['nom']} : portée invalide {entry['portee']}")
-        if "{h}" in entry["nom"] and not (entry.get("parametres") or {}).get("demi_vie_jours"):
-            raise RegistryError(f"{entry['nom']} : « {{h}} » sans parametres.demi_vie_jours")
+        if "{h}" in entry["nom"] and not _half_life_key(entry.get("parametres") or {}):
+            raise RegistryError(f"{entry['nom']} : « {{h}} » sans parametres.demi_vie_jours ni demi_vie_matchs")
         if entry["nom"] in seen:
             raise RegistryError(f"{entry['nom']} : en double")
         seen.add(entry["nom"])
+
+
+def _half_life_key(params: dict) -> str | None:
+    """Nom du paramètre qui liste les demi-vies d'une entrée (en jours ou en matchs), s'il y en a un."""
+    return next((key for key in HALF_LIFE_KEYS if params.get(key)), None)
+
+
+def _half_life_label(params: dict) -> str:
+    key = _half_life_key(params)
+    return str(params[key]) if key else "h"
 
 
 def variables(path: Path = PATH) -> list[Variable]:
@@ -103,10 +115,11 @@ def variables(path: Path = PATH) -> list[Variable]:
     out: list[Variable] = []
     for entry in load_entries(path):
         params = dict(entry.get("parametres") or {})
-        half_lives = params.pop("demi_vie_jours", None) if "{h}" in entry["nom"] else None
+        key = _half_life_key(params) if "{h}" in entry["nom"] else None
+        half_lives = params.pop(key) if key else None
         instances = [(entry["nom"], params)]
         if half_lives:
-            instances = [(entry["nom"].replace("{h}", str(h)), params | {"demi_vie_jours": h}) for h in half_lives]
+            instances = [(entry["nom"].replace("{h}", str(h)), params | {key: h}) for h in half_lives]
         for name, instance_params in instances:
             for scope in entry["portee"]:
                 column = name if scope == "equipe" else OPPONENT_PREFIX + name
@@ -114,17 +127,15 @@ def variables(path: Path = PATH) -> list[Variable]:
                     Variable(
                         name=column,
                         group=entry["groupe"],
-                        definition=str(entry["definition"]).replace(
-                            "{h}", str(instance_params.get("demi_vie_jours", "h"))
-                        ),
+                        definition=str(entry["definition"]).replace("{h}", _half_life_label(instance_params)),
                         source=str(entry["source"]),
                         horizon=str(entry["horizon"]),
                         live=str(entry["disponible_en_live"]),
                         parameters=instance_params,
                         minimal_history=str(entry["historique_minimal"]),
-                        missing=str(entry["manquant"]).replace("{h}", str(instance_params.get("demi_vie_jours", "h"))),
+                        missing=str(entry["manquant"]).replace("{h}", _half_life_label(instance_params)),
                         leak_risk=str(entry["risque_fuite"]),
-                        leak_guard=str(entry["parade"]).replace("{h}", str(instance_params.get("demi_vie_jours", "h"))),
+                        leak_guard=str(entry["parade"]).replace("{h}", _half_life_label(instance_params)),
                         scope=scope,
                         entry=entry["nom"],
                     )
@@ -136,14 +147,24 @@ def variables(path: Path = PATH) -> list[Variable]:
     return out
 
 
-def columns(path: Path = PATH) -> list[str]:
-    """Noms des colonnes du jeu de données, dans l'ordre du registre."""
-    return [v.name for v in variables(path)]
+def _up_to(horizon: str | None, variable: Variable) -> bool:
+    """Vrai si la colonne se lit à cet horizon : identifiants et cible toujours, variables jusqu'à lui (None : toutes)."""
+    if horizon is None or variable.group not in FEATURE_GROUPS:
+        return True
+    return HORIZON_RANK[variable.horizon] <= HORIZON_RANK[horizon]
 
 
-def feature_columns(path: Path = PATH) -> list[str]:
-    """Colonnes des groupes de variables (G0 à G6), sans identifiants ni cible."""
-    return [v.name for v in variables(path) if v.group in FEATURE_GROUPS]
+def columns(path: Path = PATH, *, horizon: str | None = None) -> list[str]:
+    """Noms des colonnes du jeu de données, dans l'ordre du registre.
+
+    `horizon="H1"` : identifiants, cible et variables G0 à G3 seulement (jeu H1) ; `None` ou `"H2"` : toutes.
+    """
+    return [v.name for v in variables(path) if _up_to(horizon, v)]
+
+
+def feature_columns(path: Path = PATH, *, horizon: str | None = None) -> list[str]:
+    """Colonnes des groupes de variables (G0 à G6), sans identifiants ni cible ; `horizon` comme `columns`."""
+    return [v.name for v in variables(path) if v.group in FEATURE_GROUPS and _up_to(horizon, v)]
 
 
 def check_model_horizon(model_columns, horizon: str, path: Path = PATH) -> None:

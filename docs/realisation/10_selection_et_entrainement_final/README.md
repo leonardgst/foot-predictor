@@ -87,7 +87,7 @@ La seule comparaison de décision est `[M3_G0G2, M3_H2]`. Elle est placée en pr
 | Version | Tag | Chemins gelés jusqu'au test |
 |---|---|---|
 | H1 (fait) | `pre-scelle-h1` | `modeling/`, `features/`, `experiments/` |
-| H2 | `pre-scelle-h2` | les mêmes, plus `src/foot_predictor/seal.py` |
+| H2 (fait, gel levé le 2026-11-01) | `pre-scelle-h2` | les mêmes, plus `src/foot_predictor/seal.py` |
 
 **Répétition avant le tag** (`tests/test_scelle_h2.py`, sans base ni scellé) :
 

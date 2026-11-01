@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-11-01 (6.12 : test scellé H2)
+**Dernière mise à jour** : 2026-11-01 (levée du gel de H2)
 **Partie courante** : les phases A des parties 1 à 6 sont faites (dernière : partie 6, horizon H2 ; `docs/retours/partie-6a_2026-11-01.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2, 3 et 4 terminées** (tags `v0.3.0`, `v0.4.0` et `v0.5.0` ; `docs/retours/partie-2_2026-10-19.md`, `partie-3_2026-10-22.md`, `partie-4_2026-10-22.md`). **Partie 5 terminée** (tags `v0.6.0` et `v1.0.0` ; `docs/retours/partie-5_2026-10-31.md`) : **le MVP est terminé**.
 
-**Reprise : partie 6, version intermédiaire (J9), phase B** : 6.12 **fait** (test scellé H2 mené une fois ; `docs/retours/partie-6-lot12_2026-11-01.md`, `docs/resultats/test_scelle_h2.md`) ; puis 6.13 (ADR d'ouverture du rejeu des saisons scellées, journal prospectif) et 6.14 (rapport v2, tag de fin de J9). **Test scellé H2 fait** (le garde-fou refuse un second lancement). **Gel `pre-scelle-h2`** : à lever explicitement (décision de l'utilisateur, avec la mise à jour de `CLAUDE.md`) ; tant que ce n'est pas fait, `modeling/`, `features/`, `seal.py`, `experiments/` ne changent pas. Aucun modèle H1 ne se modifie ; pas de modèle H2 appris avec les matchs scellés (D6).
+**Reprise : partie 6, version intermédiaire (J9), phase B** : 6.12 **fait** (test scellé H2 mené une fois ; `docs/retours/partie-6-lot12_2026-11-01.md`, `docs/resultats/test_scelle_h2.md`) ; puis 6.13 (ADR d'ouverture du rejeu des saisons scellées, journal prospectif) et 6.14 (rapport v2, tag de fin de J9). **Test scellé H2 fait** (le garde-fou refuse un second lancement). **Gel `pre-scelle-h2` levé** le 2026-11-01 (décision de l'utilisateur ; `CLAUDE.md` mis à jour) : `modeling/`, `features/`, `seal.py`, `experiments/` peuvent de nouveau changer, mais pas les modèles testés (H1 : ADR-0044, garde H1 ; H2 : modèle du test 6.12). Aucun modèle H1 ne se modifie ; pas de modèle H2 appris avec les matchs scellés (D6).
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -65,7 +65,7 @@
 - Points de vigilance :
   - `lock-status` (avec `--raw-dir C:/foot-predictor/data/raw` depuis le worktree) avant chaque `git pull` dans `C:/foot-predictor` ; **jamais de `load` si le verrou est occupé** ; `load` dure de 6 à 13 minutes (377 s pour le chargement n° 7, 493 s pour le n° 6, 778 s pour le n° 5) ;
   - **identifiants internes non stables d'un brut à l'autre** (E-058, corrigé par la PR #85) : hors de `staging`, rapprocher par l'identifiant API ; les 78 premières lignes d'`ops.prediction` restent sans identifiant API ; un nouveau `load` sur un brut plus grand demanderait un nouveau jeu pour `check --only rows` ;
-  - **gel `pre-scelle-h2`** (ADR-0050) jusqu'au test scellé H2 (6.12) : `git diff --stat pre-scelle-h2 -- src/foot_predictor/modeling src/foot_predictor/features src/foot_predictor/seal.py experiments` vide avant chaque fusion ; un défaut dans un chemin gelé passe par une nouvelle ADR, jamais par un déplacement du tag. En 6.12, le contrôle 1 de l'ADR-0050 (colonnes H1 du jeu H2 scellé identiques à `94969da0`) s'écrit hors des chemins gelés. Garde H1 (ADR-0044) inchangée ;
+  - **gel `pre-scelle-h2` levé** (test scellé H2 fait en 6.12, ADR-0050) : plus de contrôle `git diff --stat pre-scelle-h2` avant fusion ; le tag ne se déplace jamais ; le garde-fou du test refuse un second lancement. Garde H1 (ADR-0044) inchangée : une PR qui touche `modeling/models/` ou `features/` montre H1 inchangé, et ne doit pas non plus changer les prédictions du modèle H2 testé ;
   - **scellé** : aucune valeur d'un match joué à partir du 1er juillet 2025 ; lecture des matchs par `features/sources.py` seulement ; ouvert à `inference/` seulement (ADR-0045), jamais au développement de H2 ;
   - **disque externe `D:`** : invisible un moment après le gel, revenu et recompté (E-056) : 17 336 fichiers et journal au sha256 attendu. Copies facultatives faites le 19 octobre (E-031), sha256 identiques : `D:/foot-predictor/copies-2026-10-19/` (`fp_dumps/` et `football_data/`). **Copies du 2026-10-31** (décision du 22 octobre) : jeu scellé `ds-2026-10-22-94969da0` et modèle final H1, 4 fichiers, sha256 identiques à `C:`, dans `D:/foot-predictor/copies-2026-10-22/` (`datasets_scelles/`, `models/`) ;
   - Docker Desktop doit tourner (bases arrêtées sinon, E-050) : `docker ps` en début de session ;
@@ -85,7 +85,6 @@
 cd /c/fp-travail && git fetch origin --tags && git switch --detach origin/main && uv sync --all-groups
 docker ps ; uv run alembic current        # deux conteneurs « Up » (E-050) ; 0008
 git tag -l data-freeze-2026-10 v0.5.0 v0.6.0 v1.0.0 pre-scelle-h2     # les cinq tags, sinon s'arrêter
-git diff --stat pre-scelle-h2 -- src/foot_predictor/modeling src/foot_predictor/features src/foot_predictor/seal.py experiments   # vide (gel, ADR-0050)
 uv run python -m foot_predictor.inference models     # actif : scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle (5.13)
 uv run python -m foot_predictor.collect.api_football --raw-dir C:/foot-predictor/data/raw lock-status   # libre
 # live courant (accord de l'utilisateur pour chaque collecte ; fichier des prochains matchs : vendredi après-midi et mardi)

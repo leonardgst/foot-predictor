@@ -30,7 +30,8 @@ Ablations (4.12) : `docs/resultats/ablations.md` ; courbe d'apport et analyses d
 | `m1`, `m2` | M1, M2 | `total.py` | `groups` (G0, G1) |
 | `m3`, `m4` | M3, M4 | `team.py` | `groups`, `half_life` ; `check_dispersion` (M3) |
 | `m5` | M5 | `dependence.py` | `groups`, `half_life` |
-| `m6` | M6 | `regularized.py` | `groups`, `half_life`, `alpha`, `penalty` (`l2`, `elasticnet`), `l1_ratio` |
+| `m6` | M6 | `regularized.py` | `groups`, `half_life`, `alpha`, `penalty` (`l2`, `elasticnet`), `l1_ratio`, `train_from` |
+| `m7` | M7 | `boosting.py` | `groups`, `half_life`, `max_depth`, `max_iter`, `learning_rate`, `min_samples_leaf`, `l2_regularization`, `train_from` |
 | `market` | marché | `market.py` | `version` (`avant_cloture`, `cloture`) |
 
 Matrice des variables : `modeling/design.py` (groupes G0 à G3, standardisation dans le pli, colonnes constantes retirées). Diagnostics : `modeling/diagnostics.py` (φ, Cameron-Trivedi, rapport de vraisemblance au bord), `modeling/nonlinearity.py` (buts observés contre attendus par décile de l'écart d'Elo).
@@ -53,6 +54,22 @@ uv run python -m foot_predictor.modeling summary reports/experiments/<id>.json  
 ```
 
 - **Résultat** : en suivant le chemin écrit d'avance (G6, puis G5, puis G4), **G6 n'est pas retenu** (+0,00035 [−0,00022 ; +0,00091]), **G5 l'est** (+0,00078 [+0,00003 ; +0,00151], 4 plis sur 4, borne basse à 0,00003) et **G4 ne l'est pas** (−0,00090 [−0,00158 ; −0,00022]). Modèle H2 retenu : M3 sur G0 + G1 + G2 + G5. Gain minuscule et fragile (à fenêtre égale, il n'est plus significatif) ; aucune variante de stabilité ne se distingue de la base.
+
+## Partie 6 : structures de l'horizon H2 (sous-étape 6.8, 2026-11-01)
+
+Variables, grilles et chemin de décision écrits avant toute mesure : **ADR-0049** (commit `4ae284f`). Résultats lisibles et tableaux générés : [`docs/resultats/h2_structures.md`](../../resultats/h2_structures.md).
+
+- **M7** (`modeling/models/boosting.py`) : `HistGradientBoostingRegressor(loss="poisson")` par équipe, sur la matrice de `Design` (mêmes variables, même rodage et mêmes lignes exclues que M3 et M6 : seule la structure change). Arrêt précoce coupé (il tire sa validation au hasard, sans respecter le temps) ; le nombre d'itérations se choisit par la validation interne du protocole. Pas de nouvelle dépendance.
+- **M6 et M7** gagnent `first_training_season` (rodage de G5, D3) et `train_from` (témoin de fenêtre) ; un modèle H1 garde la même description (testé, garde H1 : rejeu reproduit).
+- **Lancer** (arbre propre ; `INDEX.md` est suivi par Git, donc committer la mesure de durée avant le lancement de référence) :
+
+```bash
+uv run python -m foot_predictor.modeling evaluate experiments/structures_h2_mesure_duree.yaml   # 2 min 24 s
+uv run python -m foot_predictor.modeling evaluate experiments/structures_h2.yaml                # 2 min 48 s, décision
+uv run python -X utf8 -m foot_predictor.modeling summary reports/experiments/<id>.json --output <fichier>.md
+```
+
+- **Résultat** : sur le chemin écrit d'avance, **M6 (ridge) ne remplace pas M3** (+0,00014 [−0,00044 ; +0,00072]) et **M7 (boosting) est significativement moins bon** (−0,00235 [−0,00444 ; −0,00025], 0 pli sur 4). Le modèle H2 reste M3 sur G0 + G1 + G2 + G5. L'apport de G5 à fenêtre égale garde le même signe sous M6 et M7 sans devenir significatif. L'α de M6 est au bord haut de sa grille dans 3 plis : publié, grille non étendue.
 
 ## Ajouter un modèle
 

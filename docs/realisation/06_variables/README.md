@@ -126,6 +126,38 @@ Contrôles sur les données réelles (lecture seule, avant le scellé, mêmes le
 
 À regarder en 6.6 : **les habituels absents recouvrent largement la cohésion de G6** (corrélation de −0,85). Ce n'est pas une raison de changer une définition fixée avant les plis ; l'ablation de 6.7 (G5 ajouté après G6, D1) dira si le groupe apporte quelque chose de plus.
 
+### 6.4 — Variables de l'entraîneur, G4 (2026-11-01)
+
+`features/coach.py` : `compute_coach(matches, team_sheets)`, fonction pure (rapport I.3, ADR-0047 décision 2 et D3). Une ligne par (match, équipe) de championnat des échelles. L'entraîneur de m est celui de la feuille de match (connu à T-60) ; l'historique est limité au club et traverse les saisons.
+
+| Colonne | Définition |
+|---|---|
+| `coach_tenure_days` | jours entre le premier match de la **période en cours** et le jour de m, plafonnés à 365 ; 0 si l'entraîneur arrive |
+| `coach_is_new` | 1 si la période compte moins de 5 matchs avant m, sinon 0 |
+
+- **Période en cours** : suite ininterrompue des derniers matchs de l'historique (championnat terminé, jour strictement antérieur, entraîneur connu) dont l'entraîneur est celui de m. Si le dernier match de l'historique a un autre entraîneur, la période est vide. Un retour (A, B, puis A) repart de zéro (4 cas dans les données).
+- **Entraîneur inconnu** : la valeur du match est vide, et le match sort de l'historique sans couper la période (il ne fait pas passer son successeur pour un nouvel entraîneur). Rien n'est rempli.
+- **Censure à gauche** (documentée) : l'API ne donne l'entraîneur qu'à partir de 2016-17 (0 % en 2015-16, 100 % en 2016-17). Un entraîneur déjà en poste en août 2016 paraît arrivé à cette date ; le plafond de 365 jours absorbe l'effet pour l'ancienneté à partir d'août 2017. Les valeurs de 2016-17 sont calculées mais biaisées : l'apprentissage commence en **2017-18** (D3, à appliquer en 6.7).
+- **Pas de fiche au registre ici** (raison de 6.2) : les fiches G4 à G6 arrivent en 6.5.
+
+Contrôles sur les données réelles (lecture seule, avant le scellé ; calcul 1 s) :
+
+| Contrôle | Résultat |
+|---|---|
+| Lignes | 197 002 (match, équipe) |
+| Plis 2021-24, top 5 (14 342 lignes) | 0,08 % de valeurs vides (12 lignes, entraîneur absent de l'API) |
+| Valeurs vides par saison, top 5 | 100 % en 2015-16 ; de 0 à 0,3 % ailleurs, sauf 1,1 % en 2019-20 et 1,7 % en 2020-21 |
+| Plis, valeurs | ancienneté moyenne 242 jours (médiane 301) ; **46,6 % des lignes plafonnées à 365** ; 10,5 % de « nouveaux » |
+| Censure, 2016-17 (top 5) | 19,5 % de « nouveaux » (contre 10 % en 2017-18 et 2018-19) et 0 % de plafonnées (contre 52 %) : l'écart vient de la censure, d'où le rodage |
+| Invariance à la troncature | 0 écart sur les deux colonnes aux coupes du 2019-01-01 (146 316 lignes) et du 2023-03-01 (179 020 lignes) |
+| Calcul indépendant | 300 lignes (2017-18 à 2024-25) recalculées avec une boucle naïve : écart nul |
+| Corrélation avec G6 (plis) | `coach_is_new` / `xi_new_starters` : 0,17 ; ancienneté / cohésion h∞ : 0,14 |
+| Corrélation avec G5 (plis) | ancienneté / `xi_quality` : 0,16 ; `coach_is_new` / habituels absents : 0,15 |
+| Entre elles | −0,57 : l'ancienneté plafonnée et l'indicateur se recoupent en partie |
+| Garde H1 | aucun fichier de `modeling/`, ni `registry.yaml`, ni `dataset.py` touché ; `inference check --only replay` : rejeu reproduit, écart nul |
+
+Pas de problème de collinéarité avec G5 et G6, contrairement aux habituels absents (6.3). Plus de 46 % de lignes plafonnées : l'ancienneté n'a de variation que pour la moitié des lignes, c'est la raison du plafond (D3).
+
 ## Phase B : jeu sur le brut définitif (3.11)
 
 Après le gel et la partie 2 (`staging` = chargement n° 7, tag `v0.3.0`), le jeu est reconstruit puis comparé au jeu en vigueur. Les identifiants internes de `staging` ont changé au chargement n° 6 (E-058) : les lignes se rapprochent par **identifiants API**, jamais par `match_id` ni `team_id`.

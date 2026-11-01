@@ -28,24 +28,60 @@ Le critère 3 n'est pas tenu à la lettre au test scellé (5 déciles sur 10 au-
 la pente vaut 1,00 : avec environ 209 matchs par décile, 3 points sont sous l'erreur d'échantillonnage.
 Le protocole l'avait classé en diagnostic avant toute évaluation ; il est publié tel quel.
 
+\section{Critères de la version intermédiaire}
+\label{sec:criteres-e2}
+
+La version intermédiaire (jalon J9) répond à la question \og que rapporte vraiment la composition des
+équipes ? \fg{}. Le rapport de cadrage (E.2) fixait ses critères.
+
+\begin{center}
+\begin{tabularx}{\textwidth}{Xll}
+\toprule
+Critère & État & Preuve \\
+\midrule
+Chaque groupe de variables a un apport mesuré, gain et intervalle, publié & rempli & tableau des
+  ablations, chap.~\ref{chap:resultats} \\
+Décision argumentée sur la stabilité du onze & rempli & abandonnée pour H2 \\
+Régularisation et boosting essayés & rempli & aucune ne remplace M3 \\
+Second horizon avec composition, comparé au premier, avec page d'apport & rempli en rejeu & H1 et H2 côte
+  à côte, page d'apport \\
+Test scellé de l'horizon H2, une seule fois & rempli & non significatif, comme annoncé \\
+Prédictions live tracées avant le coup d'envoi pendant au moins 8 journées & en cours (7 sur 8) & 89
+  prédictions, premier relevé \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Deux éléments prévus par E.2 ne sont pas faits : les services conteneurisés (Compose) et la planification
+des collectes, laissés en option par l'ADR-0047. La collecte de l'API est terminée et toute tâche planifiée
+passerait par une ADR. Le critère des 8 journées dépend du calendrier : il manque une journée de matchs
+tracée avant le coup d'envoi.
+
 \section{Limites}
 
 \begin{itemize}
-  \item \textbf{Un horizon seulement.} Le modèle ignore les compositions : il ne sait pas qu'un titulaire
-        est absent. C'est la limite la plus coûteuse face au marché, qui reste meilleur sur plus ou moins
-        2,5 buts.
-  \item \textbf{Un seul pli scellé}, d'une saison et quart : l'intervalle du test est large, et le
-        résultat vaut pour cette période et ces cinq championnats.
+  \item \textbf{Un second horizon de rejeu seulement.} Avec la composition, H2 n'a pas de live : aucune
+        composition n'arrive plus après la fin de l'abonnement, et l'application répond \og indisponible
+        \fg{}. Il explique ce que la composition change, il ne prédit pas l'avenir.
+  \item \textbf{Un gain de composition minuscule et fragile} : \(0{,}0008\) nat par match, borne basse de
+        l'intervalle à \(+0{,}00003\), plus faible à fenêtre égale, concentré en début de saison. Le test
+        scellé de H2 ne peut pas le distinguer de zéro (puissance de l'ordre de \(0{,}007\)). Une part de
+        l'information de la composition est déjà dans l'Elo (corrélation 0,83 avec la qualité du onze).
+  \item \textbf{Des variables de composition imparfaites} : notes calculées après le match par le
+        fournisseur, selon une formule inconnue ; les blessures ne sont pas modélisées (un absent connu
+        seulement par son absence du onze) ; une variable de G5, surtout l'âge moyen faute de date de
+        naissance, manque pour 8~\% des matchs du test.
+  \item \textbf{Un seul pli scellé}, d'une saison et quart, utilisé pour deux tests successifs : le résultat
+        vaut pour cette période et ces cinq championnats, et l'intervalle de H2 est large (1\,923 matchs).
   \item \textbf{Approximations du live} : moyennes glissantes approchées quand le championnat n'est pas à
         jour (dans une tolérance vérifiée), tirs de football-data à la place de ceux de l'API.
-  \item \textbf{Journal prospectif non évalué} : il le sera avec le test de l'horizon H2.
-  \item \textbf{Variables simples} : contexte, Elo et moyennes glissantes ; ni entraîneur, ni
-        composition, ni blessures, volontairement exclus du MVP.
+  \item \textbf{Journal prospectif encore court} : 89 prédictions, 7 journées, 48 résultats sur 4 jours ;
+        le premier relevé ne conclut pas, par règle.
 \end{itemize}
 
 \section{Difficultés}
 
-Le journal compte 64 erreurs résolues. Quelques-unes ont changé la méthode :
+Le journal compte 68 entrées. Quelques-unes ont changé la méthode :
 
 \begin{itemize}
   \item \textbf{Le premier lancement du test scellé a échoué} (E-059) : une date de l'expérience, lue
@@ -58,6 +94,15 @@ Le journal compte 64 erreurs résolues. Quelques-unes ont changé la méthode :
         tout le championnat. La décision a été reprise sur une mesure, avant la fusion.
   \item \textbf{Des identifiants internes instables} (E-058) : ils changent quand le brut grandit. Hors du
         référentiel, on rapproche par l'identifiant de l'API.
+  \item \textbf{Un test scellé qui n'aurait pas pu s'exécuter} (E-067) : en relisant la procédure avant de
+        poser le tag de gel de H2, on a vu que la construction du jeu scellé, qui vit dans le code gelé,
+        était refusée jusqu'au test. Corrigé avant le tag, avec la décision écrite. Leçon : avant de poser un
+        gel, parcourir \emph{toutes} les commandes de la phase qu'il protège, pas seulement l'évaluation.
+  \item \textbf{Une garde qui n'en était pas une} : une fois le test passé, rien ne protégeait plus le modèle
+        H2 testé, le gel étant levé. Une garde chiffrée a été ajoutée avant l'ouverture du rejeu : le rejeu
+        doit reproduire les prédictions des tests (ADR-0052).
+  \item \textbf{Les rapports d'expérience de 700 Ko} (E-066) : refusés par le hook des gros fichiers, ce qui
+        a laissé un lancement noté \og arbre non propre \fg{} ; refait sur arbre propre, les deux conservés.
   \item \textbf{L'outillage} : intégration continue fusionnée avant la fin de ses tests (E-047), échec de
         test masqué par un tube (E-048), formatage des blocs de code des fichiers Markdown (E-049).
         Chacun a laissé une règle écrite.
@@ -66,13 +111,16 @@ Le journal compte 64 erreurs résolues. Quelques-unes ont changé la méthode :
 \section{Perspectives}
 
 \begin{itemize}
-  \item \textbf{Version intermédiaire (jalon J9)} : horizon H2 avec composition, à partir des données
-        sauvegardées (compositions, minutes, notes) et du journal T-60 ; variables d'entraîneur, de
-        qualité du onze et de stabilité ; comparaison avant et après composition.
-  \item \textbf{Évaluation prospective} du journal live, au test de l'horizon H2.
-  \item \textbf{Corrections reportées} avant ce test : la ligne \og règle de décision \fg{} sur un pli
-        unique (E-060), l'état Git lu trop tôt dans le journal du scellé (E-061).
-  \item \textbf{Exploitation} : collecte live planifiée, suivi de la calibration dans le temps.
+  \item \textbf{Huitième journée et suivantes} : poursuivre les prédictions live avant le coup d'envoi,
+        refaire le relevé après chaque collecte de résultats, et n'en tirer une conclusion qu'à partir de
+        8 journées.
+  \item \textbf{Un live pour H2} supposerait un réabonnement ou une autre source de compositions : hors
+        périmètre aujourd'hui.
+  \item \textbf{Blessures} : hors du périmètre de la version intermédiaire (ADR-0047) ; la composition
+        annoncée n'en voit que l'effet, par l'absence d'un joueur du onze.
+  \item \textbf{Exploitation} : services conteneurisés et collecte live planifiée, laissés en option ; une
+        planification de collecte passerait par sa propre ADR.
+  \item \textbf{Suivi de la calibration dans le temps}, version avancée du cadrage.
 \end{itemize}
 
 \section{Conclusion}
@@ -84,3 +132,12 @@ comme le laissait prévoir le bruit du problème, mais il est mesuré avec un in
 échantillon. Les choix qui ont le plus compté ne sont pas des modèles : sauvegarder le brut avant la fin
 de l'abonnement, figer le protocole avant de mesurer, tenir un ensemble de test sous scellés, et refuser
 de prédire plutôt que d'inventer une valeur.
+
+La version intermédiaire tient ces mêmes engagements sur une question plus étroite : que rapporte la
+composition des équipes ? Réponse mesurée, avec ses intervalles : presque rien. La qualité du onze apporte
+un gain de \(0{,}0008\) nat par match, de justesse, fragile et en grande partie déjà dans l'Elo ; la
+stabilité du onze et l'entraîneur n'apportent rien ; ni la régularisation ni le boosting ne battent le
+Poisson par équipe ; le test scellé de ce second horizon, mené une seule fois, a le même signe sans être
+significatif, comme son calcul de puissance l'annonçait. Un résultat aussi modeste, publié tel quel après
+des règles écrites avant de regarder, vaut mieux qu'un gain apparent obtenu en cherchant : c'est ce que le
+protocole est fait pour garantir.

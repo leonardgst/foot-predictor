@@ -209,6 +209,30 @@ H2 = le modèle H1 plus la qualité du onze annoncé (G5) : **M3 sur G0 + G1 + G
 
 **Ce que le test ne détecte pas** : une mutation qui désactive le retrait des colonnes d'après-match du match cible n'est détectée que par le test unitaire de `lineups_for_day`, pas par le test « ce que le match produit ne change rien », parce que G5 ne lit que des notes antérieures. Le retrait est une protection de plus, pas la seule.
 
+## Planification du live (ADR-0053)
+
+Trois tâches du Planificateur de tâches Windows, créées et retirées par `foot_predictor.planification` :
+
+| Tâche | Jour, heure (Paris) | Étapes |
+|---|---|---|
+| `FootPredictor_live_mardi` | mardi 18:00 | collecte football-data (`fixtures` : 1 requête, `season` : 10), `inference live --days 7 --save`, `inference prospective` |
+| `FootPredictor_live_vendredi` | vendredi 17:00 | collecte, tracé |
+| `FootPredictor_live_samedi` | samedi 08:00 | tracé (sans réseau) |
+
+```bash
+uv run python -m foot_predictor.planification install            # affiche le plan, ne crée rien
+uv run python -m foot_predictor.planification install --apply    # crée ou remplace les trois tâches
+uv run python -m foot_predictor.planification status             # lesquelles existent, interrupteur
+uv run python -m foot_predictor.planification uninstall          # supprime les trois tâches
+uv run python -m foot_predictor.planification run samedi --force # lance un passage maintenant (hors planning)
+```
+
+- **Autorisation durable bornée** : football-data seulement, 22 requêtes par semaine au plus, liste de commandes fermée dans le code (`check_command` refuse tout le reste : API-FOOTBALL, `load`, collecte sans `--max-requests`), jusqu'au 30 juin 2027.
+- **Journal** : `data/planification/passages.log` (ignoré par Git) : une ligne par étape, avec le commit. **Interrupteur** : créer un fichier `data/planification/STOP` suspend les passages sans supprimer les tâches.
+- **Conditions** : portable allumé ou réveillable, session Windows ouverte (verrouillée suffit), Docker lancé pour `ops.prediction`. Un passage manqué démarre dès que possible **le jour prévu seulement** ; un autre jour, il est ignoré et le journal le dit. Le tracé est idempotent et ne s'écrit qu'avant le coup d'envoi.
+- **Dépôt** : les tâches lancent le code du worktree `C:/fp-travail` tel qu'il est extrait (c'est lui qui porte les bruts football-data du live et les modèles). Le laisser sur un commit propre de `main` quand rien n'est en développement.
+- **Rapports** : chaque passage écrit des fichiers sous `reports/inference/` (`live_<date>`, `prospectif_<horodatage>`), non suivis par Git tant qu'on ne les a pas commités (une PR de données de temps en temps).
+
 ## Temps mesurés (portable, 2026-09-30)
 
 | Opération | Temps |

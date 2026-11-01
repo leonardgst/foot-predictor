@@ -33,7 +33,7 @@ Ce fichier contient les règles **stables** du projet. L'état courant est dans 
 
 ## Collecte : verrou (ADR-0018)
 
-- Collecte API-FOOTBALL **terminée** : abonnement fini le 2026-10-22 (ADR-0005), brut gelé (tag `data-freeze-2026-10`), tâches planifiées `FootPredictor_*` supprimées au gel. Une nouvelle tâche planifiée passe par une ADR (ADR-0047, D8).
+- Collecte API-FOOTBALL **terminée** : abonnement fini le 2026-10-22 (ADR-0005), brut gelé (tag `data-freeze-2026-10`), tâches planifiées `FootPredictor_*` supprimées au gel. Une nouvelle tâche planifiée passe par une ADR (ADR-0047, D8) ; seules les trois tâches `FootPredictor_live_*` de l'ADR-0053 existent (football-data seulement, `python -m foot_predictor.planification status|uninstall` ; interrupteur `data/planification/STOP`).
 - **Avant tout `git pull` dans `C:/foot-predictor`** : `uv run python -m foot_predictor.collect.api_football lock-status` (depuis le worktree : `--raw-dir C:/foot-predictor/data/raw`) doit répondre « libre » (code 0). Sinon, une commande écrit dans le brut : attendre.
 - Toute commande qui écrit dans `data/raw/` prend le verrou `data/raw/_lock/collecte.lock` ; une nouvelle commande de ce type doit le prendre aussi. Ne jamais supprimer ce fichier à la main : un verrou périmé est remplacé automatiquement.
 - Toute commande qui consomme du quota porte `--max-requests`.

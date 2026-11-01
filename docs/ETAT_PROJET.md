@@ -1,9 +1,9 @@
 # État du projet
 
-**Dernière mise à jour** : 2026-11-01 (6.2 : variables de stabilité G6)
+**Dernière mise à jour** : 2026-11-01 (6.3 : variables de qualité du XI G5)
 **Partie courante** : les phases A des parties 1 à 5 sont faites (dernière : partie 5, inférence, API et interface ; `docs/retours/partie-5a_2026-10-04.md`). **Collecte terminée** : la session de gel du 19 octobre est faite (`docs/retours/partie-1b_2026-10-19.md`). **Parties 2, 3 et 4 terminées** (tags `v0.3.0`, `v0.4.0` et `v0.5.0` ; `docs/retours/partie-2_2026-10-19.md`, `partie-3_2026-10-22.md`, `partie-4_2026-10-22.md`). **Partie 5 terminée** (tags `v0.6.0` et `v1.0.0` ; `docs/retours/partie-5_2026-10-31.md`) : **le MVP est terminé**.
 
-**Reprise : partie 6, version intermédiaire (J9)** : 6.3, variables G5 qualité du XI (note rétrécie vers la moyenne du poste, habituels absents, âge moyen ; ADR-0013, règle 4 ; rodage 2015-16), lues par `load_lineups` filtré par compétition. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
+**Reprise : partie 6, version intermédiaire (J9)** : 6.4, variables G4 entraîneur (ancienneté plafonnée à 365 jours, indicateur « nouvel entraîneur » à moins de 5 matchs ; censure à gauche avant 2016-17 ; apprentissage à partir de 2017-18, D3), lues par `load_team_sheets` filtré par compétition. Aucun autre test ni entraînement final H1 ; aucun modèle H1 ne se modifie.
 **Abonnement API-FOOTBALL** : terminé le **2026-10-22 à 07:56 UTC** (ADR-0005) ; plus aucune collecte.
 
 ## Terminé
@@ -78,7 +78,7 @@
 
 ## Prochaines actions
 
-**Corrections reportées faites** : E-060 (PR #92), E-061 (PR #93), E-065 (`test_freeze`, PR #94). **6.0 fait** (PR #95) : cadrage de H2, ADR-0047 acceptée (D1 à D10 selon les recommandations). D10 fait (PR #96). **6.1 fait** : `load_lineups` et `load_team_sheets` (porte), groupes G4 à G6 à l'horizon H2 au registre, garde « modèle H1 sans variable H2 » dans `build_card` ; H1 inchangé (rejeu : écart nul ; coefficients identiques). **6.2 fait** : `features/lineup_stability.py` (G6 : `xi_overlap_prev`, `xi_cohesion_ewm_h3/5/10/20/inf`, `xi_new_starters`), égalité matrice = recouvrement testée, invariance à la troncature sans écart sur données réelles, 0 % de valeurs vides sur les plis ; texte du catalogue déduit du registre. **À faire en 6.5** : les fiches G6 au registre (elles casseraient le jeu H1 avant le branchement dans `build_frame`) et les colonnes dans le jeu. À faire en 6.9 : `modeling/sealed.py` fixe le tag `pre-scelle-h1` (`FROZEN_TAG`), à généraliser pour le test H2.
+**Corrections reportées faites** : E-060 (PR #92), E-061 (PR #93), E-065 (`test_freeze`, PR #94). **6.0 fait** (PR #95) : cadrage de H2, ADR-0047 acceptée (D1 à D10 selon les recommandations). D10 fait (PR #96). **6.1 fait** : `load_lineups` et `load_team_sheets` (porte), groupes G4 à G6 à l'horizon H2 au registre, garde « modèle H1 sans variable H2 » dans `build_card` ; H1 inchangé (rejeu : écart nul ; coefficients identiques). **6.2 fait** : `features/lineup_stability.py` (G6 : `xi_overlap_prev`, `xi_cohesion_ewm_h3/5/10/20/inf`, `xi_new_starters`), égalité matrice = recouvrement testée, invariance à la troncature sans écart sur données réelles, 0 % de valeurs vides sur les plis ; texte du catalogue déduit du registre. **6.3 fait** : `features/xi_quality.py` (G5 : `xi_quality` rétrécie vers la moyenne du poste avec k = 772,6 minutes estimé sur 2015-16 à 2019-20, `xi_regulars_missing`, `xi_mean_age`), 0,15 % de `xi_quality` vide sur les plis, invariance à la troncature sans écart, calcul vérifié contre un calcul naïf ; D9 : 0,3 % de titulaires sans note antérieure, variante corrigée non déclenchée ; **les habituels absents sont corrélés à −0,85 avec la cohésion G6** (à regarder en 6.6). **À faire en 6.5** : les fiches G5 et G6 au registre (elles casseraient le jeu H1 avant le branchement dans `build_frame`) et les colonnes dans le jeu. À faire en 6.9 : `modeling/sealed.py` fixe le tag `pre-scelle-h1` (`FROZEN_TAG`), à généraliser pour le test H2.
 
 **Reprise** (partie 6 ou live courant, sur demande) :
 ```bash
@@ -96,4 +96,4 @@ uv run python -m foot_predictor.api serve --port 8001
 FP_API_URL=http://127.0.0.1:8001 uv run streamlit run src/foot_predictor/ui/app.py
 ```
 
-**Partie 6** (plan du cadrage, section 8, environ 118 heures) : 6.1 porte des compositions et registre H2 ; 6.2 à 6.4 variables G6, G5, G4 ; 6.5 jeu H2 (colonnes H1 identiques à `bf786ef1`) ; 6.6 à 6.8 exploration et expériences ; 6.9 modèle H2 et tag `pre-scelle-h2` ; 6.10 H2 en rejeu ; phase B : test scellé H2, ouverture du rejeu des saisons scellées, rapport v2 (jalon J9).
+**Partie 6** (plan du cadrage, section 8, environ 118 heures) : 6.1 porte des compositions et registre H2 ; 6.2 à 6.4 variables G6, G5, G4 (6.2 et 6.3 faites) ; 6.5 jeu H2 (colonnes H1 identiques à `bf786ef1`) ; 6.6 à 6.8 exploration et expériences ; 6.9 modèle H2 et tag `pre-scelle-h2` ; 6.10 H2 en rejeu ; phase B : test scellé H2, ouverture du rejeu des saisons scellées, rapport v2 (jalon J9).

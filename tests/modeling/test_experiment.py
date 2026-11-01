@@ -139,3 +139,20 @@ def test_decision_rule_does_not_apply_to_a_single_fold():
     assert d["ii_positive_folds"] is None and d["b_replaces_a"] is None  # aucun verdict
     assert d["i_gain_significant"] is True and d["iii_calibration"] is True  # calculés pour information
     assert not experiment.decision_applies(2) and experiment.decision_applies(experiment.MIN_POSITIVE_FOLDS)
+
+
+def test_comparisons_carry_the_gain_by_round_bucket(run):
+    """Écart apparié par tranche de journées (ADR-0047) : les tranches repartissent exactement les matchs poolés."""
+    go, _ = run
+    report = go(now=dt.datetime(2026, 9, 30, 12, tzinfo=dt.UTC))
+    comparison = report["comparisons"][0]
+    buckets = comparison["by_round"]
+    pooled = comparison["log_loss"]["pooled"]
+    assert set(buckets) <= {"1-5", "6-10", "11-19", "20-99"} and buckets
+    assert sum(b["n"] for b in buckets.values()) <= pooled["n"]
+    covered = sum(b["n"] for b in buckets.values())
+    weighted = sum(b["mean"] * b["n"] for b in buckets.values()) / covered
+    all_rounds = covered == pooled["n"]
+    if all_rounds:  # toutes les journées sont dans une tranche : la moyenne pondérée est la moyenne poolée
+        assert weighted == pytest.approx(pooled["mean"])
+    assert all(b["low"] <= b["mean"] <= b["high"] for b in buckets.values())

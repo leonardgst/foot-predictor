@@ -144,6 +144,22 @@ def render(report: dict) -> str:
                 f"{'oui' if d['ii_positive_folds'] else 'non'}, (iii) {'oui' if d['iii_calibration'] else 'non'} "
                 f"| **{item['b']} {'remplace' if d['b_replaces_a'] else 'ne remplace pas'} {item['a']}** | | | |"
             )
+    by_round = [item for item in report["comparisons"] if item.get("by_round")]
+    if by_round:
+        lines += [
+            "",
+            "Écart apparié du log-loss du total par tranche de journées (A − B, positif : B meilleur ; "
+            "descriptif, hors de la règle de décision) :",
+            "",
+            "| A | B | Tranche | Matchs | Écart poolé | IC 95 % |",
+            "|---|---|---|---|---|---|",
+        ]
+        for item in by_round:
+            for bucket, p in item["by_round"].items():
+                lines.append(
+                    f"| {item['a']} | {item['b']} | {bucket} | {p['n']} | {_f(p['mean'], 5, sign=True)} "
+                    f"| [{_f(p['low'], 5, sign=True)} ; {_f(p['high'], 5, sign=True)}] |"
+                )
     return "\n".join(lines) + "\n"
 
 

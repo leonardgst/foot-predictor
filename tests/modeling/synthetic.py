@@ -82,3 +82,47 @@ def realistic_rows(
     g2 = [c for c in frame.columns if "_ewm_h" in c]
     opp = frame[["match_id", "team_id", *g2]].rename(columns={"team_id": "opp_team_id", **{c: f"opp_{c}" for c in g2}})
     return frame.merge(opp, on=["match_id", "opp_team_id"], how="left")
+
+
+COHESION_NAMES = [f"xi_cohesion_ewm_h{h}" for h in ("3", "5", "10", "20", "inf")] + [
+    "xi_cohesion_reset",
+    "xi_cohesion_win10",
+]
+H2_BASE = [
+    "coach_tenure_days", "coach_is_new", "xi_quality", "xi_regulars_missing", "xi_mean_age",
+    "xi_overlap_prev", "xi_new_starters", *COHESION_NAMES,
+]  # fmt: skip
+
+
+def with_composition(rows: pd.DataFrame, seed: int = 1, quality_effect: float = 0.0) -> pd.DataFrame:
+    """Ajoute les colonnes H2 (G4 à G6) au jeu synthétique, avec leurs noms réels, et les colonnes de l'adversaire.
+
+    `quality_effect` > 0 : les buts sont retirés de nouveau avec log λ += effet · (qualité de l'équipe − qualité
+    de l'adversaire), pour tester qu'un modèle retrouve un effet connu de `xi_quality`.
+    """
+    rng = np.random.default_rng(seed)
+    frame = rows.copy()
+    n = len(frame)
+    frame["xi_quality"] = rng.normal(7.0, 0.1, n)
+    frame["xi_regulars_missing"] = rng.uniform(0, 0.8, n)
+    frame["xi_mean_age"] = rng.normal(27, 1.5, n)
+    frame["xi_overlap_prev"] = rng.integers(3, 12, n).astype(float)
+    frame["xi_new_starters"] = rng.integers(0, 4, n).astype(float)
+    for name in COHESION_NAMES:
+        frame[name] = rng.uniform(0, 1, n)
+    frame["coach_tenure_days"] = rng.integers(0, 366, n).astype(float)
+    frame["coach_is_new"] = (rng.random(n) < 0.1).astype(float)
+    opp = frame[["match_id", "team_id", *H2_BASE]].rename(
+        columns={"team_id": "opp_team_id", **{c: f"opp_{c}" for c in H2_BASE}}
+    )
+    frame = frame.merge(opp, on=["match_id", "opp_team_id"], how="left")
+    if quality_effect:
+        mean = np.exp(
+            0.3 + 0.25 * frame["is_home"] + quality_effect * (frame["xi_quality"] - frame["opp_xi_quality"]) / 0.1
+        )
+        frame["goals_for"] = rng.poisson(mean.to_numpy())
+        goals = frame.set_index(["match_id", "team_id"])["goals_for"]
+        frame["goals_against"] = goals.reindex(
+            pd.MultiIndex.from_arrays([frame["match_id"], frame["opp_team_id"]])
+        ).to_numpy()
+    return frame

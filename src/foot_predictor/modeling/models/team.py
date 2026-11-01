@@ -42,11 +42,25 @@ class M3(Model):
 
     name = "M3"
 
-    def __init__(self, groups=("G0", "G1"), half_life: int | None = None, check_dispersion: bool = False) -> None:
-        super().__init__(groups=list(groups), half_life=half_life, check_dispersion=check_dispersion)
+    def __init__(
+        self,
+        groups=("G0", "G1"),
+        half_life: int | None = None,
+        check_dispersion: bool = False,
+        cohesion: str | None = None,
+        train_from: int | None = None,
+    ) -> None:
+        # `cohesion` (variante de G6, horizon H2) n'est écrit dans les paramètres que s'il est donné : la
+        # description d'un modèle H1 reste celle d'avant (ADR-0044).
+        extra = {} if cohesion is None else {"cohesion": cohesion}
+        # `train_from` : début d'apprentissage imposé en plus de celui des groupes (témoin de fenêtre, ADR-0048).
+        extra |= {} if train_from is None else {"train_from": train_from}
+        super().__init__(groups=list(groups), half_life=half_life, check_dispersion=check_dispersion, **extra)
         self.check_dispersion = check_dispersion
-        self.design = Design(tuple(groups), half_life, level="team")
+        self.design = Design(tuple(groups), half_life, level="team", cohesion=cohesion)
         self.features = tuple(self.design.required())
+        starts = [s for s in (self.design.first_training_season, train_from) if s is not None]
+        self.first_training_season = max(starts) if starts else None
 
     def fit(self, rows: pd.DataFrame) -> M3:
         X = self.design.fit_transform(rows)

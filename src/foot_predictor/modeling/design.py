@@ -17,7 +17,15 @@ Rien n'est appris sur les lignes de test.
   de l'équipe et de l'adversaire, standardisés. Le logarithme rend la structure attaque × défense
   additive sous le lien log : λ ∝ attaque_équipe · défense_adversaire ;
 - G3 : repos (borné à 14 jours), matchs des 14 derniers jours, match européen dans les 4 jours,
-  pour l'équipe et l'adversaire, standardisés.
+  pour l'équipe et l'adversaire, standardisés ;
+- **horizon H2** (ADR-0047, ADR-0048), lignes de l'équipe et de l'adversaire, standardisées dans le pli
+  (linéaires, sauf l'indicateur « nouvel entraîneur ») :
+  - G6 (stabilité) : titulaires communs avec le match précédent, **une** cohésion (variante `cohesion`
+    parmi `h3`, `h5`, `h10`, `h20`, `hinf`, `reset`, `win10`, ou `overlap_only` : le recouvrement seul),
+    nombre de nouveaux titulaires ;
+  - G5 (qualité du XI) : note rétrécie vers la moyenne du poste, part des habituels absents, âge moyen ;
+  - G4 (entraîneur) : ancienneté plafonnée à 365 jours, indicateur « nouvel entraîneur ». G5 et G4
+    ont un **début d'apprentissage** (`first_training_season`, D3) : leurs lignes de rodage ne servent pas.
 
 **Niveau match** (`level="match"`, modèles M1 et M2 sur le total) : une ligne par match. G0 :
 effets fixes de championnat et huis clos ; G1 : Elo de l'équipe à domicile et de l'équipe à
@@ -31,7 +39,11 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-GROUPS = ("G0", "G1", "G2", "G3")
+GROUPS = ("G0", "G1", "G2", "G3", "G4", "G5", "G6")
+H2_GROUPS = ("G4", "G5", "G6")
+COHESION_VARIANTS = ("h3", "h5", "h10", "h20", "hinf", "reset", "win10", "overlap_only")
+FIRST_TRAINING_SEASON_OF = {"G5": 2016, "G4": 2017}
+"""Début d'apprentissage des groupes à historique court (ADR-0047, D3) : G5 dès 2016-17, G4 dès 2017-18."""
 HALF_LIVES = (60, 120, 240)
 REST_CAP_DAYS = 14
 
@@ -41,6 +53,21 @@ def g2_columns(half_life: int) -> list[str]:
     base += [f"xgp_for_ewm_h{half_life}", f"xgp_against_ewm_h{half_life}"]
     return base + [f"opp_{c}" for c in base]
 
+
+def g6_columns(cohesion: str) -> list[str]:
+    """Colonnes de la stabilité pour une variante de cohésion, avec celles de l'adversaire."""
+    if cohesion == "overlap_only":
+        base = ["xi_overlap_prev"]
+    else:
+        column = f"xi_cohesion_{'ewm_' if cohesion.startswith('h') else ''}{cohesion}"
+        base = ["xi_overlap_prev", column, "xi_new_starters"]
+    return base + [f"opp_{c}" for c in base]
+
+
+G5_BASE = ["xi_quality", "xi_regulars_missing", "xi_mean_age"]
+G5_COLUMNS = G5_BASE + [f"opp_{c}" for c in G5_BASE]
+G4_BASE = ["coach_tenure_days", "coach_is_new"]
+G4_COLUMNS = G4_BASE + [f"opp_{c}" for c in G4_BASE]
 
 G3_COLUMNS = [
     "rest_days", "opp_rest_days", "matches_last_14d", "opp_matches_last_14d",
@@ -53,6 +80,8 @@ class Design:
     groups: tuple[str, ...] = ("G0", "G1")
     half_life: int | None = None
     level: str = "team"
+    cohesion: str | None = None
+    """Variante de cohésion de G6 (obligatoire avec G6) ; choisie par validation interne, comme `half_life`."""
     leagues_: list = field(default_factory=list)
     scale_: dict = field(default_factory=dict)
     dropped_: list = field(default_factory=list)
@@ -65,6 +94,10 @@ class Design:
             raise ValueError(f"Groupes {self.groups} : G0 obligatoire, groupes connus {GROUPS}")
         if "G2" in self.groups and self.half_life not in HALF_LIVES:
             raise ValueError(f"G2 exige une demi-vie parmi {HALF_LIVES}")
+        if "G6" in self.groups and self.cohesion not in COHESION_VARIANTS:
+            raise ValueError(f"G6 exige une cohésion parmi {COHESION_VARIANTS}, pas {self.cohesion!r}")
+        if "G6" not in self.groups and self.cohesion is not None:
+            raise ValueError("cohesion sans G6")
         if self.level not in ("team", "match"):
             raise ValueError("level : team ou match")
         if self.level == "match" and set(self.groups) - {"G0", "G1"}:
@@ -81,7 +114,19 @@ class Design:
             columns += g2_columns(self.half_life)
         if "G3" in self.groups:
             columns += G3_COLUMNS
+        if "G4" in self.groups:
+            columns += G4_COLUMNS
+        if "G5" in self.groups:
+            columns += G5_COLUMNS
+        if "G6" in self.groups:
+            columns += g6_columns(self.cohesion)
         return columns
+
+    @property
+    def first_training_season(self) -> int | None:
+        """Première saison d'apprentissage imposée par les groupes à historique court (D3), sinon aucune."""
+        starts = [FIRST_TRAINING_SEASON_OF[g] for g in self.groups if g in FIRST_TRAINING_SEASON_OF]
+        return max(starts) if starts else None
 
     # ------------------------------------------------------------------ construction
 
@@ -113,6 +158,16 @@ class Design:
                 frame[f"z_{side}rest_days"] = np.minimum(rows[f"{side}rest_days"].astype(float), REST_CAP_DAYS)
                 frame[f"z_{side}matches_last_14d"] = rows[f"{side}matches_last_14d"].astype(float)
                 frame[f"{side}european_match_last_4d"] = rows[f"{side}european_match_last_4d"].astype(float)
+        if "G4" in self.groups:
+            for side in ("", "opp_"):
+                frame[f"z_{side}coach_tenure_days"] = rows[f"{side}coach_tenure_days"].astype(float)
+                frame[f"{side}coach_is_new"] = rows[f"{side}coach_is_new"].astype(float)
+        if "G5" in self.groups:
+            for column in G5_COLUMNS:
+                frame[f"z_{column}"] = rows[column].astype(float)
+        if "G6" in self.groups:
+            for column in g6_columns(self.cohesion):
+                frame[f"z_{column}"] = rows[column].astype(float)
         return frame
 
     def _league(self, rows: pd.DataFrame) -> pd.Series:
@@ -151,4 +206,9 @@ class Design:
         return self.fit(rows).transform(rows)
 
     def describe(self) -> dict:
-        return {"groups": list(self.groups), "half_life": self.half_life, "level": self.level, "dropped": self.dropped_}
+        description = {"groups": list(self.groups), "half_life": self.half_life, "level": self.level}
+        if self.cohesion is not None:
+            description["cohesion"] = self.cohesion
+        if self.first_training_season is not None:
+            description["first_training_season"] = self.first_training_season
+        return description | {"dropped": self.dropped_}

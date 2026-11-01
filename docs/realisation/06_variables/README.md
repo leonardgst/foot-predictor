@@ -4,7 +4,7 @@ Mode d'emploi de la construction du jeu de données, de son contrôle, du regist
 
 ## En bref
 
-- Une ligne par (match, équipe) : matchs de **saison régulière** des 10 championnats (top 5 et D2), de 2000-01 à 2024-25, terminés, non exclus. 68 colonnes, dont 54 variables G0 à G3, toutes à l'horizon **H1** (avant composition).
+- Une ligne par (match, équipe) : matchs de **saison régulière** des 10 championnats (top 5 et D2), de 2000-01 à 2024-25, terminés, non exclus. Jeu H1 : 68 colonnes, dont 54 variables G0 à G3, à l'horizon **H1** (avant composition). Jeu H2 (partie 6, voir 6.5) : 92 colonnes, avec G4 à G6 à l'horizon **H2**.
 - Les variables sont des **fonctions pures** (`features/elo.py`, `rolling.py`, `rest.py`, `huis_clos.py`, `dataset.build_frame`) : historique des matchs → valeurs, sans accès à la base. La partie 5 les réutilisera telles quelles pour l'inférence.
 - **Règle temporelle** : la variable d'un match du jour J n'utilise que des matchs terminés **avant le jour J**. Les tests le vérifient (modifier le match m ne change pas sa ligne ; invariance à la date de coupe ; matchs du même jour).
 - Le jeu est un **instantané Parquet** dans `data/datasets/<version>/` (ignoré par Git), avec son manifeste ; la base n'en garde que la trace (`features.dataset_version`).
@@ -12,8 +12,9 @@ Mode d'emploi de la construction du jeu de données, de son contrôle, du regist
 ## Commandes
 
 ```bash
-uv run python -m foot_predictor.features build              # construit une version (≈ 5 s) et la trace en base
-uv run python -m foot_predictor.features check --invariance # rapport reports/variables/dataset_<version>.md
+uv run python -m foot_predictor.features build              # construit une version H1 (≈ 5 s) et la trace en base
+uv run python -m foot_predictor.features build --horizon H2  # jeu H2 : H1 plus G4 à G6, lus dans les compositions (≈ 45 s)
+uv run python -m foot_predictor.features check --invariance # rapport reports/variables/dataset_<version>.md (H1 ou H2, selon le manifeste)
 uv run python -m foot_predictor.features catalogue          # régénère catalogue.md après un changement du registre
 
 uv run python -m foot_predictor.features.elo_tuning          # réglage de l'Elo (≈ 4 min), réécrit params/elo.json
@@ -23,6 +24,7 @@ uv run python -m foot_predictor.features.xg_proxy_estimation # estimation de l'x
 | Option | Commande | Rôle |
 |---|---|---|
 | `--output-root` | `build`, `check` | dossier des versions (défaut : `data/datasets`) |
+| `--horizon` | `build` | `H1` (défaut) : G0 à G3, 68 colonnes ; `H2` : ajoute G4 à G6, 92 colonnes. Refusé avec `--sealed-test` (test scellé de H2 : lot 6.12) |
 | `--no-db` | `build` | n'écrit pas la ligne de `features.dataset_version` (essais) |
 | `--version` | `check` | version à contrôler (défaut : la plus récente) |
 | `--invariance` | `check` | contrôle anti-fuite n° 2 sur les données réelles, aux dates de coupe du 2019-01-01 et du 2023-03-01 ; code d'erreur en cas d'écart |
@@ -157,6 +159,28 @@ Contrôles sur les données réelles (lecture seule, avant le scellé ; calcul 1
 | Garde H1 | aucun fichier de `modeling/`, ni `registry.yaml`, ni `dataset.py` touché ; `inference check --only replay` : rejeu reproduit, écart nul |
 
 Pas de problème de collinéarité avec G5 et G6, contrairement aux habituels absents (6.3). Plus de 46 % de lignes plafonnées : l'ancienneté n'a de variation que pour la moitié des lignes, c'est la raison du plafond (D3).
+
+### 6.5 — Jeu de données H2 et fiches au registre (2026-11-01)
+
+- **Registre** : huit fiches H2 (`coach_tenure_days`, `coach_is_new`, `xi_quality`, `xi_regulars_missing`, `xi_mean_age`, `xi_overlap_prev`, `xi_cohesion_ewm_h{h}`, `xi_new_starters`), toutes de portée `[equipe, adversaire]` : **24 colonnes** de plus (68 → 92). `{h}` accepte maintenant `parametres.demi_vie_matchs` (cohésion en matchs, `.inf` donne `hinf`). `registry.columns(horizon="H1")` rend les 68 colonnes H1 ; sans argument, toutes. Catalogue régénéré.
+- **Construction** : `dataset.build_frame` ne change pas et ne rend que les colonnes H1. `dataset.build_frame_h2(matches, lineups, team_sheets, ...)` l'appelle, calcule `compute_coach`, `compute_xi_quality` et `compute_lineup_stability`, les joint sur (match, équipe) et reconstitue les colonnes de l'adversaire sur sa ligne du même match, comme pour G2. Une valeur incalculable reste vide. `features build --horizon H2` lit les compositions par la porte (`load_lineups`, `load_team_sheets`, filtrés par compétition), en 45 s ; `scope.horizon` du manifeste dit l'horizon, et les paramètres de G4 à G6 (k de G5, fenêtres, plafond) y sont figés. L'horizon H1 reste le défaut.
+- **Contrôle** : `features check` lit l'horizon du manifeste. Pour un jeu H2, `--invariance` tronque aussi les compositions et les feuilles ; une section « 5 bis » donne les valeurs vides des groupes de la composition par saison.
+- **Test scellé** : `build --horizon H2 --sealed-test` est refusé (« lot 6.12 »). Le jeu H2 scellé sera construit pour le test, pas avant.
+
+Jeu **`ds-2026-11-01-94e07897`** (commit `d5e0bc0`, arbre propre, 196 098 lignes, 92 colonnes, chargement n° 7). Une première construction sur arbre non committé (`ds-2026-11-01-30cd33b1`, même contenu, `git_dirty` vrai) est à ignorer. Les expériences H1 gardent `ba2b91f7`.
+
+| Contrôle | Résultat |
+|---|---|
+| Colonnes H1 contre `ds-2026-10-22-bf786ef1` | **identiques au bit près** : mêmes 68 colonnes, même ordre, mêmes types, mêmes 196 098 lignes, `DataFrame.equals` vrai |
+| `check` | colonnes contre registre : OK (92) ; 0 match scellé |
+| `check --invariance` | coupes du 2019-01-01 (146 180 lignes) et du 2023-03-01 (178 290 lignes) : **identiques, aucune colonne en écart**, G4 à G6 comprises |
+| Tests | 12 tests du jeu H2 sur données synthétiques : colonnes H1 identiques, colonnes de l'adversaire, premiers matchs vides, invariance à trois coupes (compositions tronquées avec les matchs), compositions du dernier match sans effet sur les lignes d'avant |
+| Plis 2021-24, top 5 (14 312 lignes) | lignes avec au moins une colonne H2 vide (équipe ou adversaire) : **0,46 %** (G4 0,17 %, G5 0,29 %, G6 0 %) |
+| Apprentissage, lignes complètes par groupe (top 5) | G5 : 90,8 % en 2016-17, 97,7 % en 2017-18, 96,7 % en 2018-19, 97,3 %, 99,7 % ; G4 : 99,9 % dès 2016-17 (mais censurée, rodage jusqu'en 2016-17 inclus, D3) ; G6 : 98,8 à 99,9 % |
+| Rodage 2015-16 (top 5) | 3 652 lignes ; G4 vide à 100 % (pas d'entraîneur), G5 incomplet à 5,5 % |
+| Garde H1 | `inference check --only replay` : rejeu reproduit, écart nul ; aucun fichier de `modeling/` touché |
+
+Les lignes à valeur vide ne sont jamais remplies : les expériences de 6.7 les excluront et les compteront (ADR-0047, D3), par groupe.
 
 ## Phase B : jeu sur le brut définitif (3.11)
 

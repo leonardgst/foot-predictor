@@ -102,12 +102,24 @@ Phase B seulement (6.12, une fois ; `git diff --stat pre-scelle-h2 -- src/foot_p
 
 ```bash
 uv run python -m foot_predictor.features build --horizon H2 --sealed-test --experiment experiments/scelle_h2.yaml   # 3 lignes au journal
-# contrôle 1 de l'ADR-0050 : colonnes H1 identiques à ds-2026-10-22-94969da0 (verdict seulement), sinon arrêt
+uv run python -m foot_predictor.sealed_check_h2 --h1 data/datasets_scelles/ds-2026-10-22-94969da0 --h2 data/datasets_scelles/<version scellée H2>   # contrôle 1 de l'ADR-0050 (verdict seulement), sinon arrêt
 uv run python -m foot_predictor.modeling evaluate experiments/scelle_h2.yaml --sealed-test --dataset <version scellée H2>   # UNE fois
 uv run python -m foot_predictor.modeling summary reports/experiments/<id>.json --output docs/resultats/test_scelle_h2.md
 ```
 
 Pas d'entraînement final H2 avec les matchs scellés (ADR-0047, D6). La commande `train --final --include-sealed` l'accepterait techniquement après le test : c'est la règle qui l'interdit.
+
+### Résultats de 6.12 : test scellé H2 (2026-11-01)
+
+Tableaux générés : [`docs/resultats/test_scelle_h2.md`](../../resultats/test_scelle_h2.md) (rapport `scelle-h2-20261101T153604`, commit `9c326ab`, arbre propre, jeu `ds-2026-11-01-9b5f2f2c`). Un seul lancement, sans échec technique, publié tel quel.
+
+- **Contrôle 1** (avant l'évaluation) : 68 colonnes communes, 205 216 lignes, **identiques au bit près** à `ds-2026-10-22-94969da0` (outil `foot_predictor.sealed_check_h2`, verdict seul).
+- **Contrôle 2** : 2 092 matchs scellés ; **169 écartés** par l'intersection (au moins une variable de G5 vide, surtout `xi_mean_age` : 93 et 88 matchs pour chacune des deux équipes ; `xi_quality` vide pour 9 et 5) ; **1 923 matchs** évalués, dont 1 855 avec une cote.
+- **Décision** (seule comparaison de décision) : M3_H2 contre M3_G0G2, log-loss du total **+0,00129 [−0,00035 ; +0,00289]**, Diebold-Mariano p = 0,12. **Non significatif**, sans qu'on puisse conclure à l'absence d'effet : le test ne détecte qu'un écart d'environ 0,007, le gain attendu est de 0,0008 (ADR-0050). La validation glissante donnait +0,00078 [+0,00003 ; +0,00151] ; le scellé donne le même signe et le même ordre de grandeur.
+- **Lecture** (ADR-0050, contrôle 4) : conclusion principale inchangée (validation glissante, 7 156 matchs) ; un écart non significatif est le résultat attendu et **ne retire pas G5**. Les cinq autres métriques de la même comparaison ne sont ni corrigées pour les comparaisons multiples ni dans la règle de décision : le Brier de P(T = 1) a une borne basse à +0,00001 (p = 0,04) ; ne pas en tirer de conclusion.
+- **Contexte** : B1 − M3_H2 = +0,0177 [+0,0089 ; +0,0268] (le modèle H2 bat B1 ; le test H1 donnait +0,0189 pour M3_G0G2 sur 2 092 matchs) ; Brier plus/moins 2,5 : le marché avant clôture reste meilleur que M3_H2 (+0,00137 [−0,00036 ; +0,00307], non significatif). Calibration de M3_H2 : pente 0,99, couverture observée 87,7 % pour 87,5 % annoncée.
+- **Contrôle 5** : les prédictions de `M3_G0G2` sont **identiques au bit près** (14 colonnes, 1 923 matchs communs, écart maximal nul) à celles de la relance du test H1 (`scelle-h1-20261022T120542`) ; les hyperparamètres retenus sont les mêmes (demi-vie 240).
+- **Pas de modèle final H2** appris avec les matchs scellés (ADR-0047, D6).
 
 ## Ce que fait chaque commande
 

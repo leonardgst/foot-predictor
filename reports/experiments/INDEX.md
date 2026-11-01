@@ -2,7 +2,7 @@
 
 Généré par `python -m foot_predictor.modeling evaluate` (ou `index`). **Tous les essais sont conservés**, y compris ceux qui échouent : leur nombre aide à se méfier des comparaisons multiples.
 
-**16 essai(s)**, dont 0 en échec.
+**17 essai(s)**, dont 0 en échec.
 
 | Date (UTC) | Identifiant | Statut | Modèles | Première comparaison (log-loss du total, A − B, poolée) |
 |---|---|---|---|---|
@@ -22,3 +22,4 @@ Généré par `python -m foot_predictor.modeling evaluate` (ou `index`). **Tous 
 | 2026-11-01T12:36:24+00:00 | `stabilite-h2-20261101T123624` | ok | A2_G0G2, V_h3, V_h5, V_h10, V_h20, V_hinf, V_reset, V_win10, V_overlap | A2_G0G2 − V_h3 : +0.0003 [-0.0004 ; +0.0010] |
 | 2026-11-01T13:38:18+00:00 | `structures-h2-mesure-duree-20261101T133818` | ok | M3_H2, M6_H2, M7_H2, M6_sans_G5, M7_sans_G5 | M3_H2 − M6_H2 : +0.0001 [-0.0004 ; +0.0007] |
 | 2026-11-01T13:41:02+00:00 | `structures-h2-20261101T134102` | ok | M3_H2, M6_H2, M7_H2, M6_sans_G5, M7_sans_G5 | M3_H2 − M6_H2 : +0.0001 [-0.0004 ; +0.0007] |
+| 2026-11-01T15:36:04+00:00 | `scelle-h2-20261101T153604` | ok | M3_G0G2, M3_H2, B1, marche_avant_cloture | M3_G0G2 − M3_H2 : +0.0013 [-0.0003 ; +0.0029] |

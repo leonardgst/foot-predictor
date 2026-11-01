@@ -50,7 +50,8 @@ def cohesion_columns() -> list[str]:
     return [f"xi_cohesion_ewm_h{half_life_suffix(h)}" for h in HALF_LIVES]
 
 
-def _days(values) -> np.ndarray:
+def day_numbers(values) -> np.ndarray:
+    """Jours entiers depuis le 2000-01-01 (comparer des jours, jamais des heures)."""
     return ((pd.to_datetime(pd.Series(values)) - pd.Timestamp("2000-01-01")).dt.days).to_numpy(dtype=np.int64)
 
 
@@ -129,7 +130,7 @@ def compute_lineup_stability(matches: pd.DataFrame, lineups: pd.DataFrame, team_
                     "match_id": league["match_id"].to_numpy(),
                     "team_id": league[f"{side}_team_id"].to_numpy(),
                     "is_home": side == "home",
-                    "day": _days(league["match_day"]),
+                    "day": day_numbers(league["match_day"]),
                     "played": (league["status"] == "played").to_numpy(),
                 }
             )

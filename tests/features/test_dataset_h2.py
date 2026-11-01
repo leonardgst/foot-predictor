@@ -71,7 +71,7 @@ def frame(inputs):
 
 def test_columns_are_exactly_the_registry_with_the_h2_groups(frame):
     assert list(frame.columns) == registry.columns()
-    assert len(H2_FEATURES) == 24  # 12 colonnes par équipe, et autant pour l'adversaire
+    assert len(H2_FEATURES) == 28  # 14 colonnes par équipe, et autant pour l'adversaire
     assert {registry.GROUP_HORIZON[v.group] for v in registry.variables() if v.name in H2_FEATURES} == {"H2"}
 
 

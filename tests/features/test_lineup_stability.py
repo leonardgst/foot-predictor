@@ -18,11 +18,17 @@ from foot_predictor.features.lineup_stability import (
 LEAGUE, CUP = 39, 45
 
 
+def SEASON_OF(day: str) -> int:  # noqa: N802 - année de début de saison (août à juillet)
+    date = dt.date.fromisoformat(day)
+    return date.year if date.month >= 8 else date.year - 1
+
+
 def match(mid, day, home, away, league=LEAGUE, status="played"):
     return {
         "match_id": mid,
         "match_day": dt.date.fromisoformat(day),
         "api_league_id": league,
+        "season_year": SEASON_OF(day),
         "home_team_id": home,
         "away_team_id": away,
         "status": status,
@@ -183,3 +189,38 @@ def test_same_day_matches_do_not_see_each_other():
 def test_one_cohesion_column_per_half_life():
     result = run([match(1, "2018-09-01", 1, 2)], {(1, 1): BASE})
     assert len([c for c in result.columns if c.startswith("xi_cohesion_ewm_h")]) == len(HALF_LIVES)
+
+
+def test_reset_variant_averages_only_the_matches_of_the_same_season():
+    matches = [
+        match(1, "2018-05-01", 1, 2),  # saison 2017
+        match(2, "2018-08-20", 1, 3),  # saison 2018 : premier match, rien à moyenner
+        match(3, "2018-08-27", 1, 4),
+        match(4, "2018-09-03", 1, 5),
+    ]
+    xis = {(1, 1): BASE, (2, 1): BASE[:9] + [21, 22], (3, 1): BASE[:9] + [21, 22], (4, 1): BASE}
+    result = run(matches, xis)
+    assert np.isnan(line(result, 2, 1)["xi_cohesion_reset"])  # remise à zéro : vide au premier match de la saison
+    assert line(result, 3, 1)["xi_cohesion_reset"] == pytest.approx(1.0)  # seul le match 2, identique
+    # Le 4 partage 9 titulaires avec les matchs 2 et 3 (9 × 8 / 110 chacun) et 11 avec le match 1, d'une autre saison.
+    assert line(result, 4, 1)["xi_cohesion_reset"] == pytest.approx(9 * 8 / 110)
+    assert not np.isnan(line(result, 2, 1)["xi_cohesion_ewm_hinf"])  # les autres variantes traversent la saison
+
+
+def test_win10_variant_uses_the_last_ten_matches_with_equal_weights():
+    matches = [match(i, f"2018-{(i - 1) // 28 + 1:02d}-{(i - 1) % 28 + 1:02d}", 1, 100 + i) for i in range(1, 13)]
+    xis = {(i, 1): BASE for i in range(1, 12)}
+    xis[(12, 1)] = list(range(1, 11)) + [99]  # 10 titulaires communs avec chacun des matchs 3 à 11
+    xis[(1, 1)] = xis[(2, 1)] = list(range(31, 42))  # les matchs 1 et 2 n'ont aucun titulaire en commun avec le 12
+    row = line(run(matches, xis), 12, 1)
+    # Historique : matchs 1 à 11. Fenêtre de 10 : matchs 2 à 11 (le 2 vaut 0, les 9 autres 10 × 9 / 110).
+    assert row["xi_cohesion_win10"] == pytest.approx(9 * (10 * 9 / 110) / 10)
+    assert row["xi_cohesion_ewm_hinf"] == pytest.approx(
+        9 * (10 * 9 / 110) / 11
+    )  # l'historique intégral garde le match 1
+
+
+def test_win10_uses_all_matches_when_there_are_fewer_than_ten():
+    matches = [match(1, "2018-09-01", 1, 2), match(2, "2018-09-08", 1, 3)]
+    row = line(run(matches, {(1, 1): BASE, (2, 1): BASE}), 2, 1)
+    assert row["xi_cohesion_win10"] == pytest.approx(1.0)

@@ -500,3 +500,27 @@ variables:
     manquant: comme xi_overlap_prev
     risque_fuite: faible
     parade: titularisations d'un jour strictement antérieur
+  - nom: xi_cohesion_reset
+    portee: [equipe, adversaire]
+    groupe: G6
+    definition: variante de diagnostic (rapport H.8) de la cohésion, avec remise à zéro par saison ; moyenne à poids égaux des s(s − 1) / 110 sur les seuls matchs du club de la même saison, d'un jour strictement antérieur
+    source: staging.lineup via load_lineups et load_team_sheets ; features/lineup_stability.py
+    horizon: H2
+    disponible_en_live: "non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)"
+    parametres: {diagnostic: ADR-0047 D2}
+    historique_minimal: un match de championnat au onze complet dans le club, de la même saison
+    manquant: vide au premier match de la saison du club (n = 0), comme xi_overlap_prev sinon ; mesurée en diagnostic, jamais choisie sur les plis de test
+    risque_fuite: moyen
+    parade: comme xi_overlap_prev
+  - nom: xi_cohesion_win10
+    portee: [equipe, adversaire]
+    groupe: G6
+    definition: variante de diagnostic (rapport H.8) de la cohésion, sur fenêtre ; moyenne à poids égaux des s(s − 1) / 110 sur les 10 derniers matchs de l'historique du club (tous, s'il y en a moins)
+    source: staging.lineup via load_lineups et load_team_sheets ; features/lineup_stability.py
+    horizon: H2
+    disponible_en_live: "non : compositions non fournies après la fin de l'abonnement (ADR-0010, ADR-0011)"
+    parametres: {fenetre_matchs: 10, diagnostic: ADR-0047 D2}
+    historique_minimal: un match de championnat au onze complet dans le club
+    manquant: comme xi_overlap_prev ; mesurée en diagnostic, jamais choisie sur les plis de test
+    risque_fuite: moyen
+    parade: comme xi_overlap_prev

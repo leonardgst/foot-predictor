@@ -34,7 +34,7 @@ def data():
 
 @pytest.fixture
 def spec(tmp_path):
-    path = tmp_path / "scelle.yaml"
+    path = tmp_path / "scelle_h1.yaml"  # le nom désigne la version (garde-fous, ADR-0050)
     path.write_text(SEALED_SPEC, encoding="utf-8")
     return path
 
@@ -76,19 +76,54 @@ def test_the_sealed_test_is_refused_a_second_time(spec, tmp_path):
         sealed.check_sealed_test_allowed(spec.as_posix(), log, git=fake_git)
 
 
-def test_code_changed_since_the_tag_or_missing_tag_refuses_the_sealed_test():
+@pytest.mark.parametrize("experiment", ["experiments/scelle_h1.yaml", "experiments/scelle_h2.yaml"])
+def test_code_changed_since_the_tag_or_missing_tag_refuses_the_sealed_test(experiment):
     missing = lambda *args: subprocess.CompletedProcess(args, 1, stdout="", stderr="")  # noqa: E731
     with pytest.raises(sealed.SealedTestRefused, match="absent"):
-        sealed.check_frozen(git=missing)
+        sealed.check_frozen(experiment, git=missing)
 
     def changed(*args):
         out = " src/foot_predictor/modeling/x.py | 2 +-" if args[0] == "diff" else ""
         return subprocess.CompletedProcess(args, 0, stdout=out, stderr="")
 
     with pytest.raises(sealed.SealedTestRefused, match="modifiés"):
-        sealed.check_frozen(git=changed)
+        sealed.check_frozen(experiment, git=changed)
     clean = lambda *args: subprocess.CompletedProcess(args, 0, stdout="", stderr="")  # noqa: E731
-    sealed.check_frozen(git=clean)  # ne lève rien
+    sealed.check_frozen(experiment, git=clean)  # ne lève rien
+
+
+def git_calls(experiment: str) -> list[tuple[str, ...]]:
+    calls = []
+
+    def clean(*args):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+    sealed.check_frozen(experiment, git=clean)
+    return calls
+
+
+def test_each_version_is_checked_against_its_own_tag_and_frozen_paths():
+    """ADR-0050 : H1 inchangé depuis `pre-scelle-h1` ; H2 a son tag, et gèle `seal.py` en plus."""
+    h1 = git_calls("experiments/scelle_h1.yaml")
+    assert h1 == [
+        ("rev-parse", "--verify", "--quiet", "refs/tags/pre-scelle-h1"),
+        ("diff", "--stat", "pre-scelle-h1", "--", "src/foot_predictor/modeling", "src/foot_predictor/features",
+         "experiments"),
+    ]  # fmt: skip
+    h2 = git_calls("C:/fp-travail/experiments/scelle_h2.yaml")  # le nom du fichier désigne la version
+    assert h2[0][-1] == "refs/tags/pre-scelle-h2"
+    assert h2[1][:4] == ("diff", "--stat", "pre-scelle-h2", "--")
+    assert set(h2[1][4:]) == {*h1[1][4:], "src/foot_predictor/seal.py"}
+
+
+@pytest.mark.parametrize("name", ["experiments/scelle_h3.yaml", "experiments/scelle.yaml", "experiments/m3.yaml"])
+def test_a_file_that_names_no_frozen_list_is_refused_before_git(name):
+    def git(*args):
+        raise AssertionError("Git ne doit pas être appelé")
+
+    with pytest.raises(sealed.SealedTestRefused, match="aucune liste figée"):
+        sealed.check_sealed_test_allowed(name, git=git)
 
 
 def test_train_final_writes_a_model_and_its_card_and_never_overwrites(spec, data, tmp_path):

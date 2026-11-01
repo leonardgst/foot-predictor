@@ -45,15 +45,24 @@ class M6(Model):
         alpha: float = 1e-3,
         penalty: str = "l2",
         l1_ratio: float = 0.5,
+        train_from: int | None = None,
     ) -> None:
         if penalty not in PENALTIES:
             raise ValueError(f"Pénalité inconnue : {penalty} (attendu : {PENALTIES})")
         if alpha < 0:
             raise ValueError("alpha doit être positif ou nul")
         half_life = half_life if "G2" in groups else None
-        super().__init__(groups=list(groups), half_life=half_life, alpha=alpha, penalty=penalty, l1_ratio=l1_ratio)
+        # `train_from` (témoin de fenêtre, ADR-0049) n'est écrit dans les paramètres que s'il est donné : la
+        # description d'un modèle H1 reste celle d'avant.
+        extra = {} if train_from is None else {"train_from": train_from}
+        super().__init__(
+            groups=list(groups), half_life=half_life, alpha=alpha, penalty=penalty, l1_ratio=l1_ratio, **extra
+        )
         self.design = Design(tuple(groups), half_life, level="team")
         self.features = tuple(self.design.required())
+        # Rodage des groupes H2 à historique court (D3, ADR-0047) ; aucun pour G0 à G3, donc rien ne change pour H1.
+        starts = [s for s in (self.design.first_training_season, train_from) if s is not None]
+        self.first_training_season = max(starts) if starts else None
 
     def fit(self, rows: pd.DataFrame) -> M6:
         X = self.design.fit_transform(rows)

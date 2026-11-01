@@ -92,6 +92,40 @@ Contrôles sur les données réelles (lecture seule, avant le scellé, `load_*` 
 
 Le rapport H.3 annonçait plus de 0,9 de corrélation entre paires et recouvrement : ce n'est vrai que pour la version « remise à zéro » (poids égaux sur une saison) ; ici, sans remise à zéro, ce n'est pas le cas pour les longues demi-vies. À regarder en 6.6.
 
+### 6.3 — Variables de qualité du onze, G5 (2026-11-01)
+
+`features/xi_quality.py` : `compute_xi_quality(matches, lineups, team_sheets)`, fonction pure (ADR-0013 décision 3 et règles 3 et 4, ADR-0047 D3 et D9). Une ligne par (match, équipe) de championnat des échelles ; mêmes onzes complets et mêmes jours « strictement antérieurs » que G6.
+
+| Colonne | Définition |
+|---|---|
+| `xi_quality` | moyenne des 11 titulaires de `(M·r̄ + k·μ) / (M + k)` : r̄ = note moyenne du joueur pondérée par les minutes, M = ses minutes notées antérieures, μ = note moyenne (minutes) du poste avant le jour du match, k = 772,6 minutes. Sans note antérieure : μ |
+| `xi_regulars_missing` | part des « habituels » du club (au moins 5 débuts sur les 10 derniers matchs de l'historique) absents du onze ; vide avec moins de 10 matchs d'historique |
+| `xi_mean_age` | âge moyen des titulaires en années au jour du match ; vide si une date de naissance manque |
+
+- **Rétrécissement bayésien empirique** (`xi_quality_estimation.py`, une seule fois, 20 s) : note d'une apparition de w minutes = θ_joueur + bruit de variance σ²/w ; θ de variance τ² par poste ; **k = σ² / τ²**. Méthode des moments sur **2015-16 à 2019-20 seulement** (dans l'apprentissage des quatre plis, aucune note de validation) : σ² = 20,6, τ² = 0,0267, **k = 772,6 minutes** (environ 8,6 matchs complets), 9 001 joueurs, 446 381 apparitions. Figé dans `features/params/xi_quality.json`, chiffres dans `reports/variables/xi_quality.md`. Un joueur à M = k minutes est rétréci pour moitié.
+- **Poste** : celui de la composition annoncée de m (connu à T-60) ; à défaut, le dernier poste connu du joueur dans le passé. Une apparition passée prend le poste de la composition, à défaut celui des statistiques du match. Le poste ne vient donc jamais des statistiques du match évalué (l'ADR-0013 dit « le poste vient des statistiques joueurs » : écart voulu, ces statistiques sont postérieures à T-60).
+- **Nettoyage** : note hors de 3 à 10 ou minutes hors de 1 à 130 → apparition inutilisable pour la note (elle compte encore pour le poste et le onze).
+- **Règle entre championnats (D9 a)** : une recrue sans note dans les échelles reçoit μ, sans correction par championnat. Les notes de la D2 et du top 5 sont mélangées pour les joueurs qui ont joué dans les deux ; μ est commun à toutes les ligues. Décomptes ci-dessous.
+- **Limites** : la note API est calculée après le match par le fournisseur (rapport I.8). `xi_regulars_missing` compte un départ comme une absence tant que le joueur est dans la fenêtre (blessé et parti ne se distinguent pas).
+- **Pas de fiche au registre ici** (raison de 6.2) : les fiches G5 et G6 arrivent en 6.5 avec le branchement dans le jeu.
+
+Contrôles sur les données réelles (lecture seule, avant le scellé, mêmes lectures filtrées par compétition que pour 6.2 ; calcul 7 s) :
+
+| Contrôle | Résultat |
+|---|---|
+| Lignes | 197 002 (match, équipe) |
+| Plis 2021-24, top 5 (14 342 lignes) | `xi_quality` vide pour 0,15 % (21 lignes), les deux autres colonnes pour 0 % |
+| Rodage 2015-16, top 5 | vides : 1,04 % (`xi_quality`), 0,82 % (habituels), 1,10 % (âge) ; **4,07 % des titulaires sans note antérieure** (0,27 à 0,34 % sur les plis). Avant 2015-16 : notes absentes (2014-15 : 86 % de `xi_quality` vide, avant : 100 %) |
+| Titulaires sans note antérieure (D9) | 0,3 % sur les plis ; moins de 450 minutes notées : 3,3 %. Très loin du seuil de 10 % : la variante corrigée par championnat (D9 b) n'est pas déclenchée |
+| Invariance à la troncature | 0 écart sur les 3 colonnes aux coupes du 2019-01-01 (146 316 lignes) et du 2023-03-01 (179 020 lignes) |
+| Calcul indépendant | 60 lignes des plis recalculées titulaire par titulaire avec un filtre pandas naïf : écart nul |
+| Plis, valeurs | `xi_quality` 6,95 en moyenne (écart type 0,08) ; habituels absents 0,32 ; âge moyen 27,0 ans |
+| Corrélations entre elles (plis) | `xi_quality` / habituels : −0,08 ; `xi_quality` / âge : 0,14 ; habituels / âge : −0,07 |
+| Corrélation avec G6 (plis) | `xi_regulars_missing` : −0,85 avec `xi_cohesion_ewm_h5`, −0,83 avec h3, −0,80 avec h10, −0,46 avec `xi_overlap_prev` ; `xi_quality` : au plus 0,24 en valeur absolue (h∞) |
+| Garde H1 | aucun fichier de `modeling/`, ni `registry.yaml`, ni `dataset.py` touché ; `inference check --only replay` : rejeu reproduit, écart nul |
+
+À regarder en 6.6 : **les habituels absents recouvrent largement la cohésion de G6** (corrélation de −0,85). Ce n'est pas une raison de changer une définition fixée avant les plis ; l'ablation de 6.7 (G5 ajouté après G6, D1) dira si le groupe apporte quelque chose de plus.
+
 ## Phase B : jeu sur le brut définitif (3.11)
 
 Après le gel et la partie 2 (`staging` = chargement n° 7, tag `v0.3.0`), le jeu est reconstruit puis comparé au jeu en vigueur. Les identifiants internes de `staging` ont changé au chargement n° 6 (E-058) : les lignes se rapprochent par **identifiants API**, jamais par `match_id` ni `team_id`.

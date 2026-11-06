@@ -1,0 +1,126 @@
+{
+  "today": "2026-11-06",
+  "data_version": "load_run-7+fd-5726170e6e",
+  "model_versions": [
+    "scelle-h1-m3_g0g2-20261022-c6d94541-avec-scelle"
+  ],
+  "matches": 48,
+  "available": 48,
+  "unavailable_share": 0.0,
+  "over_limit": false,
+  "with_market_reference": 48,
+  "reasons": {},
+  "days": [
+    {
+      "day": "2026-11-06",
+      "matches": 5,
+      "statuses": {
+        "available": 5
+      },
+      "out_of_scope": 18
+    },
+    {
+      "day": "2026-11-07",
+      "matches": 19,
+      "statuses": {
+        "available": 19
+      },
+      "out_of_scope": 60
+    },
+    {
+      "day": "2026-11-08",
+      "matches": 24,
+      "statuses": {
+        "available": 24
+      },
+      "out_of_scope": 64
+    },
+    {
+      "day": "2026-11-09",
+      "matches": 0,
+      "statuses": {},
+      "out_of_scope": 1
+    },
+    {
+      "day": "2026-11-10",
+      "matches": 0,
+      "statuses": {},
+      "out_of_scope": 0
+    },
+    {
+      "day": "2026-11-11",
+      "matches": 0,
+      "statuses": {},
+      "out_of_scope": 0
+    },
+    {
+      "day": "2026-11-12",
+      "matches": 0,
+      "statuses": {},
+      "out_of_scope": 0
+    }
+  ],
+  "freshness": {
+    "39": {
+      "complete_until": "2026-11-05",
+      "file": "2026-11-06T16:00:58.164854+00:00"
+    },
+    "40": {
+      "complete_until": "2026-11-05",
+      "file": "2026-11-06T16:01:03.195014+00:00"
+    },
+    "61": {
+      "complete_until": "2026-11-05",
+      "file": "2026-11-06T16:01:02.186372+00:00"
+    },
+    "62": {
+      "complete_until": "2026-11-05",
+      "file": "2026-11-06T16:01:07.213108+00:00"
+    },
+    "78": {
+      "complete_until": "2026-11-05",
+      "file": "2026-11-06T16:01:00.151799+00:00"
+    },
+    "79": {
+      "complete_until": "2026-11-05",
+      "file": "2026-11-06T16:01:05.198241+00:00"
+    },
+    "135": {
+      "complete_until": "2026-11-05",
+      "file": "2026-11-06T16:01:01.166544+00:00"
+    },
+    "136": {
+      "complete_until": "2026-11-05",
+      "file": "2026-11-06T16:01:06.210787+00:00"
+    },
+    "140": {
+      "complete_until": "2026-11-05",
+      "file": "2026-11-06T16:00:59.163989+00:00"
+    },
+    "141": {
+      "complete_until": "2026-10-31",
+      "file": "2026-11-06T16:01:04.194742+00:00"
+    }
+  },
+  "overlay": {
+    "counts": {
+      "dates_reelles": 208,
+      "lignes_inutilisables": 1,
+      "resultats_superposes": 237
+    },
+    "issues": [
+      {
+        "division": "E1",
+        "date": "2026-11-03",
+        "home": "Preston",
+        "away": "Sheffield Utd",
+        "reason": "équipe « Sheffield Utd » de football-data absente des YAML de rapprochement (ingestion/mappings/football_data_team_ids.yaml)"
+      }
+    ]
+  },
+  "saved": {
+    "created": 0,
+    "kept": 48,
+    "refused": 0
+  }
+}

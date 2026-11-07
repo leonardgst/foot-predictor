@@ -4,6 +4,7 @@
     python -m foot_predictor.inference live [--days 7] [--save] [--json]
     python -m foot_predictor.inference prospective
     python -m foot_predictor.inference rejeu-stats [--since-season 2021] [--resamples 10000] [--from-file <parquet>]
+    python -m foot_predictor.inference jeu-rejeu [--rebuild] [--max-days 45] [--output <csv>]
     python -m foot_predictor.inference models [--register] [--activate <version>]
     python -m foot_predictor.inference check [--only rows|replay|predictions|live|rows-h2|replay-h2|predictions-h2|rows-scelle|sealed_replay]
 
@@ -18,6 +19,8 @@ disponibilité dans `reports/inference/live_<date>.md`, et avec `--save` les ré
 `rows-scelle` (seulement sur demande, lecture du jeu scellé journalisée) compare les lignes de
 l'inférence au jeu scellé sur la période scellée. `rejeu-stats` : rejeu H1 de tous les matchs depuis 2021-22,
 statistiques par championnat, saison et tranche de journées (relevé descriptif, `reports/inference/rejeu_stats_*`).
+`jeu-rejeu` : fichier CSV d'un match par ligne (variables lues, prédictions, score réel, mesures), complété à chaque
+lancement des seuls matchs nouveaux (`data/inference/jeu_rejeu_h1.csv`, ADR-0054).
 """
 
 from __future__ import annotations
@@ -67,6 +70,14 @@ def build_parser() -> argparse.ArgumentParser:
     stats.add_argument(
         "--from-file", help="refait le relevé depuis un fichier Parquet déjà collecté (sans base ni rejeu)"
     )
+    jeu = sub.add_parser(
+        "jeu-rejeu", help="fichier CSV du rejeu H1 (un match par ligne), complété des matchs nouveaux (ADR-0054)"
+    )
+    jeu.add_argument("--rebuild", action="store_true", help="refait tout le rejeu (environ 40 minutes)")
+    jeu.add_argument(
+        "--max-days", type=int, default=45, help="jours rejoués au plus (0 : sans limite, premier lancement)"
+    )
+    jeu.add_argument("--output", help="autre fichier CSV (défaut : data/inference/jeu_rejeu_h1.csv)")
     check = sub.add_parser("check", help="contrôles sur données réelles")
     check.add_argument(
         "--only", choices=["rows", "replay", "predictions", "live", "rows-h2", "replay-h2", "predictions-h2", "rows-scelle", "sealed_replay"],
@@ -184,6 +195,43 @@ def cmd_rejeu_stats(args) -> int:
     report = rejeu_stats.build_report(frame, today, data_version, dict(excluded), args.resamples)
     _, md_path = write_report(report, stem, rejeu_stats.render(report))
     print(f"{len(frame)} match(s) ; rapport {md_path}")
+    return 0
+
+
+def cmd_jeu_rejeu(args) -> int:
+    """Complète le fichier CSV du rejeu H1 des matchs joués depuis le dernier lancement (ADR-0054)."""
+    from sqlalchemy.orm import Session
+
+    from foot_predictor.db.session import get_engine
+    from foot_predictor.inference import jeu_rejeu, prospective
+    from foot_predictor.inference.context import build_context
+    from foot_predictor.inference.predict import ReferenceDateRefused
+
+    context = build_context(with_odds=False)
+    if not context.history_opened:
+        print("Fermé : le test scellé H1 n'est pas terminé (ADR-0045).", file=sys.stderr)
+        return 3
+    with Session(get_engine()) as session:
+        journal = prospective.journal_rows(session)
+
+    def progress(done: int, total: int) -> None:
+        print(f"rejeu : {done}/{total} jours", file=sys.stderr, flush=True)
+
+    path = Path(args.output) if args.output else jeu_rejeu.DATA_FILE
+    try:
+        found = jeu_rejeu.update(
+            context, journal, path, rebuild=args.rebuild, max_days=args.max_days, progress=progress
+        )
+    except (ReferenceDateRefused, jeu_rejeu.ModelChanged, jeu_rejeu.TooManyDays) as error:
+        print(str(error), file=sys.stderr)
+        return 3
+    if not found["written"]:
+        print("jeu-rejeu : aucun match à écrire")
+        return 0
+    print(
+        f"jeu-rejeu : {found['added']} match(s) ajouté(s) en {found['days']} jour(s) rejoué(s), "
+        f"{found['total']} au total ; {found['path']}"
+    )
     return 0
 
 
@@ -399,6 +447,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_prospective(args)
     if args.command == "rejeu-stats":
         return cmd_rejeu_stats(args)
+    if args.command == "jeu-rejeu":
+        return cmd_jeu_rejeu(args)
     if args.command == "models":
         return cmd_models(args.register, args.activate)
     return cmd_check(args)

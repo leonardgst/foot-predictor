@@ -30,6 +30,7 @@ uv run python -m foot_predictor.inference check --only rows-scelle   # sur deman
 uv run python -m foot_predictor.inference check --only sealed_replay # garde du modèle testé (6.13) : rejeu scellé = test scellé (environ 10 min)
 uv run python -m foot_predictor.inference prospective             # relevé du journal prospectif H1 (6.13) ; collecter les résultats avant
 uv run python -m foot_predictor.inference rejeu-stats               # rejeu H1 de tous les matchs depuis 2021-22 : tableaux par championnat, saison, journée (environ 1 h)
+uv run python -m foot_predictor.inference jeu-rejeu                 # complète data/inference/jeu_rejeu_h1.csv des matchs nouveaux (premier lancement : --max-days 0, environ 40 min)
 ```
 
 | Option | Rôle |
@@ -128,6 +129,37 @@ Le relevé donne, pour toutes les saisons (validation 2021-22 à 2024-25, puis 2
 **Fiabilité au fil de la saison.** Par tranche de journées (1-5, 6-10, 11-19, 20-29, 30+), et par **pente de l'erreur selon l'avancement** (de la 1re à la dernière journée, droite des moindres carrés, intervalle par rééchantillonnage de blocs de journées). Les pentes sont données sur le log-loss, le RPS et l'écart à B1, qui est la mesure à privilégier pour comparer des périodes (le log-loss absolu dépend aussi du nombre de buts). Trois niveaux : tous les matchs (effets fixes championnat × saison), par championnat (effet fixe saison) et par saison × championnat ; ce dernier niveau n'a que 300 à 380 matchs par groupe, donc des intervalles larges.
 
 Règles de lecture, écrites avant tout résultat : relevé descriptif, aucune règle de décision, aucun modèle changé à partir de lui ; les analyses sont nombreuses, donc un intervalle qui exclut 0 dans l'une d'elles ne prouve rien seul (environ 5 % le font par hasard). Le « bon vainqueur » est déduit des deux moyennes de buts du modèle (Poissons indépendants) : le protocole ne l'a pas validé. La journée est celle du calendrier : un match reporté garde sa journée d'origine.
+
+## Jeu de données du rejeu H1 pour les notebooks (`jeu-rejeu`, ADR-0054)
+
+`data/inference/jeu_rejeu_h1.csv` : **une ligne par match** de championnat du top 5 depuis 2021-22, rejoué en H1 comme `rejeu-stats` (modèle du pli de la saison, modèle du test scellé pour 2025-26 et 2026-27, score réel, aucune cote). Il s'agrandit seul : l'étape *jeu* des passages du mardi et du vendredi (ADR-0054) lance `jeu-rejeu` après la collecte des résultats, et la commande ne rejoue que les jours des matchs absents du fichier. Non suivi par Git (il contient des scores scellés).
+
+```bash
+uv run python -m foot_predictor.inference jeu-rejeu --max-days 0   # premier lancement : tout le rejeu (environ 40 min)
+uv run python -m foot_predictor.inference jeu-rejeu                # ensuite : seulement les matchs nouveaux (quelques minutes)
+uv run python -m foot_predictor.inference jeu-rejeu --rebuild --max-days 0   # refait tout (après un changement de modèle)
+```
+
+```python
+import pandas as pd
+
+jeu = pd.read_csv("data/inference/jeu_rejeu_h1.csv", parse_dates=["match_day"])
+jeu.groupby("api_league_id")[["log_loss", "delta_b1"]].mean()  # les tableaux de rejeu-stats, sans rien recalculer
+```
+
+| Colonnes | Contenu |
+|---|---|
+| `match_day`, `kickoff_utc`, `season_year`, `season`, `api_league_id`, `competition`, `round`, `home_team`, `away_team`, `model_version`, `data_version` | identité du match ; la clé d'une ligne est (jour, championnat, équipes), jamais un `match_id` (E-058) |
+| `home_<variable>`, `away_<variable>` (38 colonnes : `elo_pre`, `opp_elo_pre`, `behind_closed_doors`, moyennes glissantes de buts et de xG `goals_for_ewm_h240`, `xgp_against_ewm_h120`…) | variables que le modèle a lues : `home_` dans la ligne qui prédit le λ du domicile, `away_` dans celle du λ de l'extérieur ; `opp_*` est l'adversaire de la ligne (donc `home_opp_elo_pre` = `away_elo_pre`). Le modèle de chaque saison en lit 11 par côté : la demi-vie des moyennes glissantes (`_h120` ou `_h240`) est choisie par pli (120 jours en 2022-23, 240 dans les autres saisons), donc **une colonne est vide pour une saison dont le modèle ne la lit pas** (jamais remplie par une autre valeur) |
+| `lambda_home`, `lambda_away`, `p0` à `p10`, `interval_low`, `interval_high`, `announced_coverage`, `lambda_b1_home`, `lambda_b1_away` | prédictions finales (`p10` = 10 buts ou plus) et référence B1 (fenêtre 3, sans fuite) |
+| `home_goals`, `away_goals`, `total` | score réel à 90 minutes |
+| `log_loss`, `rps`, `brier_over`, `p_over`, `over`, `hit_over`, `expected_total`, `p_home`, `p_draw`, `p_away`, `hit_1x2`, `brier_1x2`, `log_loss_b1`, `delta_b1` | mesures de chaque match ; `delta_b1` = log-loss de B1 − celui du modèle (positif : le modèle fait mieux) |
+| `period`, `round_no`, `n_rounds`, `progress`, `tranche`, `season_complete` | validation (2021-25) ou test scellé ; avancement dans la saison (comme `rejeu-stats`) |
+| `traced_live` | le match a aussi été prédit en live avant son coup d'envoi (journal `ops.prediction`) |
+
+Le notebook `notebooks/06_rejeu_h1.ipynb` lit ce fichier et refait les tableaux du rapport (par période, championnat, saison, saison × championnat, tranches de journées et pentes), puis ajoute ce que le rapport ne donne pas : calibration de « plus de 2,5 buts », buts prévus et observés selon l'écart d'Elo, matchs les plus mal prédits. Il se relance tel quel après chaque mise à jour du fichier.
+
+Les colonnes de mesure et d'avancement sont recalculées sur tout le fichier à chaque lancement ; les autres sont écrites une seule fois. Si le modèle d'une saison a changé depuis les lignes écrites, la commande s'arrête (`--rebuild` refait tout) ; au-delà de 45 jours à rejouer elle s'arrête aussi (`--max-days`). Mêmes règles de lecture que `rejeu-stats` : 2021-22 à 2024-25 ont servi à choisir les modèles, seules 2025-26 et 2026-27 sont vierges ; relevé descriptif.
 
 ## Tirs de football-data en live (`shots_check`, 5.7)
 

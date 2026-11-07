@@ -1,4 +1,4 @@
-"""Planification du live (ADR-0053) : trois passages par semaine dans le Planificateur de tâches Windows.
+"""Planification du live (ADR-0053, étape *jeu* : ADR-0054) : trois passages par semaine dans le Planificateur de tâches Windows.
 
     uv run python -m foot_predictor.planification run mardi|vendredi|samedi [--force]
     uv run python -m foot_predictor.planification install [--apply]      # sans --apply : affiche le plan
@@ -9,7 +9,8 @@ Un passage enchaîne des étapes dont les commandes sont **écrites en dur ici**
 
 - *collecte* : `collect.football_data.live fixtures --max-requests 1`, puis `season --season <saison> --max-requests 10` ;
 - *tracé* : `inference live --days 7 --save` (idempotent ; seulement avant le coup d'envoi) ;
-- *relevé* : `inference prospective`.
+- *relevé* : `inference prospective` ;
+- *jeu* : `inference jeu-rejeu` (complète `data/inference/jeu_rejeu_h1.csv` des matchs dont le résultat vient d'arriver).
 
 Autorisation durable bornée (ADR-0053) : football-data seulement, aucune requête API-FOOTBALL, aucun `load`,
 tout plafonné par `--max-requests`. Le lanceur refuse toute autre commande (`check_command`), s'arrête si
@@ -53,6 +54,7 @@ ALLOWED = {
     (FIXTURES_MODULE, "season"),
     (INFERENCE_MODULE, "live"),
     (INFERENCE_MODULE, "prospective"),
+    (INFERENCE_MODULE, "jeu-rejeu"),
 }
 FORBIDDEN_PARTS = ("api_football", "ingestion", "sealed")
 FORBIDDEN_TOKENS = ("load", "download")
@@ -74,12 +76,14 @@ class Passage:
 
 PASSAGES = {
     "mardi": Passage(
-        "mardi", 1, "Tuesday", "18:00", ("collecte", "tracé", "relevé"),
-        "foot-predictor : résultats du week-end et prochains matchs (football-data), tracé du live, relevé du journal",
+        "mardi", 1, "Tuesday", "18:00", ("collecte", "tracé", "relevé", "jeu"),
+        "foot-predictor : résultats du week-end et prochains matchs (football-data), tracé du live, relevé du journal, "
+        "jeu de données du rejeu",
     ),
     "vendredi": Passage(
-        "vendredi", 4, "Friday", "17:00", ("collecte", "tracé"),
-        "foot-predictor : prochains matchs publiés l'après-midi (football-data) et tracé avant les matchs du soir",
+        "vendredi", 4, "Friday", "17:00", ("collecte", "tracé", "jeu"),
+        "foot-predictor : prochains matchs publiés l'après-midi (football-data), tracé avant les matchs du soir, "
+        "jeu de données du rejeu",
     ),
     "samedi": Passage(
         "samedi", 5, "Saturday", "08:00", ("tracé",),
@@ -105,6 +109,8 @@ def step_commands(step: str, today: dt.date) -> list[tuple[str, ...]]:
         return [("-m", INFERENCE_MODULE, "live", "--days", "7", "--save")]
     if step == "relevé":
         return [("-m", INFERENCE_MODULE, "prospective")]
+    if step == "jeu":
+        return [("-m", INFERENCE_MODULE, "jeu-rejeu")]
     raise CommandRefused(f"Étape inconnue : {step}")
 
 

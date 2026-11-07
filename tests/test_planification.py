@@ -44,17 +44,17 @@ def passage(name, tmp_path, runner, now, **kwargs):
 
 def test_the_three_passages_match_the_adr():
     assert {n: (p.day_code, p.time, p.steps) for n, p in pl.PASSAGES.items()} == {
-        "mardi": ("Tuesday", "18:00", ("collecte", "tracé", "relevé")),
-        "vendredi": ("Friday", "17:00", ("collecte", "tracé")),
+        "mardi": ("Tuesday", "18:00", ("collecte", "tracé", "relevé", "jeu")),
+        "vendredi": ("Friday", "17:00", ("collecte", "tracé", "jeu")),
         "samedi": ("Saturday", "08:00", ("tracé",)),
     }
     assert [p.weekday for p in pl.PASSAGES.values()] == [1, 4, 5]
 
 
-def test_a_tuesday_runs_collection_then_trace_then_report_in_order(tmp_path):
+def test_a_tuesday_runs_collection_then_trace_then_report_then_dataset_in_order(tmp_path):
     runner = Recorder()
     assert passage("mardi", tmp_path, runner, TUESDAY) == 0
-    assert [c[2] for c in runner.commands] == ["fixtures", "season", "live", "prospective"]
+    assert [c[2] for c in runner.commands] == ["fixtures", "season", "live", "prospective", "jeu-rejeu"]
     season = next(c for c in runner.commands if c[2] == "season")
     assert season[season.index("--season") + 1] == "2026"
     assert ("-m", pl.INFERENCE_MODULE, "live", "--days", "7", "--save") in runner.commands
@@ -62,11 +62,11 @@ def test_a_tuesday_runs_collection_then_trace_then_report_in_order(tmp_path):
     assert "commit abc123" in log and "terminé, tout est bon" in log
 
 
-def test_friday_has_no_report_and_saturday_does_not_touch_the_network(tmp_path):
+def test_friday_has_no_report_but_updates_the_dataset_and_saturday_does_not_touch_the_network(tmp_path):
     friday, saturday = Recorder(), Recorder()
     passage("vendredi", tmp_path, friday, FRIDAY)
     passage("samedi", tmp_path, saturday, SATURDAY)
-    assert [c[2] for c in friday.commands] == ["fixtures", "season", "live"]
+    assert [c[2] for c in friday.commands] == ["fixtures", "season", "live", "jeu-rejeu"]
     assert [c[2] for c in saturday.commands] == ["live"]
     assert not any(pl.FIXTURES_MODULE in c for c in saturday.commands)
 
@@ -74,10 +74,11 @@ def test_friday_has_no_report_and_saturday_does_not_touch_the_network(tmp_path):
 def test_a_failed_collection_does_not_stop_the_trace_but_a_failed_trace_skips_the_report(tmp_path):
     collect_fails = Recorder(fail=("season",))
     assert passage("mardi", tmp_path, collect_fails, TUESDAY) == 1
-    assert [c[2] for c in collect_fails.commands] == ["fixtures", "season", "live", "prospective"]
+    assert [c[2] for c in collect_fails.commands] == ["fixtures", "season", "live", "prospective", "jeu-rejeu"]
     trace_fails = Recorder(fail=("live",))
     assert passage("mardi", tmp_path, trace_fails, TUESDAY) == 1
-    assert [c[2] for c in trace_fails.commands] == ["fixtures", "season", "live"]  # pas de relevé
+    # pas de relevé ; le jeu de données ne dépend pas du tracé
+    assert [c[2] for c in trace_fails.commands] == ["fixtures", "season", "live", "jeu-rejeu"]
     log = (tmp_path / "passages.log").read_text(encoding="utf-8")
     assert "ÉCHEC code 1 (boum)" in log and "étape relevé sautée" in log
 
@@ -85,7 +86,8 @@ def test_a_failed_collection_does_not_stop_the_trace_but_a_failed_trace_skips_th
 def test_an_exception_in_a_step_is_logged_and_the_next_steps_still_run(tmp_path):
     runner = Recorder(raises=("fixtures",))
     assert passage("vendredi", tmp_path, runner, FRIDAY) == 1
-    assert [c[2] for c in runner.commands] == ["fixtures", "season", "live"]  # la commande en erreur est tentée
+    # la commande en erreur est tentée
+    assert [c[2] for c in runner.commands] == ["fixtures", "season", "live", "jeu-rejeu"]
     assert "ERREUR TimeoutError" in (tmp_path / "passages.log").read_text(encoding="utf-8")
 
 
@@ -103,7 +105,7 @@ def test_a_missed_passage_on_another_day_is_ignored_unless_forced(tmp_path):
     assert runner.commands == []
     assert "ignoré" in (tmp_path / "passages.log").read_text(encoding="utf-8")
     assert passage("mardi", tmp_path, runner, TUESDAY + dt.timedelta(days=1), force=True) == 0
-    assert len(runner.commands) == 4
+    assert len(runner.commands) == 5
 
 
 def test_the_authorization_ends_with_the_2026_27_season(tmp_path):

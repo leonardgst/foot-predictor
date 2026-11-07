@@ -3,6 +3,7 @@
     python -m foot_predictor.inference predict --date 2024-05-19 --mode replay [--horizon H1|H2] [--competition <id>] [--match <id>] [--json]
     python -m foot_predictor.inference live [--days 7] [--save] [--json]
     python -m foot_predictor.inference prospective
+    python -m foot_predictor.inference rejeu-stats [--since-season 2021] [--resamples 10000] [--from-file <parquet>]
     python -m foot_predictor.inference models [--register] [--activate <version>]
     python -m foot_predictor.inference check [--only rows|replay|predictions|live|rows-h2|replay-h2|predictions-h2|rows-scelle|sealed_replay]
 
@@ -15,7 +16,8 @@ modèle actif. `live` (5.14) : prochains jours en live, football-data superposé
 disponibilité dans `reports/inference/live_<date>.md`, et avec `--save` les réponses du top 5 dans
 `ops.prediction` (avant le coup d'envoi). `check` : contrôles sur données réelles, rapports dans `reports/inference/` ;
 `rows-scelle` (seulement sur demande, lecture du jeu scellé journalisée) compare les lignes de
-l'inférence au jeu scellé sur la période scellée.
+l'inférence au jeu scellé sur la période scellée. `rejeu-stats` : rejeu H1 de tous les matchs depuis 2021-22,
+statistiques par championnat, saison et tranche de journées (relevé descriptif, `reports/inference/rejeu_stats_*`).
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ import argparse
 import datetime as dt
 import json
 import sys
+from pathlib import Path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -53,6 +56,16 @@ def build_parser() -> argparse.ArgumentParser:
     )  # fmt: skip
     sub.add_parser(
         "prospective", help="relevé du journal prospectif H1 contre les résultats de football-data (6.13, ADR-0052)"
+    )
+    stats = sub.add_parser(
+        "rejeu-stats", help="rejeu H1 de tous les matchs depuis 2021-22 : statistiques par championnat, saison, journée"
+    )
+    stats.add_argument("--since-season", type=int, default=2021, help="première saison rejouée (essai : 2026)")
+    stats.add_argument(
+        "--resamples", type=int, default=10_000, help="rééchantillonnages des intervalles (protocole : 10000)"
+    )
+    stats.add_argument(
+        "--from-file", help="refait le relevé depuis un fichier Parquet déjà collecté (sans base ni rejeu)"
     )
     check = sub.add_parser("check", help="contrôles sur données réelles")
     check.add_argument(
@@ -121,6 +134,56 @@ def cmd_prospective(args) -> int:
     print(f"{trace['predictions']} prédiction(s), {trace['before_kickoff']} écrite(s) avant le coup d'envoi, "
           f"{trace['journees']} journée(s) sur {report['journees_required']} ; "
           f"{report.get('with_result', 0)} résultat(s) connu(s) ; {md_path}")  # fmt: skip
+    return 0
+
+
+def cmd_rejeu_stats(args) -> int:
+    """Rejeu H1 de tous les matchs, puis statistiques par championnat, saison et tranche de journées."""
+    import pandas as pd
+
+    from foot_predictor.inference import models, rejeu_stats
+    from foot_predictor.inference.check import write_report
+
+    today = dt.datetime.now(dt.UTC).date()
+    suffix = "" if args.since_season == rejeu_stats.FIRST_SEASON else f"_depuis{args.since_season}"
+    stem = f"rejeu_stats_{today.isoformat()}{suffix}"
+    cache = models.REPO_ROOT / "data" / "inference" / f"{stem}.parquet"
+    if args.from_file:
+        frame, excluded, data_version = pd.read_parquet(args.from_file), {}, "fichier collecté"
+        meta = Path(args.from_file).with_suffix(".meta.json")  # écrit par la collecte
+        if meta.exists():
+            found = json.loads(meta.read_text(encoding="utf-8"))
+            excluded, data_version = found["excluded"], found["data_version"]
+        frame["match_day"] = pd.to_datetime(frame["match_day"]).dt.date
+    else:
+        from foot_predictor.inference.context import build_context
+        from foot_predictor.inference.predict import ReferenceDateRefused
+
+        context = build_context(with_odds=False)
+        if not context.history_opened:
+            print("Fermé : le test scellé H1 n'est pas terminé (ADR-0045).", file=sys.stderr)
+            return 3
+
+        def progress(done: int, total: int, seconds: float) -> None:
+            print(f"rejeu : {done}/{total} jours ({seconds / 60:.1f} min)", file=sys.stderr, flush=True)
+
+        try:
+            frame, excluded = rejeu_stats.collect(context, args.since_season, progress=progress)
+        except ReferenceDateRefused as error:
+            print(str(error), file=sys.stderr)
+            return 3
+        frame = rejeu_stats.add_b1(frame, context.matches)
+        data_version = context.data_version
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        frame.to_parquet(cache, index=False)  # prédictions et scores : local, non suivi par Git (data/)
+        cache.with_suffix(".meta.json").write_text(
+            json.dumps({"data_version": data_version, "excluded": dict(excluded)}, indent=2) + "\n", encoding="utf-8"
+        )
+        print(f"{len(frame)} match(s) rejoué(s) ; fichier local {cache}")
+    frame = rejeu_stats.add_progress(rejeu_stats.measures(frame))
+    report = rejeu_stats.build_report(frame, today, data_version, dict(excluded), args.resamples)
+    _, md_path = write_report(report, stem, rejeu_stats.render(report))
+    print(f"{len(frame)} match(s) ; rapport {md_path}")
     return 0
 
 
@@ -334,6 +397,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_live(args)
     if args.command == "prospective":
         return cmd_prospective(args)
+    if args.command == "rejeu-stats":
+        return cmd_rejeu_stats(args)
     if args.command == "models":
         return cmd_models(args.register, args.activate)
     return cmd_check(args)

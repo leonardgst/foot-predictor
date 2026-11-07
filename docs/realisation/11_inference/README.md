@@ -29,6 +29,7 @@ uv run python -m foot_predictor.inference check --only predictions-h2   # sur de
 uv run python -m foot_predictor.inference check --only rows-scelle   # sur demande : période scellée, lecture journalisée
 uv run python -m foot_predictor.inference check --only sealed_replay # garde du modèle testé (6.13) : rejeu scellé = test scellé (environ 10 min)
 uv run python -m foot_predictor.inference prospective             # relevé du journal prospectif H1 (6.13) ; collecter les résultats avant
+uv run python -m foot_predictor.inference rejeu-stats               # rejeu H1 de tous les matchs depuis 2021-22 : tableaux par championnat, saison, journée (environ 1 h)
 ```
 
 | Option | Rôle |
@@ -109,6 +110,24 @@ Résultat du 2026-11-01 : **reproduit**, écart maximal 8,9·10⁻¹⁶ (toléra
 **Journal prospectif** (`prospective`) : les prédictions live H1 de `ops.prediction`, comparées aux résultats de football-data (superposition en mémoire, ADR-0042), après `collect.football_data.live season --season 2026 --max-requests 10`. Relevé **descriptif** : traçage (écrites avant le coup d'envoi, journées), log-loss, RPS, Brier, couverture, calibration, écart apparié à B1 (fenêtre 3) par blocs de jours. Aucune conclusion avant 8 journées, aucun modèle changé à partir du relevé ; un relevé par collecte, tous conservés (`reports/inference/prospectif_<horodatage>.md`).
 
 Premier relevé (2026-11-01, 10 requêtes football-data, 0 requête API-FOOTBALL) : 89 prédictions, toutes écrites avant le coup d'envoi, **7 journées sur 8** ; 48 résultats connus (les journées du 31 octobre au 2 novembre n'ont pas encore de résultat). Sur ces 48 matchs, `B1 − modèle` = +0,0396 [+0,0027 ; +0,0700] (4 jours, p de Diebold-Mariano 0,06) : descriptif, non conclusif.
+
+## Statistiques du rejeu H1 de tous les matchs (`rejeu-stats`)
+
+Une seule commande répond à « que valent les prédictions, match joué après match joué ? » : `rejeu-stats` rejoue chaque journée de championnat du top 5 depuis 2021-22 par `predict_day` (mode rejeu, H1 : modèle du pli de la saison, modèle du test scellé pour 2025-26 et 2026-27, score réel, **aucune cote**), puis agrège. Code : `inference/rejeu_stats.py` (seul module autorisé à lire les scores scellés, comme le reste de `inference/`). Aucun appel API-FOOTBALL, aucune écriture dans `ops.prediction`, aucun modèle ni variable touché (gardes H1 et H2 inchangées).
+
+```bash
+uv run python -m foot_predictor.inference rejeu-stats                       # tout (environ 1 h), 10 000 rééchantillonnages
+uv run python -m foot_predictor.inference rejeu-stats --since-season 2026 --resamples 1000   # essai rapide
+uv run python -m foot_predictor.inference rejeu-stats --from-file data/inference/rejeu_stats_<date>.parquet   # refait le relevé sans base ni rejeu
+```
+
+Sorties : `reports/inference/rejeu_stats_<date>.md` et `.json` (**agrégats seulement**) ; le fichier Parquet des prédictions et scores match par match reste dans `data/inference/` (non suivi par Git).
+
+Le relevé donne, pour toutes les saisons (validation 2021-22 à 2024-25, puis 2025-26 et 2026-27 : les deux blocs restent séparés, seul le second est vierge), puis par championnat, par saison et par saison × championnat : log-loss, RPS, Brier de P(T > 2,5), part de bons « plus/moins de 2,5 buts », buts prévus et observés, part de bons vainqueurs et écart apparié à B1 (fenêtre 3) avec son intervalle par blocs de journées.
+
+**Fiabilité au fil de la saison.** Par tranche de journées (1-5, 6-10, 11-19, 20-29, 30+), et par **pente de l'erreur selon l'avancement** (de la 1re à la dernière journée, droite des moindres carrés, intervalle par rééchantillonnage de blocs de journées). Les pentes sont données sur le log-loss, le RPS et l'écart à B1, qui est la mesure à privilégier pour comparer des périodes (le log-loss absolu dépend aussi du nombre de buts). Trois niveaux : tous les matchs (effets fixes championnat × saison), par championnat (effet fixe saison) et par saison × championnat ; ce dernier niveau n'a que 300 à 380 matchs par groupe, donc des intervalles larges.
+
+Règles de lecture, écrites avant tout résultat : relevé descriptif, aucune règle de décision, aucun modèle changé à partir de lui ; les analyses sont nombreuses, donc un intervalle qui exclut 0 dans l'une d'elles ne prouve rien seul (environ 5 % le font par hasard). Le « bon vainqueur » est déduit des deux moyennes de buts du modèle (Poissons indépendants) : le protocole ne l'a pas validé. La journée est celle du calendrier : un match reporté garde sa journée d'origine.
 
 ## Tirs de football-data en live (`shots_check`, 5.7)
 

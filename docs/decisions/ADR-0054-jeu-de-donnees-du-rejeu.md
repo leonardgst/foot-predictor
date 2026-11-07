@@ -56,6 +56,7 @@ L'étape ne dépend pas du tracé ; un échec est journalisé comme les autres e
 ## Conséquences
 
 - **Fichiers** : `src/foot_predictor/inference/jeu_rejeu.py`, `inference/__main__.py` (sous-commande), `planification.py` (étape et liste fermée), `tests/inference/test_jeu_rejeu.py`, `tests/test_planification.py`, README de l'étape 11, `CLAUDE.md`, `ETAT_PROJET.md`. Aucune dépendance nouvelle ; `modeling/` et `features/` ne sont pas touchés (gardes H1 et H2 inchangées).
+- **Notebooks** : le fichier se lit par un notebook, qui n'importe rien du projet (règle de l'ADR-0028, contrôlée par `tests/features/test_architecture.py`) : pandas et numpy seulement. Le notebook `06_rejeu_h1.ipynb` refait donc les mesures et le rééchantillonnage de blocs de journées lui-même ; ses intervalles sont proches de ceux du rapport sans être identiques (1 000 tirages au lieu de 10 000).
 - **Ce que le fichier n'est pas** : une preuve de performance. Les saisons 2021-22 à 2024-25 ont servi à choisir les modèles et les réglages ; seules 2025-26 et 2026-27 sont vierges (colonne `period`). Même règle de lecture que `rejeu-stats` : descriptif, aucun modèle changé à partir de lui.
 - **Les tâches existantes gardent leur ancienne description** dans le Planificateur (le texte est cosmétique ; les étapes viennent du code à chaque passage). Réinstaller (`planification install --apply`) la met à jour, sans urgence.
 - **Critères de révision** :

@@ -15,6 +15,20 @@ Une entrée par erreur résolue, la plus récente en haut. Modèle :
 
 ---
 
+## E-068 — Interface : la prédiction live d'un match commencé était refusée au lieu d'être relue (2026-11-08)
+
+- **Contexte** : dimanche 8 novembre, après le coup d'envoi de Rennes – Lille, ouverture de son détail dans l'interface.
+- **Message d'erreur** : `Prédiction impossible : match indisponible. Match 116571 : prédiction live refusée après 2026-11-08T14:00:00+00:00 (coup d'envoi, ou début du jour sans heure connue).`
+- **Cause** :
+  - dans `save_prediction`, le contrôle d'échéance du live passait **avant** la recherche d'une prédiction déjà tracée ;
+  - la route `POST /matches/{id}/predictions` (et l'interface avec elle) ne pouvait donc plus renvoyer une prédiction écrite avant le match dès que le match avait commencé, alors que la docstring de la route promet de renvoyer l'existante ;
+  - la prédiction était bien dans `ops.prediction` (écrite le 3 novembre, 24 matchs du 8 novembre, tous `available`) : le journal prospectif n'était pas touché, seule la relecture l'était.
+- **Solution** : `save_prediction` cherche d'abord l'existante (hors `force`) et la renvoie à toute heure ; le refus ne vaut plus que pour une écriture nouvelle (autre modèle, `force`, aucune prédiction tracée). Vérifié sur le match 116571 : la réponse recalculée après le match est identique au bit à la prédiction tracée (λ, E[T], P(T > 2,5)).
+- **Fichiers concernés** : `src/foot_predictor/inference/store.py`, `tests/inference/test_store.py`.
+- **Prévention** : une opération « écrire si absent » vérifie l'absence **avant** toute règle qui ne concerne que l'écriture ; trois tests couvrent la relecture tardive, `force` tardif toujours refusé et un autre modèle toujours refusé.
+- **Test de non-régression** : `test_a_live_prediction_written_before_kickoff_is_still_returned_after_it`, `test_force_after_kickoff_stays_refused_even_with_an_existing_prediction`, `test_an_existing_prediction_of_another_model_does_not_open_the_late_write`.
+- **Limite connue** : la route renvoie la réponse recalculée, pas la ligne stockée. Elles coïncident aujourd'hui ; si l'historique d'un match changeait après coup, l'écran pourrait différer de la trace.
+
 ## E-067 — Test scellé H2 : le jeu scellé aurait été impossible à construire une fois `features/` gelé (2026-11-01)
 
 - **Contexte** : sous-étape 6.9, relecture du code du test scellé avant le tag `pre-scelle-h2`.

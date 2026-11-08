@@ -90,6 +90,39 @@ def test_live_prediction_after_kickoff_is_refused(db_session):
     assert count(db_session, match_id=900_001) == 0
 
 
+def test_a_live_prediction_written_before_kickoff_is_still_returned_after_it(db_session):
+    """E-068 : l'échéance interdit d'écrire après le coup d'envoi, pas de relire la prédiction d'avant."""
+    before = dt.datetime(2026, 10, 24, 14, 0, tzinfo=dt.UTC)
+    after = dt.datetime(2026, 10, 24, 17, 0, tzinfo=dt.UTC)
+    first = save_prediction(db_session, answer("live"), dt.date(2026, 10, 23), now=before)
+    again = save_prediction(db_session, answer("live"), dt.date(2026, 10, 24), now=after)
+    assert first.created and not again.created and again.prediction.id == first.prediction.id
+    assert count(db_session, match_id=900_001) == 1
+
+
+def test_force_after_kickoff_stays_refused_even_with_an_existing_prediction(db_session):
+    before = dt.datetime(2026, 10, 24, 14, 0, tzinfo=dt.UTC)
+    save_prediction(db_session, answer("live"), dt.date(2026, 10, 23), now=before)
+    with pytest.raises(LivePredictionTooLate):
+        save_prediction(
+            db_session,
+            answer("live"),
+            dt.date(2026, 10, 24),
+            force=True,
+            now=dt.datetime(2026, 10, 24, 17, tzinfo=dt.UTC),
+        )
+    assert count(db_session, match_id=900_001) == 1
+
+
+def test_an_existing_prediction_of_another_model_does_not_open_the_late_write(db_session):
+    """La recherche se fait par version du modèle : un autre modèle après le coup d'envoi reste refusé."""
+    before = dt.datetime(2026, 10, 24, 14, 0, tzinfo=dt.UTC)
+    save_prediction(db_session, answer("live"), dt.date(2026, 10, 23), now=before)
+    other = answer("live") | {"model_version": "essai-v2"}
+    with pytest.raises(LivePredictionTooLate):
+        save_prediction(db_session, other, dt.date(2026, 10, 24), now=dt.datetime(2026, 10, 24, 17, tzinfo=dt.UTC))
+
+
 def test_live_deadline_without_kickoff_time_is_the_start_of_the_day():
     assert live_deadline(answer("live", kickoff=None)) == dt.datetime(2026, 10, 24, tzinfo=dt.UTC)
     assert live_deadline(answer("live")) == dt.datetime(2026, 10, 24, 15, tzinfo=dt.UTC)

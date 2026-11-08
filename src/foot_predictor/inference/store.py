@@ -5,7 +5,8 @@
   quelle, sauf avec `force` (une nouvelle ligne s'ajoute, l'ancienne reste : rien ne s'efface).
   L'identifiant API du match est recopié depuis la réponse (E-058).
 - **Live** : une prédiction n'est écrite qu'**avant le coup d'envoi** (heure connue) ou, sans heure,
-  avant le début du jour du match (00:00 UTC) ; sinon, refus explicite. C'est ce qui fait du journal
+  avant le début du jour du match (00:00 UTC) ; sinon, refus explicite. Une prédiction **déjà tracée**
+  est en revanche renvoyée à toute heure : le refus ne vaut que pour une écriture. C'est ce qui fait du journal
   `live` une évaluation prospective honnête (ADR-0011, règle 6). Une réponse live **indisponible**
   n'est jamais écrite (E-062) : la ligne bloquerait, par idempotence, la prédiction écrite plus tard,
   une fois l'historique complété.
@@ -81,6 +82,10 @@ def save_prediction(
     l'identifiant API non.
     """
     now = now or dt.datetime.now(dt.UTC)
+    # La prédiction déjà tracée se renvoie à toute heure : l'échéance du live n'interdit que d'en écrire une
+    # nouvelle, pas de relire celle d'avant le coup d'envoi (E-068).
+    if not force and (found := existing(session, answer)) is not None:
+        return Saved(found, created=False)
     if answer["mode"] == "live" and now >= live_deadline(answer):
         raise LivePredictionTooLate(
             f"Match {answer['match_id']} : prédiction live refusée après {live_deadline(answer).isoformat()} "
@@ -91,10 +96,6 @@ def save_prediction(
             f"Match {answer['match_id']} : réponse live « {answer['status']} » non écrite ; la prédiction le sera "
             "quand le match sera disponible (une ligne indisponible la bloquerait, l'écriture étant idempotente)."
         )
-    if not force:
-        found = existing(session, answer)
-        if found is not None:
-            return Saved(found, created=False)
     prediction = answer.get("prediction") or {}
     interval = prediction.get("interval") or {}
     variables = answer.get("availability") or []
